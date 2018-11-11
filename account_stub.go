@@ -18,13 +18,15 @@ const AccountsFetchSize = 20
 
 // AccountStub _
 type AccountStub struct {
-	stub shim.ChaincodeStubInterface
+	stub  shim.ChaincodeStubInterface
+	token string
 }
 
 // NewAccountStub _
-func NewAccountStub(stub shim.ChaincodeStubInterface) *AccountStub {
+func NewAccountStub(stub shim.ChaincodeStubInterface, tokenCode string) *AccountStub {
 	ab := &AccountStub{}
 	ab.stub = stub
+	ab.token = tokenCode
 	return ab
 }
 
@@ -34,38 +36,46 @@ func (ab *AccountStub) CreateKey(addr string) string {
 }
 
 // CreateAccount _
-func (ab *AccountStub) CreateAccount(tokenCode, kid string) (*Account, error) {
+func (ab *AccountStub) CreateAccount(kid string) (*Account, error) {
 	ts, err := txtime.GetTime(ab.stub)
 	if err != nil {
 		return nil, err
 	}
 
-	addr := NewAddress(tokenCode, AccountTypePersonal, kid)
-	address := addr.String()
+	addr := NewAddress(ab.token, AccountTypePersonal, kid)
 	account, err := ab.GetAccount(addr)
 	if err != nil {
 		if _, ok := err.(NotExistedAccountError); !ok {
 			return nil, errors.Wrap(err, "failed to create an account")
 		}
-		account := NewAccount(tokenCode, kid)
-		account.Address = address
+
+		// create personal account
+		account, _ := NewAccount(addr) // err will not occur
 		account.CreatedTime = ts
 		account.UpdatedTime = ts
 		if err = ab.PutAccount(account); err != nil {
 			return nil, errors.Wrap(err, "failed to create an account")
 		}
+
+		// create account-holder relationship
+		rel := NewAccountHolder(kid, account)
+		rel.CreatedTime = ts
+		if err = ab.PutAccountHolder(rel); err != nil {
+			return nil, errors.Wrap(err, "failed to create an account-holder")
+		}
+
 		return account, nil
 	}
 
 	if account.GetID() != kid { // CRITICAL : hash collision
-		logger.Criticalf("account address collision: %s, %s", kid, address)
+		logger.Criticalf("account address collision: %s, %s", kid, addr.String())
 		return nil, errors.New("hash collision: need to change username from CA")
 	}
-	return nil, ExistedAccountError{address}
+	return nil, ExistedAccountError{addr.String()}
 }
 
 // CreateJointAccount _
-func (ab *AccountStub) CreateJointAccount(tokenCode string, holders stringset.Set) (*JointAccount, error) {
+func (ab *AccountStub) CreateJointAccount(holders *stringset.Set) (*JointAccount, error) {
 	ts, err := txtime.GetTime(ab.stub)
 	if err != nil {
 		return nil, err
@@ -76,19 +86,30 @@ func (ab *AccountStub) CreateJointAccount(tokenCode string, holders stringset.Se
 	sha3.ShakeSum256(h, []byte(ab.stub.GetTxID()))
 	id := hex.EncodeToString(h)
 
-	addr := NewAddress(tokenCode, AccountTypeJoint, id)
+	addr := NewAddress(ab.token, AccountTypeJoint, id)
 	_, err = ab.GetAccount(addr)
 	if err != nil {
 		if _, ok := err.(NotExistedAccountError); !ok {
 			return nil, errors.Wrap(err, "failed to create an account")
 		}
-		account := NewJointAccount(tokenCode, id, holders)
-		account.Address = addr.String()
+
+		// create joint account
+		account, _ := NewJointAccount(addr, holders) // err will not occur
 		account.CreatedTime = ts
 		account.UpdatedTime = ts
 		if err = ab.PutAccount(account); err != nil {
 			return nil, errors.Wrap(err, "failed to create an account")
 		}
+
+		// cretae account-holder relationship
+		for kid := range *holders {
+			rel := NewAccountHolder(kid, account)
+			rel.CreatedTime = ts
+			if err = ab.PutAccountHolder(rel); err != nil {
+				return nil, errors.Wrap(err, "failed to create an account-holder")
+			}
+		}
+
 		return account, nil
 	}
 
@@ -125,8 +146,8 @@ func (ab *AccountStub) GetAccount(addr *Address) (AccountInterface, error) {
 }
 
 // GetQueryMainAccount retrieves the main(personal) account by a token code and an ID(KID)
-func (ab *AccountStub) GetQueryMainAccount(tokenCode, id string) ([]byte, error) {
-	query := CreateQueryMainAccountByIDAndTokenCode(tokenCode, id)
+func (ab *AccountStub) GetQueryMainAccount(kid string) ([]byte, error) {
+	query := CreateQueryPersonalAccountByIDAndTokenCode(kid, ab.token)
 	iter, err := ab.stub.GetQueryResult(query)
 	if err != nil {
 		return nil, err
@@ -142,13 +163,13 @@ func (ab *AccountStub) GetQueryMainAccount(tokenCode, id string) ([]byte, error)
 	return nil, NotExistedAccountError{}
 }
 
-// GetQueryAccountsResult _
-func (ab *AccountStub) GetQueryAccountsResult(tokenCode string, id string, bookmark string) (*QueryResult, error) {
+// GetQueryHolderAccounts _
+func (ab *AccountStub) GetQueryHolderAccounts(kid, bookmark string) (*QueryResult, error) {
 	var query string
-	if len(tokenCode) > 0 {
-		query = CreateQueryAccountsByIDAndTokenCode(tokenCode, id)
+	if len(ab.token) > 0 {
+		query = CreateQueryAccountHoldersByIDAndTokenCode(kid, ab.token)
 	} else {
-		query = CreateQueryAccountsByID(id)
+		query = CreateQueryAccountHoldersByID(kid)
 	}
 	iter, meta, err := ab.stub.GetQueryResultWithPagination(query, AccountsFetchSize, bookmark)
 	if err != nil {
@@ -164,6 +185,9 @@ func (ab *AccountStub) GetSignableID(addr string) (string, error) {
 	_addr, err := ParseAddress(addr)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to parse the account address: %s", addr)
+	}
+	if _addr.Code != ab.token {
+		return "", errors.Errorf("invalid co-holder's address (mismatched token): %s", addr)
 	}
 	if _addr.Type != AccountTypePersonal {
 		return "", errors.Errorf("invalid co-holder's address (must be personal account address): %s", addr)
@@ -185,6 +209,25 @@ func (ab *AccountStub) PutAccount(account AccountInterface) error {
 	err = ab.stub.PutState(ab.CreateKey(account.GetAddress()), data)
 	if err != nil {
 		return errors.Wrap(err, "failed to put the account state")
+	}
+	return nil
+}
+
+// CreateAccountHolderKey _
+func (ab *AccountStub) CreateAccountHolderKey(rel *AccountHolder) string {
+	return "ACC_HLD_" + rel.DOCTYPEID + "_" + rel.Account.Address
+}
+
+// PutAccountHolder _
+func (ab *AccountStub) PutAccountHolder(rel *AccountHolder) error {
+	data, err := json.Marshal(rel)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal the account-holder")
+	}
+
+	err = ab.stub.PutState(ab.CreateAccountHolderKey(rel), data)
+	if err != nil {
+		return errors.Wrap(err, "failed to put the account-holder state")
 	}
 	return nil
 }

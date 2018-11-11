@@ -15,9 +15,10 @@ import (
 
 // Address _
 type Address struct {
-	Code string
-	Type AccountType
-	Hash []byte
+	Code  string
+	Type  AccountType
+	Hash  []byte
+	RawID string
 }
 
 // NewAddress _
@@ -26,6 +27,7 @@ func NewAddress(tokenCode string, typeCode AccountType, id string) *Address {
 	addr.Code = tokenCode
 	addr.Type = typeCode
 	addr.Hash = addr.CreateHash(id)
+	addr.RawID = id
 	return addr
 }
 

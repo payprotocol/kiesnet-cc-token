@@ -9,7 +9,7 @@ import (
 
 // Balance _
 type Balance struct {
-	DOCTYPEID   string     `json:"@balance"` // account id
+	DOCTYPEID   string     `json:"@balance"`
 	Amount      big.Int    `json:"amount,string"`
 	CreatedTime *time.Time `json:"created_time,omitempty"`
 	UpdatedTime *time.Time `json:"updated_time,omitempty"`

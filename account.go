@@ -6,12 +6,15 @@ import (
 	"time"
 
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
+	"github.com/pkg/errors"
 )
 
 // AccountInterface _
 type AccountInterface interface {
 	GetAddress() string
 	GetID() string
+	GetToken() string
+	GetType() AccountType
 }
 
 // AccountType _
@@ -47,29 +50,73 @@ func (a Account) GetID() string {
 	return a.DOCTYPEID
 }
 
+// GetToken implements AccountInterface
+func (a Account) GetToken() string {
+	return a.Token
+}
+
+// GetType implements AccountInterface
+func (a Account) GetType() AccountType {
+	return a.Type
+}
+
 // NewAccount _
-func NewAccount(tokenCode, kid string) *Account {
+func NewAccount(addr *Address) (*Account, error) {
+	if addr.Type != AccountTypePersonal {
+		return nil, errors.New("invalid account type address")
+	}
 	account := &Account{}
-	account.DOCTYPEID = kid
-	account.Token = tokenCode
-	account.Type = AccountTypePersonal
-	return account
+	account.DOCTYPEID = addr.RawID
+	account.Address = addr.String()
+	account.Token = addr.Code
+	account.Type = addr.Type
+	return account, nil
 }
 
 // JointAccount _
 type JointAccount struct {
 	Account
-	Holders stringset.Set `json:"holders"`
+	Holders *stringset.Set `json:"holders"`
 }
 
 // NewJointAccount _
-func NewJointAccount(tokenCode, id string, holders stringset.Set) *JointAccount {
+func NewJointAccount(addr *Address, holders *stringset.Set) (*JointAccount, error) {
+	if addr.Type != AccountTypeJoint {
+		return nil, errors.New("invalid account type address")
+	}
 	account := &JointAccount{}
-	account.DOCTYPEID = id
-	account.Token = tokenCode
-	account.Type = AccountTypeJoint
+	account.DOCTYPEID = addr.RawID
+	account.Address = addr.String()
+	account.Token = addr.Code
+	account.Type = addr.Type
 	account.Holders = holders
-	return account
+	return account, nil
+}
+
+// AccountRM (Account Relation Meta)
+type AccountRM struct {
+	Address string      `json:"address"`
+	Token   string      `json:"token"`
+	Type    AccountType `json:"type"`
+}
+
+// AccountHolder represents an account-holder relationship (many-to-many)
+type AccountHolder struct {
+	DOCTYPEID   string     `json:"@account_holder"`
+	Account     *AccountRM `json:"account"`
+	CreatedTime *time.Time `json:"created_time,omitempty"`
+}
+
+// NewAccountHolder _
+func NewAccountHolder(kid string, account AccountInterface) *AccountHolder {
+	rel := &AccountHolder{}
+	rel.DOCTYPEID = kid
+	rel.Account = &AccountRM{
+		account.GetAddress(),
+		account.GetToken(),
+		account.GetType(),
+	}
+	return rel
 }
 
 // IsHeldBy _

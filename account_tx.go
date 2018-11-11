@@ -10,6 +10,7 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
 )
 
+// information of the account
 // params[0] : token code | account address
 func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) != 1 {
@@ -21,11 +22,12 @@ func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response
 		return shim.Error(err.Error())
 	}
 
-	ab := NewAccountStub(stub)
+	var ab *AccountStub
 
 	code, err := ValidateTokenCode(params[0])
 	if nil == err { // by token code
-		data, err := ab.GetQueryMainAccount(code, kid)
+		ab = NewAccountStub(stub, code)
+		data, err := ab.GetQueryMainAccount(kid)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to get the account")
@@ -40,6 +42,7 @@ func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response
 		logger.Debug(err.Error())
 		return shim.Error("failed to parse the account address")
 	}
+	ab = NewAccountStub(stub, addr.Code)
 	account, err := ab.GetAccount(addr)
 	if err != nil {
 		logger.Debug(err.Error())
@@ -48,6 +51,7 @@ func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response
 	return responseAccount(account)
 }
 
+// list of account's addresses
 // params[0] : "" | token code
 // params[1] : bookmark
 // ISSUE: list by an account address (privacy problem)
@@ -57,30 +61,31 @@ func accountList(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		return shim.Error(err.Error())
 	}
 
-	ab := NewAccountStub(stub)
-
 	code := ""
 	bookmark := ""
 	if len(params) > 0 {
-		code, err = ValidateTokenCode(params[0])
-		if err != nil {
-			return shim.Error(err.Error())
+		if len(params[0]) > 0 {
+			code, err = ValidateTokenCode(params[0])
+			if err != nil {
+				return shim.Error(err.Error())
+			}
 		}
 		if len(params) > 1 {
 			bookmark = params[1]
 		}
 	}
 
-	res, err := ab.GetQueryAccountsResult(code, kid, bookmark)
+	ab := NewAccountStub(stub, code)
+	res, err := ab.GetQueryHolderAccounts(kid, bookmark)
 	if err != nil {
 		logger.Debug(err.Error())
-		return shim.Error("failed to get account list")
+		return shim.Error("failed to get account addresses list")
 	}
 
 	data, err := json.Marshal(res)
 	if err != nil {
 		logger.Debug(err.Error())
-		return shim.Error("failed to marshal account list")
+		return shim.Error("failed to marshal account addresses list")
 	}
 	return shim.Success(data)
 }
@@ -124,10 +129,12 @@ func accountNew(stub shim.ChaincodeStubInterface, params []string) peer.Response
 		return shim.Error(err.Error())
 	}
 
-	ab := NewAccountStub(stub)
+	ab := NewAccountStub(stub, code)
+
+	// TODO: check token issued
 
 	if len(params) < 2 { // personal account
-		account, err := ab.CreateAccount(code, kid)
+		account, err := ab.CreateAccount(kid)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
@@ -135,10 +142,18 @@ func accountNew(stub shim.ChaincodeStubInterface, params []string) peer.Response
 	}
 
 	// joint account
-	addrs := stringset.New(params[1:]...).Strings() // remove duplication
-	holders := stringset.New(kid)                   // KIDs
+
+	// check invoker's main account
+	_, err = ab.GetQueryMainAccount(kid)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get invoker's personal account")
+	}
+	holders := stringset.New(kid) // KIDs
+
+	addrs := *stringset.New(params[1:]...) // remove duplication
 	// validate co-holders
-	for _, addr := range addrs {
+	for addr := range addrs {
 		holder, err := ab.GetSignableID(addr)
 		if err != nil {
 			return shim.Error(err.Error())
@@ -147,11 +162,11 @@ func accountNew(stub shim.ChaincodeStubInterface, params []string) peer.Response
 	}
 
 	if holders.Size() < 2 {
-		return shim.Error("joint account needs more then 0 co-holders")
+		return shim.Error("joint account needs co-holders")
 	}
 
 	// TODO: contract
-	account, err := ab.CreateJointAccount(code, *holders)
+	account, err := ab.CreateJointAccount(holders)
 	if err != nil {
 		return shim.Error(err.Error())
 	}

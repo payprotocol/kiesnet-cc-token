@@ -4,83 +4,47 @@ package main
 
 import "fmt"
 
-// TODO: indexing
-
-// QueryMainAccountByIDAndTokenCode _
-/*
-{
+// QueryPersonalAccountByIDAndTokenCode _
+const QueryPersonalAccountByIDAndTokenCode = `{
 	"selector": {
 		"@account": "%s",
 		"token": "%s",
 		"type": 1
 	},
 	"limit": 1,
-	"use_index": "TODO"
-}
-*/
-const QueryMainAccountByIDAndTokenCode = `{"selector":{"@account":"%s","token":"%s","type":1},"limit":1}`
+	"use_index": ["account", "personal"]
+}`
 
-// CreateQueryMainAccountByIDAndTokenCode _
-func CreateQueryMainAccountByIDAndTokenCode(tokenCode, id string) string {
-	return fmt.Sprintf(QueryMainAccountByIDAndTokenCode, id, tokenCode)
+// CreateQueryPersonalAccountByIDAndTokenCode _
+func CreateQueryPersonalAccountByIDAndTokenCode(id, tokenCode string) string {
+	return fmt.Sprintf(QueryPersonalAccountByIDAndTokenCode, id, tokenCode)
 }
 
-// QueryAccountsByID _
-/*
-{
+// QueryAccountHoldersByID _
+const QueryAccountHoldersByID = `{
 	"selector": {
-		"$or": [
-			{
-				"@account": "%s",
-				"type": 1
-			},
-			{
-				"type": 2,
-				"holders": {
-					"$elemMatch": {
-						"$eq": "%s"
-					}
-				}
-			}
-		]
+		"@account_holder": "%s"
 	},
-	"use_index": "TODO"
-}
-*/
-const QueryAccountsByID = `{"selector":{"$or":[{"@account":"%s","type":1},{"type":2,"holders":{"$elemMatch":{"$eq":"%s"}}}]}}`
+	"sort": ["@account_holder", "account.token", "account.type"],
+	"use_index": ["account", "account-holder"]
+}`
 
-// CreateQueryAccountsByID _
-func CreateQueryAccountsByID(id string) string {
-	return fmt.Sprintf(QueryAccountsByID, id, id)
+// CreateQueryAccountHoldersByID _
+func CreateQueryAccountHoldersByID(id string) string {
+	return fmt.Sprintf(QueryAccountHoldersByID, id)
 }
 
-// QueryAccountsByIDAndTokenCode _
-/*
-{
+// QueryAccountHoldersByIDAndTokenCode _
+const QueryAccountHoldersByIDAndTokenCode = `{
 	"selector": {
-		"$or": [
-			{
-				"@account": "%s",
-				"token": "%s",
-				"type": 1
-			},
-			{
-				"token": "%s",
-				"type": 2,
-				"holders": {
-					"$elemMatch": {
-						"$eq": "%s"
-					}
-				}
-			}
-		]
+		"@account_holder": "%s",
+		"account.token": "%s"
 	},
-	"use_index": "TODO"
-}
-*/
-const QueryAccountsByIDAndTokenCode = `{"selector":{"$or":[{"@account":"%s","token":"%s","type":1},{"token":"%s","type":2,"holders":{"$elemMatch":{"$eq":"%s"}}}]}}`
+	"sort": ["@account_holder", "account.token", "account.type"],
+	"use_index": ["account", "account-holder"]
+}`
 
-// CreateQueryAccountsByIDAndTokenCode _
-func CreateQueryAccountsByIDAndTokenCode(tokenCode, id string) string {
-	return fmt.Sprintf(QueryAccountsByIDAndTokenCode, id, tokenCode, tokenCode, id)
+// CreateQueryAccountHoldersByIDAndTokenCode _
+func CreateQueryAccountHoldersByIDAndTokenCode(id, tokenCode string) string {
+	return fmt.Sprintf(QueryAccountHoldersByIDAndTokenCode, id, tokenCode)
 }

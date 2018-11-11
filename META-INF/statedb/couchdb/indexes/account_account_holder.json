@@ -1,0 +1,8 @@
+{
+    "index": {
+        "fields": [ "@account_holder", "account.token", "account.type" ]
+    },
+    "ddoc": "account",
+    "name": "account-holder",
+    "type": "json"
+}

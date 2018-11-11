@@ -75,7 +75,7 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	holders := stringset.New(kid)
 	if len(params) > 4 {
 		addrs := stringset.New(params[4:]...).Strings() // remove duplication
-		ab := NewAccountStub(stub)
+		ab := NewAccountStub(stub, code)
 		// validate co-holders
 		for _, addr := range addrs {
 			holder, err := ab.GetSignableID(addr)
