@@ -24,10 +24,10 @@ type AccountStub struct {
 
 // NewAccountStub _
 func NewAccountStub(stub shim.ChaincodeStubInterface, tokenCode string) *AccountStub {
-	ab := &AccountStub{}
-	ab.stub = stub
-	ab.token = tokenCode
-	return ab
+	return &AccountStub{
+		stub:  stub,
+		token: tokenCode,
+	}
 }
 
 // CreateKey _
@@ -67,7 +67,7 @@ func (ab *AccountStub) CreateAccount(kid string) (*Account, error) {
 		return account, nil
 	}
 
-	if account.GetID() != kid { // CRITICAL : hash collision
+	if account.GetID() != kid { // CRITICAL: hash collision
 		logger.Criticalf("account address collision: %s, %s", kid, addr.String())
 		return nil, errors.New("hash collision: need to change username from CA")
 	}
@@ -75,7 +75,7 @@ func (ab *AccountStub) CreateAccount(kid string) (*Account, error) {
 }
 
 // CreateJointAccount _
-func (ab *AccountStub) CreateJointAccount(holders *stringset.Set) (*JointAccount, error) {
+func (ab *AccountStub) CreateJointAccount(holders stringset.Set) (*JointAccount, error) {
 	ts, err := txtime.GetTime(ab.stub)
 	if err != nil {
 		return nil, err
@@ -87,8 +87,7 @@ func (ab *AccountStub) CreateJointAccount(holders *stringset.Set) (*JointAccount
 	id := hex.EncodeToString(h)
 
 	addr := NewAddress(ab.token, AccountTypeJoint, id)
-	_, err = ab.GetAccount(addr)
-	if err != nil {
+	if _, err = ab.GetAccount(addr); err != nil {
 		if _, ok := err.(NotExistedAccountError); !ok {
 			return nil, errors.Wrap(err, "failed to create an account")
 		}
@@ -102,7 +101,7 @@ func (ab *AccountStub) CreateJointAccount(holders *stringset.Set) (*JointAccount
 		}
 
 		// cretae account-holder relationship
-		for kid := range *holders {
+		for kid := range holders {
 			rel := NewAccountHolder(kid, account)
 			rel.CreatedTime = ts
 			if err = ab.PutAccountHolder(rel); err != nil {
@@ -119,34 +118,57 @@ func (ab *AccountStub) CreateJointAccount(holders *stringset.Set) (*JointAccount
 
 // GetAccount retrieves the account by an address
 // An address is hash string, so, it can be collided.
-// To retrieve the account of a specific KID, use GetQueryAccount.
+// To retrieve the account of a specific KID, use GetPersonalAccount or GetQueryPersonalAccount.
 func (ab *AccountStub) GetAccount(addr *Address) (AccountInterface, error) {
+	data, err := ab.GetAccountState(addr)
+	if err != nil {
+		return nil, err
+	}
+	// data is not nil
+	var account AccountInterface
+	switch addr.Type {
+	case AccountTypePersonal:
+		account = &Account{}
+	case AccountTypeJoint:
+		account = &JointAccount{}
+	default: // never here (addr has been validated)
+		return nil, InvalidAccountAddrError{}
+	}
+	if err = json.Unmarshal(data, account); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal the account")
+	}
+	return account, nil
+}
+
+// GetAccountState _
+func (ab *AccountStub) GetAccountState(addr *Address) ([]byte, error) {
 	address := addr.String()
 	data, err := ab.stub.GetState(ab.CreateKey(address))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the account state")
 	}
-
 	if data != nil {
-		var account AccountInterface
-		switch addr.Type {
-		case AccountTypePersonal:
-			account = &Account{}
-		case AccountTypeJoint:
-			account = &JointAccount{}
-		default: // never here (addr has been validated)
-			return nil, InvalidAccountAddrError{}
-		}
-		if err = json.Unmarshal(data, account); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal the account")
-		}
-		return account, nil
+		return data, nil
 	}
 	return nil, NotExistedAccountError{address}
 }
 
-// GetQueryMainAccount retrieves the main(personal) account by a token code and an ID(KID)
-func (ab *AccountStub) GetQueryMainAccount(kid string) ([]byte, error) {
+// GetPersonalAccount retrieves the main(personal) account by a token code and an ID(KID)
+func (ab *AccountStub) GetPersonalAccount(kid string) (AccountInterface, error) {
+	data, err := ab.GetQueryPersonalAccount(kid)
+	if err != nil {
+		return nil, err
+	}
+	// data is not nil
+	account := &Account{}
+	if err = json.Unmarshal(data, account); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal the account")
+	}
+	return account, nil
+}
+
+// GetQueryPersonalAccount retrieves the main(personal) account by a token code and an ID(KID)
+func (ab *AccountStub) GetQueryPersonalAccount(kid string) ([]byte, error) {
 	query := CreateQueryPersonalAccountByIDAndTokenCode(kid, ab.token)
 	iter, err := ab.stub.GetQueryResult(query)
 	if err != nil {
@@ -205,9 +227,7 @@ func (ab *AccountStub) PutAccount(account AccountInterface) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the account")
 	}
-
-	err = ab.stub.PutState(ab.CreateKey(account.GetAddress()), data)
-	if err != nil {
+	if err = ab.stub.PutState(ab.CreateKey(account.GetAddress()), data); err != nil {
 		return errors.Wrap(err, "failed to put the account state")
 	}
 	return nil
@@ -224,9 +244,7 @@ func (ab *AccountStub) PutAccountHolder(rel *AccountHolder) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the account-holder")
 	}
-
-	err = ab.stub.PutState(ab.CreateAccountHolderKey(rel), data)
-	if err != nil {
+	if err = ab.stub.PutState(ab.CreateAccountHolderKey(rel), data); err != nil {
 		return errors.Wrap(err, "failed to put the account-holder state")
 	}
 	return nil

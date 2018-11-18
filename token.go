@@ -3,7 +3,6 @@
 package main
 
 import (
-	"math/big"
 	"regexp"
 	"strings"
 	"time"
@@ -27,8 +26,8 @@ type Token struct {
 	DOCTYPEID        string     `json:"@token"`
 	Code             string     `json:"code" validate:"required,min=3,max=6,alphanum"`
 	Decimal          int        `json:"decimal"`
-	MaxSupply        big.Int    `json:"max_supply,string"`
-	Supply           big.Int    `json:"supply,string"`
+	MaxSupply        Amount     `json:"max_supply"`
+	Supply           Amount     `json:"supply"`
 	GenesisAccountID string     `json:"genesis_account_id"`
 	CreatedTime      *time.Time `json:"created_time,omitempty"`
 	UpdatedTime      *time.Time `json:"updated_time,omitempty"`

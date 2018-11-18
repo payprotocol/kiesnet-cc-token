@@ -15,6 +15,7 @@ type AccountInterface interface {
 	GetID() string
 	GetToken() string
 	GetType() AccountType
+	IsSuspended() bool
 }
 
 // AccountType _
@@ -41,23 +42,28 @@ type Account struct {
 }
 
 // GetAddress implements AccountInterface
-func (a Account) GetAddress() string {
+func (a *Account) GetAddress() string {
 	return a.Address
 }
 
 // GetID implements AccountInterface
-func (a Account) GetID() string {
+func (a *Account) GetID() string {
 	return a.DOCTYPEID
 }
 
 // GetToken implements AccountInterface
-func (a Account) GetToken() string {
+func (a *Account) GetToken() string {
 	return a.Token
 }
 
 // GetType implements AccountInterface
-func (a Account) GetType() AccountType {
+func (a *Account) GetType() AccountType {
 	return a.Type
+}
+
+// IsSuspended implements AccountInterface
+func (a *Account) IsSuspended() bool {
+	return a.SuspendedTime != nil
 }
 
 // NewAccount _
@@ -65,32 +71,34 @@ func NewAccount(addr *Address) (*Account, error) {
 	if addr.Type != AccountTypePersonal {
 		return nil, errors.New("invalid account type address")
 	}
-	account := &Account{}
-	account.DOCTYPEID = addr.RawID
-	account.Address = addr.String()
-	account.Token = addr.Code
-	account.Type = addr.Type
-	return account, nil
+	return &Account{
+		DOCTYPEID: addr.RawID,
+		Address:   addr.String(),
+		Token:     addr.Code,
+		Type:      addr.Type,
+	}, nil
 }
 
 // JointAccount _
 type JointAccount struct {
 	Account
-	Holders *stringset.Set `json:"holders"`
+	Holders stringset.Set `json:"holders"`
 }
 
 // NewJointAccount _
-func NewJointAccount(addr *Address, holders *stringset.Set) (*JointAccount, error) {
+func NewJointAccount(addr *Address, holders stringset.Set) (*JointAccount, error) {
 	if addr.Type != AccountTypeJoint {
 		return nil, errors.New("invalid account type address")
 	}
-	account := &JointAccount{}
-	account.DOCTYPEID = addr.RawID
-	account.Address = addr.String()
-	account.Token = addr.Code
-	account.Type = addr.Type
-	account.Holders = holders
-	return account, nil
+	return &JointAccount{
+		Account: Account{
+			DOCTYPEID: addr.RawID,
+			Address:   addr.String(),
+			Token:     addr.Code,
+			Type:      addr.Type,
+		},
+		Holders: holders,
+	}, nil
 }
 
 // AccountRM (Account Relation Meta)
@@ -103,20 +111,20 @@ type AccountRM struct {
 // AccountHolder represents an account-holder relationship (many-to-many)
 type AccountHolder struct {
 	DOCTYPEID   string     `json:"@account_holder"`
-	Account     *AccountRM `json:"account"`
+	Account     AccountRM  `json:"account"`
 	CreatedTime *time.Time `json:"created_time,omitempty"`
 }
 
 // NewAccountHolder _
 func NewAccountHolder(kid string, account AccountInterface) *AccountHolder {
-	rel := &AccountHolder{}
-	rel.DOCTYPEID = kid
-	rel.Account = &AccountRM{
-		account.GetAddress(),
-		account.GetToken(),
-		account.GetType(),
+	return &AccountHolder{
+		DOCTYPEID: kid,
+		Account: AccountRM{
+			account.GetAddress(),
+			account.GetToken(),
+			account.GetType(),
+		},
 	}
-	return rel
 }
 
 // IsHeldBy _

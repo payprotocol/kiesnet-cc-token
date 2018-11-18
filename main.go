@@ -28,7 +28,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 }
 
 func ver(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	return shim.Success([]byte("kiesnet token v1.0"))
+	return shim.Success([]byte("Kiesnet Token v1.0 created by Key Inside Co., Ltd."))
 }
 
 // TxFunc _
@@ -40,22 +40,24 @@ var routes = map[string]TxFunc{
 	"account/list": accountList,
 	"account/log":  accountLog,
 	"account/new":  accountNew,
+	"token/get":    tokenGet,
+	"token/create": tokenCreate,
+	"transfer":     transfer,
+	"transfer/log": transferLog,
+	"ver":          ver,
 	// "account/update":    accountUpdated,
 	// "account/suspend":   accountSuspend,
 	// "account/unsuspend": accountUnsuspend,
-	"token/get":    tokenGet,
-	"token/create": tokenCreate,
+
 	// "token/mint":   tokenMint,
 	// "token/burn":   tokenBurn,
-	// transfer
-	// transfer/log  records
+
 	// withdraw  withdrawal
 	// withdraw/list
 	// balance/transfer
 	// balance/log
 	// balance/withdraw
 	// balance/withdraw/list
-	"ver": ver,
 }
 
 func main() {

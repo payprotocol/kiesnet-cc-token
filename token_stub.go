@@ -4,7 +4,6 @@ package main
 
 import (
 	"encoding/json"
-	"math/big"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
@@ -18,9 +17,7 @@ type TokenStub struct {
 
 // NewTokenStub _
 func NewTokenStub(stub shim.ChaincodeStubInterface) *TokenStub {
-	tb := &TokenStub{}
-	tb.stub = stub
-	return tb
+	return &TokenStub{stub}
 }
 
 // CreateKey _
@@ -29,7 +26,7 @@ func (tb *TokenStub) CreateKey(code string) string {
 }
 
 // CreateToken _
-func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply *big.Int, holders stringset.Set) (*Token, error) {
+func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply *Amount, holders stringset.Set) (*Token, error) {
 	return nil, nil
 }
 

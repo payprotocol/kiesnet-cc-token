@@ -89,8 +89,7 @@ func (addr *Address) String() string {
 // Validate _
 func (addr *Address) Validate() error {
 	// token code
-	_, err := ValidateTokenCode(addr.Code)
-	if err != nil {
+	if _, err := ValidateTokenCode(addr.Code); err != nil {
 		return InvalidAccountAddrError{"token code"}
 	}
 	// account type

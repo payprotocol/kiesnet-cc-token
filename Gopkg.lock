@@ -2,6 +2,18 @@
 
 
 [[projects]]
+  branch = "master"
+  digest = "1:0290a30302b61d17fc2949fd199e9440332c7bde610545f38318fa78ce797e2b"
+  name = "github.com/key-inside/kiesnet-ccpkg"
+  packages = [
+    "kid",
+    "stringset",
+    "txtime",
+  ]
+  pruneopts = "UT"
+  revision = "8310fb3fa59a1236266914952181ba57e711f52c"
+
+[[projects]]
   digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
   name = "github.com/pkg/errors"
   packages = ["."]
@@ -18,12 +30,15 @@
     "sha3",
   ]
   pruneopts = "UT"
-  revision = "4d3f4d9ffa16a13f451c3b2999e9c49e9750bf06"
+  revision = "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/key-inside/kiesnet-ccpkg/kid",
+    "github.com/key-inside/kiesnet-ccpkg/stringset",
+    "github.com/key-inside/kiesnet-ccpkg/txtime",
     "github.com/pkg/errors",
     "golang.org/x/crypto/ripemd160",
     "golang.org/x/crypto/sha3",
