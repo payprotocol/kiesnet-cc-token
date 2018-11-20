@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strconv"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 // params[1] : receiver address
 // params[2] : amount (big int string)
 // params[3] : memo (max 128 charactors)
-// params[4] : lock-until (time represented by int64 seconds)
+// params[4] : pending time (time represented by int64 seconds)
 // params[5] : expiry (duration represented by int64 seconds, multi-sig only)
 // params[6:] : extra signers (personal account addresses)
 func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
@@ -39,13 +40,47 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("invalid amount. amount must be larger than 0")
 	}
 
-	// receiver
+	// addresses
 	rAddr, err := ParseAddress(params[1])
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to parse the receiver's account address")
 	}
+	var sAddr *Address
+	if len(params[0]) < 0 {
+		sAddr, err = ParseAddress(params[0])
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to parse the sender's account address")
+		}
+		if rAddr.Code != sAddr.Code { // not same token
+			return shim.Error("different token accounts")
+		}
+	} else {
+		sAddr = NewAddress(rAddr.Code, AccountTypePersonal, kid)
+	}
+
+	// IMPORTANT: assert(sender != receiver)
+	if sAddr.Equal(rAddr) {
+		return shim.Error("can't transfer to self")
+	}
+
 	ab := NewAccountStub(stub, rAddr.Code)
+
+	// sender
+	sender, err := ab.GetAccount(sAddr)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the sender account")
+	}
+	if !sender.HasHolder(kid) {
+		return shim.Error("invoker is not holder")
+	}
+	if sender.IsSuspended() {
+		return shim.Error("the sender account is suspended")
+	}
+
+	// receiver
 	receiver, err := ab.GetAccount(rAddr)
 	if err != nil {
 		logger.Debug(err.Error())
@@ -53,35 +88,6 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 	if receiver.IsSuspended() {
 		return shim.Error("the receiver account is suspended")
-	}
-
-	// sender
-	var sAddr *Address
-	var sender AccountInterface
-	if len(params[0]) < 1 { // from personal account
-		sender, err = ab.GetPersonalAccount(kid)
-	} else {
-		sAddr, err = ParseAddress(params[0])
-		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to parse the sender's account address")
-		}
-		if sAddr.Code != rAddr.Code {
-			return shim.Error("different token accounts")
-		}
-		sender, err = ab.GetAccount(sAddr)
-	}
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the sender account")
-	}
-	if sender.IsSuspended() {
-		return shim.Error("the sender account is suspended")
-	}
-
-	// IMPORTANT: assert(sender != receiver)
-	if receiver.GetAddress() == sender.GetAddress() {
-		return shim.Error("can't transfer to self")
 	}
 
 	// sender balance
@@ -104,7 +110,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// options
 	memo := ""
-	var lockUntil time.Time
+	var pendingTime *time.Time
 	var expiry int64
 	signers := stringset.New(kid)
 	if a, ok := sender.(*JointAccount); ok {
@@ -117,13 +123,13 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		} else {
 			memo = params[3]
 		}
-		// lock-until
+		// pending time
 		if len(params) > 4 {
 			seconds, err := strconv.ParseInt(params[4], 10, 64)
 			if err != nil {
-				return shim.Error("invalid timelock: need seconds since 1970")
+				return shim.Error("invalid pending time: need seconds since 1970")
 			}
-			lockUntil = time.Unix(seconds, 0)
+			*pendingTime = time.Unix(seconds, 0)
 			// expiry
 			if len(params) > 5 && len(params[5]) > 0 {
 				expiry, err = strconv.ParseInt(params[5], 10, 64)
@@ -144,7 +150,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			}
 		}
 	}
-	_ = expiry
+	_ = expiry // TODO:
 
 	if signers.Size() > 1 {
 		if signers.Size() > 128 {
@@ -153,10 +159,19 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		// TODO: contract
 	}
 
-	tb := NewTransferStub(stub)
-	tb.Transfer(sBal, rBal, amount, memo, &lockUntil)
+	log, err := bb.Transfer(sBal, rBal, *amount, memo, pendingTime)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to transfer")
+	}
 
-	return shim.Success([]byte("transfer"))
+	data, err := json.Marshal(log)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to marshal the log")
+	}
+
+	return shim.Success(data)
 }
 
 func transferLog(stub shim.ChaincodeStubInterface, params []string) peer.Response {

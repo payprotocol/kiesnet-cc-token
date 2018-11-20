@@ -23,12 +23,9 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0a733d91d2a819c502ba47ecddfd51a9938b3d61213d24d559947aed81230f70"
+  digest = "1:07bed7db52308c8338e0848cde9b26ec6fdab68c6c79ab1098dc728b6a899e45"
   name = "golang.org/x/crypto"
-  packages = [
-    "ripemd160",
-    "sha3",
-  ]
+  packages = ["sha3"]
   pruneopts = "UT"
   revision = "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
 
@@ -40,7 +37,6 @@
     "github.com/key-inside/kiesnet-ccpkg/stringset",
     "github.com/key-inside/kiesnet-ccpkg/txtime",
     "github.com/pkg/errors",
-    "golang.org/x/crypto/ripemd160",
     "golang.org/x/crypto/sha3",
   ]
   solver-name = "gps-cdcl"

@@ -10,6 +10,7 @@ import (
 	"github.com/hyperledger/fabric/protos/peer"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
+	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
 // params[0] : token code
@@ -101,4 +102,54 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		return shim.Error("failed to marshal the token")
 	}
 	return shim.Success(data)
+}
+
+// params[0] : token code
+// params[1] : supply (big int string)
+func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	// TODO:
+
+	// codes below are just for dev...
+	ts, err := txtime.GetTime(stub)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	amount, err := NewAmount(params[1])
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	kid, err := kid.GetID(stub, false)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	code, err := ValidateTokenCode(params[0])
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	addr := NewAddress(code, AccountTypePersonal, kid)
+
+	bb := NewBalanceStub(stub)
+	bal, err := bb.GetBalance(addr.String())
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	bal.Amount.Add(amount)
+	bal.UpdatedTime = ts
+	if err = bb.PutBalance(bal); err != nil {
+		return shim.Error(err.Error())
+	}
+	log := &BalanceLog{
+		DOCTYPEID:   bal.DOCTYPEID,
+		Type:        BalanceLogTypeMint,
+		Diff:        *amount,
+		Amount:      bal.Amount,
+		CreatedTime: ts,
+	}
+	if err = bb.PutBalanceLog(log); err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success([]byte("token/mint - test mint"))
 }

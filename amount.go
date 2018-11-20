@@ -43,10 +43,11 @@ func (a *Amount) Neg() *Amount {
 
 // MarshalJSON override
 func (a *Amount) MarshalJSON() ([]byte, error) {
+	// TODO: why ????
 	return []byte(a.String()), nil
 }
 
-// UnmarshalJSON override
-func (a *Amount) UnmarshalJSON(text []byte) error {
-	return a.UnmarshalJSON(text)
-}
+// // UnmarshalJSON override
+// func (a *Amount) UnmarshalJSON(text []byte) error {
+// 	return a.Int.UnmarshalJSON(text)
+// }

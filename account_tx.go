@@ -162,14 +162,18 @@ func accountNew(stub shim.ChaincodeStubInterface, params []string) peer.Response
 	// joint account
 
 	// check invoker's main(personal) account
-	if _, err = ab.GetQueryPersonalAccount(kid); err != nil {
+	if _, err = ab.GetPersonalAccount(kid); err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get invoker's personal account")
 	}
 
-	holders := stringset.New(kid)         // KIDs
+	holders := stringset.New(kid) // KIDs
+
 	addrs := stringset.New(params[1:]...) // remove duplication
-	// validate co-holders
+	if addrs.Size() > 128 {
+		return shim.Error("too many holders")
+	}
+	// validate & get kid of co-holders
 	for addr := range addrs {
 		holder, err := ab.GetSignableID(addr)
 		if err != nil {
@@ -178,11 +182,8 @@ func accountNew(stub shim.ChaincodeStubInterface, params []string) peer.Response
 		holders.Add(holder)
 	}
 
-	if holders.Size() < 2 {
+	if holders.Size() < 2 { // addrs had invoker's addr
 		return shim.Error("joint account needs co-holders")
-	}
-	if holders.Size() > 128 {
-		return shim.Error("too many holders")
 	}
 
 	// TODO: contract

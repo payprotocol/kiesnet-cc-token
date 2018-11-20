@@ -4,47 +4,31 @@ package main
 
 import "fmt"
 
-// QueryPersonalAccountByIDAndTokenCode _
-const QueryPersonalAccountByIDAndTokenCode = `{
+// QueryHoldersByID _
+const QueryHoldersByID = `{
 	"selector": {
-		"@account": "%s",
-		"token": "%s",
-		"type": 1
+		"@holder": "%s"
 	},
-	"limit": 1,
-	"use_index": ["account", "personal"]
+	"sort": ["@holder", "token", "type"],
+	"use_index": ["account", "holder"]
 }`
 
-// CreateQueryPersonalAccountByIDAndTokenCode _
-func CreateQueryPersonalAccountByIDAndTokenCode(id, tokenCode string) string {
-	return fmt.Sprintf(QueryPersonalAccountByIDAndTokenCode, id, tokenCode)
+// CreateQueryHoldersByID _
+func CreateQueryHoldersByID(id string) string {
+	return fmt.Sprintf(QueryHoldersByID, id)
 }
 
-// QueryAccountHoldersByID _
-const QueryAccountHoldersByID = `{
+// QueryHoldersByIDAndTokenCode _
+const QueryHoldersByIDAndTokenCode = `{
 	"selector": {
-		"@account_holder": "%s"
+		"@holder": "%s",
+		"token": "%s"
 	},
-	"sort": ["@account_holder", "account.token", "account.type"],
-	"use_index": ["account", "account-holder"]
+	"sort": ["@holder", "token", "type"],
+	"use_index": ["account", "holder"]
 }`
 
-// CreateQueryAccountHoldersByID _
-func CreateQueryAccountHoldersByID(id string) string {
-	return fmt.Sprintf(QueryAccountHoldersByID, id)
-}
-
-// QueryAccountHoldersByIDAndTokenCode _
-const QueryAccountHoldersByIDAndTokenCode = `{
-	"selector": {
-		"@account_holder": "%s",
-		"account.token": "%s"
-	},
-	"sort": ["@account_holder", "account.token", "account.type"],
-	"use_index": ["account", "account-holder"]
-}`
-
-// CreateQueryAccountHoldersByIDAndTokenCode _
-func CreateQueryAccountHoldersByIDAndTokenCode(id, tokenCode string) string {
-	return fmt.Sprintf(QueryAccountHoldersByIDAndTokenCode, id, tokenCode)
+// CreateQueryHoldersByIDAndTokenCode _
+func CreateQueryHoldersByIDAndTokenCode(id, tokenCode string) string {
+	return fmt.Sprintf(QueryHoldersByIDAndTokenCode, id, tokenCode)
 }

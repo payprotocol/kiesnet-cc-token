@@ -6,15 +6,14 @@ import (
 	"time"
 
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
-	"github.com/pkg/errors"
 )
 
 // AccountInterface _
 type AccountInterface interface {
-	GetAddress() string
 	GetID() string
 	GetToken() string
 	GetType() AccountType
+	HasHolder(kid string) bool
 	IsSuspended() bool
 }
 
@@ -32,18 +31,12 @@ const (
 
 // Account _
 type Account struct {
-	DOCTYPEID     string      `json:"@account"`
-	Address       string      `json:"address"`
+	DOCTYPEID     string      `json:"@account"` // address
 	Token         string      `json:"token"`
 	Type          AccountType `json:"type"`
 	CreatedTime   *time.Time  `json:"created_time,omitempty"`
 	UpdatedTime   *time.Time  `json:"updated_time,omitempty"`
 	SuspendedTime *time.Time  `json:"suspended_time,omitempty"`
-}
-
-// GetAddress implements AccountInterface
-func (a *Account) GetAddress() string {
-	return a.Address
 }
 
 // GetID implements AccountInterface
@@ -61,22 +54,15 @@ func (a *Account) GetType() AccountType {
 	return a.Type
 }
 
+// HasHolder implements AccountInterface
+func (a *Account) HasHolder(kid string) bool {
+	i := len(a.DOCTYPEID) - 48
+	return a.DOCTYPEID[i:i+40] == kid
+}
+
 // IsSuspended implements AccountInterface
 func (a *Account) IsSuspended() bool {
 	return a.SuspendedTime != nil
-}
-
-// NewAccount _
-func NewAccount(addr *Address) (*Account, error) {
-	if addr.Type != AccountTypePersonal {
-		return nil, errors.New("invalid account type address")
-	}
-	return &Account{
-		DOCTYPEID: addr.RawID,
-		Address:   addr.String(),
-		Token:     addr.Code,
-		Type:      addr.Type,
-	}, nil
 }
 
 // JointAccount _
@@ -85,53 +71,26 @@ type JointAccount struct {
 	Holders stringset.Set `json:"holders"`
 }
 
-// NewJointAccount _
-func NewJointAccount(addr *Address, holders stringset.Set) (*JointAccount, error) {
-	if addr.Type != AccountTypeJoint {
-		return nil, errors.New("invalid account type address")
-	}
-	return &JointAccount{
-		Account: Account{
-			DOCTYPEID: addr.RawID,
-			Address:   addr.String(),
-			Token:     addr.Code,
-			Type:      addr.Type,
-		},
-		Holders: holders,
-	}, nil
+// HasHolder implements AccountInterface
+func (a *JointAccount) HasHolder(kid string) bool {
+	return a.Holders[kid]
 }
 
-// AccountRM (Account Relation Meta)
-type AccountRM struct {
-	Address string      `json:"address"`
-	Token   string      `json:"token"`
-	Type    AccountType `json:"type"`
+// Holder represents an account-holder relationship (many-to-many)
+type Holder struct {
+	DOCTYPEID   string      `json:"@holder"`
+	Address     string      `json:"address"`
+	Token       string      `json:"token"`
+	Type        AccountType `json:"type"`
+	CreatedTime *time.Time  `json:"created_time,omitempty"`
 }
 
-// AccountHolder represents an account-holder relationship (many-to-many)
-type AccountHolder struct {
-	DOCTYPEID   string     `json:"@account_holder"`
-	Account     AccountRM  `json:"account"`
-	CreatedTime *time.Time `json:"created_time,omitempty"`
-}
-
-// NewAccountHolder _
-func NewAccountHolder(kid string, account AccountInterface) *AccountHolder {
-	return &AccountHolder{
+// NewHolder _
+func NewHolder(kid string, account AccountInterface) *Holder {
+	return &Holder{
 		DOCTYPEID: kid,
-		Account: AccountRM{
-			account.GetAddress(),
-			account.GetToken(),
-			account.GetType(),
-		},
+		Address:   account.GetID(),
+		Token:     account.GetToken(),
+		Type:      account.GetType(),
 	}
 }
-
-// IsHeldBy _
-// func (a *JointAccount) IsHeldBy(id string) bool {
-// 	return a.Holders[id]
-// }
-
-// func (a *Account) IsHeldBy(kid string) bool {
-// 	return a.DOCTYPEID == kid
-// }

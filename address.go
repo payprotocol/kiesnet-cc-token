@@ -9,16 +9,14 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/ripemd160"
 	"golang.org/x/crypto/sha3"
 )
 
 // Address _
 type Address struct {
-	Code  string
-	Type  AccountType
-	Hash  []byte
-	RawID string
+	Code string
+	Type AccountType
+	Hash []byte
 }
 
 // NewAddress _
@@ -26,8 +24,18 @@ func NewAddress(tokenCode string, typeCode AccountType, id string) *Address {
 	addr := &Address{}
 	addr.Code = tokenCode
 	addr.Type = typeCode
-	addr.Hash = addr.CreateHash(id)
-	addr.RawID = id
+
+	idh, err := hex.DecodeString(id)
+	if err != nil { // not hex string
+		idh = make([]byte, 20)
+		sha3.ShakeSum256(idh, []byte(id))
+	}
+
+	// add checksum to hash
+	buf := bytes.NewBuffer(idh)
+	buf.Write(addr.Checksum(idh))
+	addr.Hash = buf.Bytes()
+
 	return addr
 }
 
@@ -61,23 +69,14 @@ func (addr *Address) Checksum(hash []byte) []byte {
 	buf := bytes.NewBuffer([]byte(addr.Code))
 	buf.WriteByte(byte(addr.Type))
 	buf.Write(hash)
-	h := make([]byte, 32)
+	h := make([]byte, 4)
 	sha3.ShakeSum256(h, buf.Bytes())
-	return h[:4]
+	return h
 }
 
-// CreateHash _
-func (addr *Address) CreateHash(id string) []byte {
-	rmd := ripemd160.New()
-	rmd.Reset()
-	rmd.Write([]byte(addr.Code))
-	rmd.Write([]byte{byte(addr.Type)})
-	rmd.Write([]byte(id))
-	rh := rmd.Sum(nil)
-
-	buf := bytes.NewBuffer(rh)
-	buf.Write(addr.Checksum(rh))
-	return buf.Bytes() // 28 bytes
+// Equal _
+func (addr *Address) Equal(a *Address) bool {
+	return addr.Code == a.Code && addr.Type == a.Type && bytes.Equal(addr.Hash, a.Hash)
 }
 
 // String _
