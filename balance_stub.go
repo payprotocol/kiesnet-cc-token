@@ -12,6 +12,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// BalanceLogsFetchSize _
+const BalanceLogsFetchSize = 20
+
+// PendingBalancesFetchSize _
+const PendingBalancesFetchSize = 20
+
 // BalanceStub _
 type BalanceStub struct {
 	stub shim.ChaincodeStubInterface
@@ -73,6 +79,18 @@ func (bb *BalanceStub) GetBalanceState(id string) ([]byte, error) {
 	return nil, errors.New("balance is not exists")
 }
 
+// GetQueryBalanceLogs _
+func (bb *BalanceStub) GetQueryBalanceLogs(id, bookmark string) (*QueryResult, error) {
+	query := CreateQueryBalanceLogsByID(id)
+	iter, meta, err := bb.stub.GetQueryResultWithPagination(query, BalanceLogsFetchSize, bookmark)
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close()
+
+	return NewQueryResult(meta, iter)
+}
+
 // PutBalance _
 func (bb *BalanceStub) PutBalance(balance *Balance) error {
 	data, err := json.Marshal(balance)
@@ -86,8 +104,8 @@ func (bb *BalanceStub) PutBalance(balance *Balance) error {
 }
 
 // CreateLogKey _
-func (bb *BalanceStub) CreateLogKey(log *BalanceLog) string {
-	return fmt.Sprintf("BLOG_%s_%d", log.DOCTYPEID, log.CreatedTime.UnixNano())
+func (bb *BalanceStub) CreateLogKey(id string, seq int64) string {
+	return fmt.Sprintf("BLOG_%s_%d", id, seq)
 }
 
 // PutBalanceLog _
@@ -96,15 +114,43 @@ func (bb *BalanceStub) PutBalanceLog(log *BalanceLog) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the balance log")
 	}
-	if err = bb.stub.PutState(bb.CreateLogKey(log), data); err != nil {
+	if err = bb.stub.PutState(bb.CreateLogKey(log.DOCTYPEID, log.CreatedTime.UnixNano()), data); err != nil {
 		return errors.Wrap(err, "failed to put the balance log state")
 	}
 	return nil
 }
 
 // CreatePendingKey _
-func (bb *BalanceStub) CreatePendingKey(balance *PendingBalance) string {
-	return fmt.Sprintf("PBLC_%s_%d", balance.DOCTYPEID, balance.CreatedTime.UnixNano())
+func (bb *BalanceStub) CreatePendingKey(id string) string {
+	return "PBLC_" + id
+}
+
+// GetPendingBalance _
+func (bb *BalanceStub) GetPendingBalance(id string) (*PendingBalance, error) {
+	data, err := bb.stub.GetState(bb.CreatePendingKey(id))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the pending balance state")
+	}
+	if data != nil {
+		balance := &PendingBalance{}
+		if err = json.Unmarshal(data, balance); err != nil {
+			return nil, errors.Wrap(err, "failed to unmarshal the balance")
+		}
+		return balance, nil
+	}
+	return nil, errors.New("the pending balance is not exists")
+}
+
+// GetQueryPendingBalances _
+func (bb *BalanceStub) GetQueryPendingBalances(addr, sort, bookmark string) (*QueryResult, error) {
+	query := CreateQueryPendingBalancesByAddress(addr, sort)
+	iter, meta, err := bb.stub.GetQueryResultWithPagination(query, PendingBalancesFetchSize, bookmark)
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close()
+
+	return NewQueryResult(meta, iter)
 }
 
 // PutPendingBalance _
@@ -113,7 +159,7 @@ func (bb *BalanceStub) PutPendingBalance(balance *PendingBalance) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the pending balance")
 	}
-	if err = bb.stub.PutState(bb.CreatePendingKey(balance), data); err != nil {
+	if err = bb.stub.PutState(bb.CreatePendingKey(balance.DOCTYPEID), data); err != nil {
 		return errors.Wrap(err, "failed to put the pending balance state")
 	}
 	return nil
@@ -126,9 +172,11 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 		return nil, err
 	}
 
-	if pendingTime != nil && pendingTime.Before(*ts) { // time lock
+	if pendingTime != nil && pendingTime.After(*ts) { // time lock
+		id := receiver.DOCTYPEID + "_" + bb.stub.GetTxID()
 		pb := &PendingBalance{
-			DOCTYPEID:   receiver.DOCTYPEID,
+			DOCTYPEID:   id,
+			Account:     receiver.DOCTYPEID,
 			RID:         sender.DOCTYPEID,
 			Amount:      amount,
 			Memo:        memo,
@@ -178,4 +226,44 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 	}
 
 	return sbl, nil
+}
+
+// Withdraw _
+func (bb *BalanceStub) Withdraw(pb *PendingBalance) (*BalanceLog, error) {
+	ts, err := txtime.GetTime(bb.stub)
+	if err != nil {
+		return nil, err
+	}
+	// if pb.PendingTime.After(*ts) {	<-- checked already
+	// 	return nil, errors.New("too early to withdraw")
+	// }
+
+	bal, err := bb.GetBalance(pb.Account)
+	if err != nil {
+		return nil, err
+	}
+	bal.Amount.Add(&pb.Amount)
+	bal.UpdatedTime = ts
+	if err = bb.PutBalance(bal); err != nil {
+		return nil, err
+	}
+	log := &BalanceLog{
+		DOCTYPEID:   bal.DOCTYPEID,
+		Type:        BalanceLogTypeWithdraw,
+		RID:         pb.RID,
+		Diff:        pb.Amount,
+		Amount:      bal.Amount,
+		Memo:        pb.Memo,
+		CreatedTime: ts,
+	}
+	if err = bb.PutBalanceLog(log); err != nil {
+		return nil, err
+	}
+
+	// remove pending balance
+	if err = bb.stub.DelState(bb.CreatePendingKey(pb.DOCTYPEID)); err != nil {
+		return nil, errors.Wrap(err, "failed to delete the pending balance")
+	}
+
+	return log, nil
 }

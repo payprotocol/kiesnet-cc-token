@@ -129,7 +129,8 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			if err != nil {
 				return shim.Error("invalid pending time: need seconds since 1970")
 			}
-			*pendingTime = time.Unix(seconds, 0)
+			ut := time.Unix(seconds, 0)
+			pendingTime = &ut
 			// expiry
 			if len(params) > 5 && len(params[5]) > 0 {
 				expiry, err = strconv.ParseInt(params[5], 10, 64)
@@ -172,9 +173,4 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	return shim.Success(data)
-}
-
-func transferLog(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-
-	return shim.Success([]byte("transfer/log"))
 }

@@ -207,8 +207,8 @@ func (ab *AccountStub) PutAccount(account AccountInterface) error {
 }
 
 // CreateHolderKey _
-func (ab *AccountStub) CreateHolderKey(holder *Holder) string {
-	return fmt.Sprintf("HLD_%s_%s", holder.DOCTYPEID, holder.Address)
+func (ab *AccountStub) CreateHolderKey(id, addr string) string {
+	return fmt.Sprintf("HLD_%s_%s", id, addr)
 }
 
 // PutHolder _
@@ -217,7 +217,7 @@ func (ab *AccountStub) PutHolder(holder *Holder) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the holder")
 	}
-	if err = ab.stub.PutState(ab.CreateHolderKey(holder), data); err != nil {
+	if err = ab.stub.PutState(ab.CreateHolderKey(holder.DOCTYPEID, holder.Address), data); err != nil {
 		return errors.Wrap(err, "failed to put the holder state")
 	}
 	return nil

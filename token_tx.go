@@ -14,27 +14,10 @@ import (
 )
 
 // params[0] : token code
-func tokenGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if len(params) != 1 {
-		return shim.Error("incorrect number of parameters. expecting 1")
-	}
-
-	code, err := ValidateTokenCode(params[0])
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	// authentication
-	if _, err = kid.GetID(stub, false); err != nil {
-		return shim.Error(err.Error())
-	}
-
-	tb := NewTokenStub(stub)
-	data, err := tb.GetTokenState(code)
-	if err != nil {
-		return shim.Error("failed to marshal the token")
-	}
-	return shim.Success(data)
+// params[1] : amount (big int string)
+func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	// TODO
+	return shim.Error("not yet")
 }
 
 // params[0] : token code (3~6 alphanum)
@@ -98,6 +81,30 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	}
 
 	data, err := json.Marshal(token)
+	if err != nil {
+		return shim.Error("failed to marshal the token")
+	}
+	return shim.Success(data)
+}
+
+// params[0] : token code
+func tokenGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) != 1 {
+		return shim.Error("incorrect number of parameters. expecting 1")
+	}
+
+	code, err := ValidateTokenCode(params[0])
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// authentication
+	if _, err = kid.GetID(stub, false); err != nil {
+		return shim.Error(err.Error())
+	}
+
+	tb := NewTokenStub(stub)
+	data, err := tb.GetTokenState(code)
 	if err != nil {
 		return shim.Error("failed to marshal the token")
 	}

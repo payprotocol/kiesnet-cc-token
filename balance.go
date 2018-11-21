@@ -32,7 +32,7 @@ const (
 
 // BalanceLog _
 type BalanceLog struct {
-	DOCTYPEID   string         `json:"@balance_log"`
+	DOCTYPEID   string         `json:"@balance_log"` // address
 	Type        BalanceLogType `json:"type"`
 	RID         string         `json:"rid"` // relative ID
 	Diff        Amount         `json:"diff"`
@@ -43,8 +43,9 @@ type BalanceLog struct {
 
 // PendingBalance _
 type PendingBalance struct {
-	DOCTYPEID   string     `json:"@pending_balance"`
-	RID         string     `json:"rid"`
+	DOCTYPEID   string     `json:"@pending_balance"` // id
+	Account     string     `json:"account"`          // address
+	RID         string     `json:"rid"`              // relative ID
 	Amount      Amount     `json:"amount"`
 	Memo        string     `json:"memo"`
 	CreatedTime *time.Time `json:"created_time,omitempty"`

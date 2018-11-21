@@ -12,120 +12,9 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
 )
 
-// information of the account
-// params[0] : token code | account address
-func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if len(params) != 1 {
-		return shim.Error("incorrect number of parameters. expecting 1")
-	}
-
-	// authentication
-	kid, err := kid.GetID(stub, false)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	var account AccountInterface
-
-	code, err := ValidateTokenCode(params[0])
-	if nil == err { // by token code
-		ab := NewAccountStub(stub, code)
-		account, err = ab.GetPersonalAccount(kid)
-		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to get the account")
-		}
-	} else { // by address
-		addr, err := ParseAddress(params[0])
-		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to parse the account address")
-		}
-		ab := NewAccountStub(stub, addr.Code)
-		account, err = ab.GetAccount(addr)
-		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to get the account")
-		}
-	}
-
-	// balance state
-	bb := NewBalanceStub(stub)
-	balance, err := bb.GetBalanceState(account.GetID())
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the balance")
-	}
-
-	return responseAccountWithBalanceState(account, balance)
-}
-
-// list of account's addresses
-// params[0] : "" | token code
-// params[1] : bookmark
-// ISSUE: list by an account address (privacy problem)
-func accountList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	// authentication
-	kid, err := kid.GetID(stub, false)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	code := ""
-	bookmark := ""
-	if len(params) > 0 {
-		if len(params[0]) > 0 {
-			code, err = ValidateTokenCode(params[0])
-			if err != nil {
-				return shim.Error(err.Error())
-			}
-		}
-		if len(params) > 1 {
-			bookmark = params[1]
-		}
-	}
-
-	ab := NewAccountStub(stub, code)
-	res, err := ab.GetQueryHolderAccounts(kid, bookmark)
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get account addresses list")
-	}
-
-	data, err := json.Marshal(res)
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal account addresses list")
-	}
-	return shim.Success(data)
-}
-
-// params[0] : account address
-func accountLog(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if len(params) != 1 {
-		return shim.Error("incorrect number of parameters. expecting 1")
-	}
-
-	addr, err := ParseAddress(params[0])
-	if err != nil {
-		return shim.Error("failed to parse the account address")
-	}
-	_ = addr
-
-	// authentication
-	_, err = kid.GetID(stub, false)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	// TODO
-
-	return shim.Success([]byte("account/log"))
-}
-
 // params[0] : token code
 // params[1:] : co-holders' personal account addresses (exclude invoker, max 127)
-func accountNew(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 1 {
 		return shim.Error("incorrect number of parameters. expecting 1+")
 	}
@@ -191,6 +80,124 @@ func accountNew(stub shim.ChaincodeStubInterface, params []string) peer.Response
 	return _simulationCreateJointAccount(ab, holders)
 }
 
+// information of the account
+// params[0] : token code | account address
+func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) != 1 {
+		return shim.Error("incorrect number of parameters. expecting 1")
+	}
+
+	// authentication
+	kid, err := kid.GetID(stub, false)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	var account AccountInterface
+
+	code, err := ValidateTokenCode(params[0])
+	if nil == err { // by token code
+		ab := NewAccountStub(stub, code)
+		account, err = ab.GetPersonalAccount(kid)
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to get the account")
+		}
+	} else { // by address
+		addr, err := ParseAddress(params[0])
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to parse the account address")
+		}
+		ab := NewAccountStub(stub, addr.Code)
+		account, err = ab.GetAccount(addr)
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to get the account")
+		}
+	}
+
+	// balance state
+	bb := NewBalanceStub(stub)
+	balance, err := bb.GetBalanceState(account.GetID())
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the balance")
+	}
+
+	return responseAccountWithBalanceState(account, balance)
+}
+
+// update holders
+// params[0] : token code | account address
+// params[1:] : co-holders' personal account addresses (exclude invoker, max 127)
+func accountHolders(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	return shim.Error("not yet")
+}
+
+// list of account's addresses
+// params[0] : "" | token code
+// params[1] : bookmark
+// ISSUE: list by an account address (privacy problem)
+func accountList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	// authentication
+	kid, err := kid.GetID(stub, false)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	code := ""
+	bookmark := ""
+	if len(params) > 0 {
+		if len(params[0]) > 0 {
+			code, err = ValidateTokenCode(params[0])
+			if err != nil {
+				return shim.Error(err.Error())
+			}
+		}
+		if len(params) > 1 {
+			bookmark = params[1]
+		}
+	}
+
+	ab := NewAccountStub(stub, code)
+	res, err := ab.GetQueryHolderAccounts(kid, bookmark)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get account addresses list")
+	}
+
+	data, err := json.Marshal(res)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to marshal account addresses list")
+	}
+	return shim.Success(data)
+}
+
+// params[0] : account address
+func accountLogs(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) != 1 {
+		return shim.Error("incorrect number of parameters. expecting 1")
+	}
+
+	addr, err := ParseAddress(params[0])
+	if err != nil {
+		return shim.Error("failed to parse the account address")
+	}
+	_ = addr
+
+	// authentication
+	_, err = kid.GetID(stub, false)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// TODO
+
+	return shim.Success([]byte("account/logs"))
+}
+
 // simulation
 func _simulationCreateJointAccount(ab *AccountStub, holders stringset.Set) peer.Response {
 	account, err := ab.CreateJointAccount(holders)
@@ -207,6 +214,8 @@ func _simulationCreateJointAccount(ab *AccountStub, holders stringset.Set) peer.
 
 	return responseAccountWithBalance(account, balance)
 }
+
+// helpers
 
 func responseAccountWithBalance(account AccountInterface, balance *Balance) peer.Response {
 	var data []byte
