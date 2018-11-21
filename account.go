@@ -3,6 +3,7 @@
 package main
 
 import (
+	"strings"
 	"time"
 
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
@@ -57,7 +58,7 @@ func (a *Account) GetType() AccountType {
 // HasHolder implements AccountInterface
 func (a *Account) HasHolder(kid string) bool {
 	i := len(a.DOCTYPEID) - 48
-	return a.DOCTYPEID[i:i+40] == kid
+	return a.DOCTYPEID[i:i+40] == strings.ToUpper(kid)
 }
 
 // IsSuspended implements AccountInterface
