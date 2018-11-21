@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -43,11 +44,17 @@ func (a *Amount) Neg() *Amount {
 
 // MarshalJSON override
 func (a *Amount) MarshalJSON() ([]byte, error) {
-	// TODO: why ????
-	return []byte(a.String()), nil
+	buf := bytes.NewBuffer([]byte{'"'})
+	if _, err := buf.WriteString(a.String()); err != nil {
+		return nil, err
+	}
+	if err := buf.WriteByte('"'); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
-// // UnmarshalJSON override
-// func (a *Amount) UnmarshalJSON(text []byte) error {
-// 	return a.Int.UnmarshalJSON(text)
-// }
+// UnmarshalJSON override
+func (a *Amount) UnmarshalJSON(text []byte) error {
+	return a.Int.UnmarshalJSON(text[1 : len(text)-1])
+}
