@@ -26,7 +26,7 @@ func NewAddress(tokenCode string, typeCode AccountType, id string) *Address {
 	addr.Type = typeCode
 
 	idh, err := hex.DecodeString(id)
-	if err != nil || len(idh) > 20 { // not kid
+	if err != nil || len(idh) != 20 { // not kid
 		idh = make([]byte, 20)
 		sha3.ShakeSum256(idh, []byte(id))
 	}

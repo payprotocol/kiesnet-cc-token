@@ -41,7 +41,6 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-
 	decimal, err := strconv.Atoi(params[1])
 	if err != nil || decimal < 0 || decimal > 18 {
 		return shim.Error("decimal must be integer between 0 and 18")
