@@ -24,6 +24,18 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 		return shim.Error(err.Error())
 	}
 
+	if err = AssertInvokedByChaincode(stub); err != nil {
+		if _, ok := err.(InvalidAccessError); !ok {
+			return shim.Error(err.Error())
+		}
+		// check token issued
+		tb := NewTokenStub(stub)
+		_, err = tb.GetTokenState(code)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+	}
+
 	// authentication
 	kid, err := kid.GetID(stub, true)
 	if err != nil {
@@ -32,16 +44,8 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 
 	ab := NewAccountStub(stub, code)
 
-	// TODO: check token issued
-
 	if len(params) < 2 { // personal account
-		account, err := ab.CreateAccount(kid)
-		if err != nil {
-			return shim.Error(err.Error())
-		}
-		// balance
-		bb := NewBalanceStub(ab.stub)
-		balance, err := bb.CreateBalance(account.GetID())
+		account, balance, err := ab.CreateAccount(kid)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
@@ -77,7 +81,11 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 
 	// TODO: contract
 
-	return _simulationCreateJointAccount(ab, holders)
+	account, balance, err := ab.CreateJointAccount(holders)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	return responseAccountWithBalance(account, balance)
 }
 
 // information of the account
@@ -196,23 +204,6 @@ func accountLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	// TODO
 
 	return shim.Success([]byte("account/logs"))
-}
-
-// simulation
-func _simulationCreateJointAccount(ab *AccountStub, holders stringset.Set) peer.Response {
-	account, err := ab.CreateJointAccount(holders)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	// balance
-	bb := NewBalanceStub(ab.stub)
-	balance, err := bb.CreateBalance(account.GetID())
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	return responseAccountWithBalance(account, balance)
 }
 
 // helpers

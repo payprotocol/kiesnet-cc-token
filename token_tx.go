@@ -16,17 +16,24 @@ import (
 // params[0] : token code
 // params[1] : amount (big int string)
 func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	// TODO
+	if err := AssertInvokedByChaincode(stub); err != nil {
+		return shim.Error(err.Error())
+	}
+
 	return shim.Error("not yet")
 }
 
 // params[0] : token code (3~6 alphanum)
-// params[1] : decimal (int string)
+// params[1] : decimal (int string, min 0, max 18)
 // params[2] : max supply (big int string)
 // params[3] : initial supply (big int string)
 // params[4:] : co-holders (personal account addresses)
 func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if len(params) < 5 {
+	if err := AssertInvokedByChaincode(stub); err != nil {
+		return shim.Error(err.Error())
+	}
+
+	if len(params) < 4 {
 		return shim.Error("incorrect number of parameters. expecting 4+")
 	}
 
@@ -69,13 +76,13 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		}
 	}
 
-	// if holders.Size() > 1 {
-	// 	// TODO: contract
-	//		return ...
-	// }
+	if holders.Size() > 1 {
+		// TODO: contract
+		//return ...
+	}
 
 	tb := NewTokenStub(stub)
-	token, err := tb.CreateToken(code, decimal, maxSupply, supply, holders)
+	token, err := tb.CreateToken(code, decimal, *maxSupply, *supply, holders)
 	if err != nil {
 		return shim.Error("failed to create token")
 	}
@@ -114,6 +121,10 @@ func tokenGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[0] : token code
 // params[1] : supply (big int string)
 func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if err := AssertInvokedByChaincode(stub); err != nil {
+		return shim.Error(err.Error())
+	}
+
 	// TODO:
 
 	// codes below are just for dev...

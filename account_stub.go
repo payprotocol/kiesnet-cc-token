@@ -35,17 +35,17 @@ func (ab *AccountStub) CreateKey(id string) string {
 }
 
 // CreateAccount _
-func (ab *AccountStub) CreateAccount(kid string) (*Account, error) {
+func (ab *AccountStub) CreateAccount(kid string) (*Account, *Balance, error) {
 	ts, err := txtime.GetTime(ab.stub)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	addr := NewAddress(ab.token, AccountTypePersonal, kid)
 	_, err = ab.GetAccount(addr)
 	if err != nil {
 		if _, ok := err.(NotExistedAccountError); !ok {
-			return nil, errors.Wrap(err, "failed to create an account")
+			return nil, nil, errors.Wrap(err, "failed to create an account")
 		}
 
 		// create personal account
@@ -57,33 +57,40 @@ func (ab *AccountStub) CreateAccount(kid string) (*Account, error) {
 			UpdatedTime: ts,
 		}
 		if err = ab.PutAccount(account); err != nil {
-			return nil, errors.Wrap(err, "failed to create an account")
+			return nil, nil, errors.Wrap(err, "failed to create an account")
+		}
+
+		// balance
+		bb := NewBalanceStub(ab.stub)
+		balance, err := bb.CreateBalance(account.GetID())
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to create a account balance")
 		}
 
 		// create account-holder relationship
 		holder := NewHolder(kid, account)
 		holder.CreatedTime = ts
 		if err = ab.PutHolder(holder); err != nil {
-			return nil, errors.Wrap(err, "failed to create a holder")
+			return nil, nil, errors.Wrap(err, "failed to create a holder")
 		}
 
-		return account, nil
+		return account, balance, nil
 	}
 
-	return nil, ExistedAccountError{addr.String()}
+	return nil, nil, ExistedAccountError{addr.String()}
 }
 
 // CreateJointAccount _
-func (ab *AccountStub) CreateJointAccount(holders stringset.Set) (*JointAccount, error) {
+func (ab *AccountStub) CreateJointAccount(holders stringset.Set) (*JointAccount, *Balance, error) {
 	ts, err := txtime.GetTime(ab.stub)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	addr := NewAddress(ab.token, AccountTypeJoint, ab.stub.GetTxID()) // random address
 	if _, err = ab.GetAccount(addr); err != nil {
 		if _, ok := err.(NotExistedAccountError); !ok {
-			return nil, errors.Wrap(err, "failed to create an account")
+			return nil, nil, errors.Wrap(err, "failed to create an account")
 		}
 
 		// create joint account
@@ -98,7 +105,14 @@ func (ab *AccountStub) CreateJointAccount(holders stringset.Set) (*JointAccount,
 			Holders: holders,
 		}
 		if err = ab.PutAccount(account); err != nil {
-			return nil, errors.Wrap(err, "failed to create an account")
+			return nil, nil, errors.Wrap(err, "failed to create an account")
+		}
+
+		// balance
+		bb := NewBalanceStub(ab.stub)
+		balance, err := bb.CreateBalance(account.GetID())
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to create a account balance")
 		}
 
 		// cretae account-holder relationship
@@ -106,15 +120,15 @@ func (ab *AccountStub) CreateJointAccount(holders stringset.Set) (*JointAccount,
 			holder := NewHolder(kid, account)
 			holder.CreatedTime = ts
 			if err = ab.PutHolder(holder); err != nil {
-				return nil, errors.Wrap(err, "failed to create a holder")
+				return nil, nil, errors.Wrap(err, "failed to create a holder")
 			}
 		}
 
-		return account, nil
+		return account, balance, nil
 	}
 
 	// hash collision (retry later)
-	return nil, errors.New("failed to create a random address")
+	return nil, nil, errors.New("failed to create a random address")
 }
 
 // GetAccount retrieves the account by an address

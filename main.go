@@ -54,6 +54,19 @@ func ver(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success([]byte("Kiesnet Token v1.0 created by Key Inside Co., Ltd."))
 }
 
+// AssertInvokedByChaincode _
+func AssertInvokedByChaincode(stub shim.ChaincodeStubInterface) error {
+	// TODO: un-comment
+	// ccid, err := ccid.GetID(stub)
+	// if err != nil {
+	// 	return err
+	// }
+	// if "kiesnet-token" == ccid || "kiesnet-cc-token" == ccid {
+	// 	return InvalidAccessError{}
+	// }
+	return nil
+}
+
 func main() {
 	if err := shim.Start(new(Chaincode)); err != nil {
 		logger.Criticalf("failed to start chaincode: %s", err)

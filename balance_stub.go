@@ -165,6 +165,25 @@ func (bb *BalanceStub) PutPendingBalance(balance *PendingBalance) error {
 	return nil
 }
 
+// Mint _
+func (bb *BalanceStub) Mint(bal *Balance, amount Amount) (*BalanceLog, error) {
+	ts, err := txtime.GetTime(bb.stub)
+	if err != nil {
+		return nil, err
+	}
+	bal.Amount.Add(&amount)
+	bal.UpdatedTime = ts
+	if err = bb.PutBalance(bal); err != nil {
+		return nil, err
+	}
+	log := NewBalanceSupplyLog(bal, amount)
+	log.CreatedTime = ts
+	if err = bb.PutBalanceLog(log); err != nil {
+		return nil, err
+	}
+	return log, nil
+}
+
 // Transfer _
 func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo string, pendingTime *time.Time) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
@@ -192,35 +211,21 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 		if err = bb.PutBalance(receiver); err != nil {
 			return nil, err
 		}
-		rbl := &BalanceLog{
-			DOCTYPEID:   receiver.DOCTYPEID,
-			Type:        BalanceLogTypeReceive,
-			RID:         sender.DOCTYPEID,
-			Diff:        amount,
-			Amount:      receiver.Amount,
-			Memo:        memo,
-			CreatedTime: ts,
-		}
+		rbl := NewBalanceTransferLog(sender, receiver, amount, memo)
+		rbl.CreatedTime = ts
 		if err = bb.PutBalanceLog(rbl); err != nil {
 			return nil, err
 		}
 	}
 
-	amount.Neg()
+	amount.Neg()               // -
 	sender.Amount.Add(&amount) // withdraw
 	sender.UpdatedTime = ts
 	if err = bb.PutBalance(sender); err != nil {
 		return nil, err
 	}
-	sbl := &BalanceLog{
-		DOCTYPEID:   sender.DOCTYPEID,
-		Type:        BalanceLogTypeSend,
-		RID:         receiver.DOCTYPEID,
-		Diff:        amount,
-		Amount:      sender.Amount,
-		Memo:        memo,
-		CreatedTime: ts,
-	}
+	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
+	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
 		return nil, err
 	}
@@ -247,15 +252,8 @@ func (bb *BalanceStub) Withdraw(pb *PendingBalance) (*BalanceLog, error) {
 	if err = bb.PutBalance(bal); err != nil {
 		return nil, err
 	}
-	log := &BalanceLog{
-		DOCTYPEID:   bal.DOCTYPEID,
-		Type:        BalanceLogTypeWithdraw,
-		RID:         pb.RID,
-		Diff:        pb.Amount,
-		Amount:      bal.Amount,
-		Memo:        pb.Memo,
-		CreatedTime: ts,
-	}
+	log := NewBalanceWithdrawLog(bal, pb)
+	log.CreatedTime = ts
 	if err = bb.PutBalanceLog(log); err != nil {
 		return nil, err
 	}

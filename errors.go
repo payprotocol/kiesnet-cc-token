@@ -4,6 +4,14 @@ package main
 
 import "fmt"
 
+// InvalidAccessError _
+type InvalidAccessError struct{}
+
+// Error implements error interface
+func (e InvalidAccessError) Error() string {
+	return "invalid access"
+}
+
 // InvalidAccountAddrError _
 type InvalidAccountAddrError struct {
 	msg string

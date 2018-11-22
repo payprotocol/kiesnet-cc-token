@@ -26,7 +26,7 @@ func NewAddress(tokenCode string, typeCode AccountType, id string) *Address {
 	addr.Type = typeCode
 
 	idh, err := hex.DecodeString(id)
-	if err != nil { // not hex string
+	if err != nil || len(idh) > 20 { // not kid
 		idh = make([]byte, 20)
 		sha3.ShakeSum256(idh, []byte(id))
 	}
@@ -57,6 +57,8 @@ func ParseAddress(addr string) (*Address, error) {
 	_addr.Code = addr[0:i]
 	_addr.Type = AccountType(idh[0])
 	_addr.Hash = idh[1:]
+
+	logger.Debugf("%#v", _addr)
 
 	if err = _addr.Validate(); err != nil {
 		return nil, err

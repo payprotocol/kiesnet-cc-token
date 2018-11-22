@@ -41,6 +41,58 @@ type BalanceLog struct {
 	CreatedTime *time.Time     `json:"created_time,omitempty"`
 }
 
+// NewBalanceSupplyLog _
+func NewBalanceSupplyLog(bal *Balance, diff Amount) *BalanceLog {
+	if diff.Sign() < 0 { // burn
+		return &BalanceLog{
+			DOCTYPEID: bal.DOCTYPEID,
+			Type:      BalanceLogTypeBurn,
+			Diff:      diff,
+			Amount:    bal.Amount,
+		}
+	} // else  mint
+	return &BalanceLog{
+		DOCTYPEID: bal.DOCTYPEID,
+		Type:      BalanceLogTypeMint,
+		Diff:      diff,
+		Amount:    bal.Amount,
+	}
+}
+
+// NewBalanceTransferLog _
+func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, memo string) *BalanceLog {
+	if diff.Sign() < 0 { // sender log
+		return &BalanceLog{
+			DOCTYPEID: sender.DOCTYPEID,
+			Type:      BalanceLogTypeSend,
+			RID:       receiver.DOCTYPEID,
+			Diff:      diff,
+			Amount:    sender.Amount,
+			Memo:      memo,
+		}
+	} // else receiver log
+	return &BalanceLog{
+		DOCTYPEID: receiver.DOCTYPEID,
+		Type:      BalanceLogTypeReceive,
+		RID:       sender.DOCTYPEID,
+		Diff:      diff,
+		Amount:    receiver.Amount,
+		Memo:      memo,
+	}
+}
+
+// NewBalanceWithdrawLog _
+func NewBalanceWithdrawLog(bal *Balance, pb *PendingBalance) *BalanceLog {
+	return &BalanceLog{
+		DOCTYPEID: bal.DOCTYPEID,
+		Type:      BalanceLogTypeWithdraw,
+		RID:       pb.RID,
+		Diff:      pb.Amount,
+		Amount:    bal.Amount,
+		Memo:      pb.Memo,
+	}
+}
+
 // PendingBalance _
 type PendingBalance struct {
 	DOCTYPEID   string     `json:"@pending_balance"` // id

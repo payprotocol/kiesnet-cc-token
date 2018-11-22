@@ -23,12 +23,11 @@ func ValidateTokenCode(code string) (string, error) {
 
 // Token _
 type Token struct {
-	DOCTYPEID        string     `json:"@token"`
-	Code             string     `json:"code" validate:"required,min=3,max=6,alphanum"`
-	Decimal          int        `json:"decimal"`
-	MaxSupply        Amount     `json:"max_supply"`
-	Supply           Amount     `json:"supply"`
-	GenesisAccountID string     `json:"genesis_account_id"`
-	CreatedTime      *time.Time `json:"created_time,omitempty"`
-	UpdatedTime      *time.Time `json:"updated_time,omitempty"`
+	DOCTYPEID      string     `json:"@token"` // Code, validate:"required,min=3,max=6,alphanum"
+	Decimal        int        `json:"decimal"`
+	MaxSupply      Amount     `json:"max_supply"`
+	Supply         Amount     `json:"supply"`
+	GenesisAccount string     `json:"genesis_account"`
+	CreatedTime    *time.Time `json:"created_time,omitempty"`
+	UpdatedTime    *time.Time `json:"updated_time,omitempty"`
 }
