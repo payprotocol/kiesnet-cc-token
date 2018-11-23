@@ -34,9 +34,11 @@ type TxFunc func(shim.ChaincodeStubInterface, []string) peer.Response
 var routes = map[string]TxFunc{
 	"account/create":           accountCreate,
 	"account/get":              accountGet,
-	"account/update/holders":   accountUpdateHolders, // TODO
 	"account/list":             accountList,
 	"account/logs":             accountLogs, // TODO
+	"account/suspend":          accountSuspend,
+	"account/unsuspend":        accountUnsuspend,
+	"account/update/holders":   accountUpdateHolders, // TODO
 	"balance/logs":             balanceLogs,
 	"balance/pending/list":     balancePendingList,
 	"balance/pending/withdraw": balancePendingWithdraw,
@@ -46,8 +48,6 @@ var routes = map[string]TxFunc{
 	"token/mint":               tokenMint,
 	"transfer":                 transfer,
 	"ver":                      ver,
-	// "account/suspend":   accountSuspend,
-	// "account/unsuspend": accountUnsuspend,
 }
 
 func ver(stub shim.ChaincodeStubInterface, params []string) peer.Response {

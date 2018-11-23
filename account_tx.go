@@ -195,6 +195,73 @@ func accountLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	return shim.Success([]byte("account/logs"))
 }
 
+// ISSUE: more complex suspend/unsuspend ? (ex, joint account, admin ...)
+// suspend personal(main) account of the token
+// params[0] : token code
+func accountSuspend(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) != 1 {
+		return shim.Error("incorrect number of parameters. expecting 1")
+	}
+
+	code, err := ValidateTokenCode(params[0])
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// authentication
+	kid, err := kid.GetID(stub, true)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	ab := NewAccountStub(stub, code)
+	account, err := ab.SuspendAccount(kid)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to suspend the account")
+	}
+
+	data, err := json.Marshal(account)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to marshal the account")
+	}
+	return shim.Success(data)
+}
+
+// unsuspend personal(main) account of the token
+// params[0] : token code
+func accountUnsuspend(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) != 1 {
+		return shim.Error("incorrect number of parameters. expecting 1")
+	}
+
+	code, err := ValidateTokenCode(params[0])
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// authentication
+	kid, err := kid.GetID(stub, true)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	ab := NewAccountStub(stub, code)
+	account, err := ab.UnsuspendAccount(kid)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to unsuspend the account")
+	}
+
+	data, err := json.Marshal(account)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to marshal the account")
+	}
+	return shim.Success(data)
+}
+
 // params[0] : token code | account address
 // params[1:] : co-holders' personal account addresses (exclude invoker, max 127)
 func accountUpdateHolders(stub shim.ChaincodeStubInterface, params []string) peer.Response {
