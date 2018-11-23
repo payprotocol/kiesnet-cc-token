@@ -32,20 +32,20 @@ type TxFunc func(shim.ChaincodeStubInterface, []string) peer.Response
 
 // routes is the map of invoke functions
 var routes = map[string]TxFunc{
-	"account/create":   accountCreate,
-	"account/get":      accountGet,
-	"account/holders":  accountHolders, // TODO
-	"account/list":     accountList,
-	"account/logs":     accountLogs, // TODO
-	"balance/logs":     balanceLogs,
-	"balance/pendings": balancePendingList,
-	"balance/withdraw": balanceWithdraw,
-	"token/burn":       tokenBurn,   // TODO
-	"token/create":     tokenCreate, // TODO
-	"token/get":        tokenGet,
-	"token/mint":       tokenMint, // TODO
-	"transfer":         transfer,
-	"ver":              ver,
+	"account/create":           accountCreate,
+	"account/get":              accountGet,
+	"account/update/holders":   accountUpdateHolders, // TODO
+	"account/list":             accountList,
+	"account/logs":             accountLogs, // TODO
+	"balance/logs":             balanceLogs,
+	"balance/pending/list":     balancePendingList,
+	"balance/pending/withdraw": balancePendingWithdraw,
+	"token/burn":               tokenBurn,
+	"token/create":             tokenCreate,
+	"token/get":                tokenGet,
+	"token/mint":               tokenMint,
+	"transfer":                 transfer,
+	"ver":                      ver,
 	// "account/suspend":   accountSuspend,
 	// "account/unsuspend": accountUnsuspend,
 }

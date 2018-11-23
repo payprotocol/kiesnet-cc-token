@@ -36,6 +36,12 @@ func (a *Amount) Cmp(x *Amount) int {
 	return a.Int.Cmp(&x.Int)
 }
 
+// Copy _
+func (a *Amount) Copy() *Amount {
+	n := &Amount{}
+	return n.Add(a)
+}
+
 // Neg override
 func (a *Amount) Neg() *Amount {
 	a.Int.Neg(&a.Int)

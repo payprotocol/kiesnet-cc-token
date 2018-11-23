@@ -165,8 +165,8 @@ func (bb *BalanceStub) PutPendingBalance(balance *PendingBalance) error {
 	return nil
 }
 
-// Mint _
-func (bb *BalanceStub) Mint(bal *Balance, amount Amount) (*BalanceLog, error) {
+// Supply - Mint & Burn
+func (bb *BalanceStub) Supply(bal *Balance, amount Amount) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
 		return nil, err
@@ -192,9 +192,8 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 	}
 
 	if pendingTime != nil && pendingTime.After(*ts) { // time lock
-		id := receiver.DOCTYPEID + "_" + bb.stub.GetTxID()
 		pb := &PendingBalance{
-			DOCTYPEID:   id,
+			DOCTYPEID:   bb.stub.GetTxID(),
 			Account:     receiver.DOCTYPEID,
 			RID:         sender.DOCTYPEID,
 			Amount:      amount,

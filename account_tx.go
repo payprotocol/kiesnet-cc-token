@@ -55,7 +55,7 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 	// joint account
 
 	// check invoker's main(personal) account
-	if _, err = ab.GetPersonalAccount(kid); err != nil {
+	if _, err = ab.GetAccount(NewAddress(code, AccountTypePersonal, kid)); err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get invoker's personal account")
 	}
@@ -67,12 +67,12 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 		return shim.Error("too many holders")
 	}
 	// validate & get kid of co-holders
-	for addr := range addrs {
-		holder, err := ab.GetSignableID(addr)
+	for addr := range addrs.Map() {
+		kids, err := ab.GetHolders(addr)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
-		holders.Add(holder)
+		holders.AppendSlice(kids)
 	}
 
 	if holders.Size() < 2 { // addrs had invoker's addr
@@ -103,26 +103,22 @@ func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response
 
 	var account AccountInterface
 
+	var addr *Address
 	code, err := ValidateTokenCode(params[0])
 	if nil == err { // by token code
-		ab := NewAccountStub(stub, code)
-		account, err = ab.GetPersonalAccount(kid)
-		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to get the account")
-		}
+		addr = NewAddress(code, AccountTypePersonal, kid)
 	} else { // by address
-		addr, err := ParseAddress(params[0])
+		addr, err = ParseAddress(params[0])
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to parse the account address")
 		}
-		ab := NewAccountStub(stub, addr.Code)
-		account, err = ab.GetAccount(addr)
-		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to get the account")
-		}
+	}
+	ab := NewAccountStub(stub, addr.Code)
+	account, err = ab.GetAccount(addr)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the account")
 	}
 
 	// balance state
@@ -134,13 +130,6 @@ func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response
 	}
 
 	return responseAccountWithBalanceState(account, balance)
-}
-
-// update holders
-// params[0] : token code | account address
-// params[1:] : co-holders' personal account addresses (exclude invoker, max 127)
-func accountHolders(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	return shim.Error("not yet")
 }
 
 // list of account's addresses
@@ -204,6 +193,12 @@ func accountLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	// TODO
 
 	return shim.Success([]byte("account/logs"))
+}
+
+// params[0] : token code | account address
+// params[1:] : co-holders' personal account addresses (exclude invoker, max 127)
+func accountUpdateHolders(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	return shim.Error("not yet")
 }
 
 // helpers

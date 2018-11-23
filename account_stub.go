@@ -81,7 +81,7 @@ func (ab *AccountStub) CreateAccount(kid string) (*Account, *Balance, error) {
 }
 
 // CreateJointAccount _
-func (ab *AccountStub) CreateJointAccount(holders stringset.Set) (*JointAccount, *Balance, error) {
+func (ab *AccountStub) CreateJointAccount(holders *stringset.Set) (*JointAccount, *Balance, error) {
 	ts, err := txtime.GetTime(ab.stub)
 	if err != nil {
 		return nil, nil, err
@@ -116,7 +116,7 @@ func (ab *AccountStub) CreateJointAccount(holders stringset.Set) (*JointAccount,
 		}
 
 		// cretae account-holder relationship
-		for kid := range holders {
+		for kid := range holders.Map() {
 			holder := NewHolder(kid, account)
 			holder.CreatedTime = ts
 			if err = ab.PutHolder(holder); err != nil {
@@ -133,7 +133,7 @@ func (ab *AccountStub) CreateJointAccount(holders stringset.Set) (*JointAccount,
 
 // GetAccount retrieves the account by an address
 func (ab *AccountStub) GetAccount(addr *Address) (AccountInterface, error) {
-	data, err := ab.GetAccountState(addr)
+	data, err := ab.GetAccountState(addr.String())
 	if err != nil {
 		return nil, err
 	}
@@ -154,22 +154,15 @@ func (ab *AccountStub) GetAccount(addr *Address) (AccountInterface, error) {
 }
 
 // GetAccountState _
-func (ab *AccountStub) GetAccountState(addr *Address) ([]byte, error) {
-	address := addr.String()
-	data, err := ab.stub.GetState(ab.CreateKey(address))
+func (ab *AccountStub) GetAccountState(addr string) ([]byte, error) {
+	data, err := ab.stub.GetState(ab.CreateKey(addr))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the account state")
 	}
 	if data != nil {
 		return data, nil
 	}
-	return nil, NotExistedAccountError{address}
-}
-
-// GetPersonalAccount retrieves the main(personal) account by a token code and an ID(KID)
-func (ab *AccountStub) GetPersonalAccount(kid string) (AccountInterface, error) {
-	addr := NewAddress(ab.token, AccountTypePersonal, kid)
-	return ab.GetAccount(addr)
+	return nil, NotExistedAccountError{addr}
 }
 
 // GetQueryHolderAccounts _
@@ -189,24 +182,45 @@ func (ab *AccountStub) GetQueryHolderAccounts(kid, bookmark string) (*QueryResul
 	return NewQueryResult(meta, iter)
 }
 
-// GetSignableID _
-func (ab *AccountStub) GetSignableID(addr string) (string, error) {
+// GetHolders returns holders' KID array
+func (ab *AccountStub) GetHolders(addr string) ([]string, error) {
 	_addr, err := ParseAddress(addr)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to parse the account address: %s", addr)
+		return nil, errors.Wrapf(err, "failed to parse the account address: %s", addr)
 	}
 	if _addr.Code != ab.token {
-		return "", errors.Errorf("invalid co-holder's address (mismatched token): %s", addr)
+		return nil, errors.Errorf("mismatched token account: %s", addr)
 	}
-	if _addr.Type != AccountTypePersonal {
-		return "", errors.Errorf("invalid co-holder's address (must be personal account address): %s", addr)
-	}
-	account, err := ab.GetAccount(_addr)
+	_acc, err := ab.GetAccount(_addr)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to get the account: %s", addr)
+		return nil, errors.Wrapf(err, "failed to get the account: %s", addr)
 	}
-	return account.GetID(), nil
+	if account, ok := _acc.(*Account); ok {
+		return []string{account.Holder()}, nil
+	}
+	account := _acc.(*JointAccount)
+	return account.Holders.Strings(), nil
 }
+
+// // GetSignableID _
+// func (ab *AccountStub) GetSignableID(addr string) (string, error) {
+// 	_addr, err := ParseAddress(addr)
+// 	if err != nil {
+// 		return "", errors.Wrapf(err, "failed to parse the account address: %s", addr)
+// 	}
+// 	if _addr.Code != ab.token {
+// 		return "", errors.Errorf("invalid co-holder's address (mismatched token): %s", addr)
+// 	}
+// 	if _addr.Type != AccountTypePersonal {
+// 		return "", errors.Errorf("invalid co-holder's address (must be personal account address): %s", addr)
+// 	}
+// 	_acc, err := ab.GetAccount(_addr)
+// 	if err != nil {
+// 		return "", errors.Wrapf(err, "failed to get the account: %s", addr)
+// 	}
+// 	account := _acc.(*Account)
+// 	return account.Holder(), nil
+// }
 
 // PutAccount _
 func (ab *AccountStub) PutAccount(account AccountInterface) error {

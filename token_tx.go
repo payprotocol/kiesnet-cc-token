@@ -16,11 +16,86 @@ import (
 // params[0] : token code
 // params[1] : amount (big int string)
 func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) != 2 {
+		return shim.Error("incorrect number of parameters. expecting 2")
+	}
+
 	if err := AssertInvokedByChaincode(stub); err != nil {
 		return shim.Error(err.Error())
 	}
 
-	return shim.Error("not yet")
+	code, err := ValidateTokenCode(params[0])
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	amount, err := NewAmount(params[1])
+	if err != nil || amount.Sign() < 0 {
+		return shim.Error("amount must be positive integer")
+	}
+	ts, err := txtime.GetTime(stub)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// authentication
+	kid, err := kid.GetID(stub, true)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// token
+	tb := NewTokenStub(stub)
+	token, err := tb.GetToken(code)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the token")
+	}
+	if token.Supply.Sign() == 0 {
+		return shim.Error("no supply")
+	}
+
+	// genesis account
+	addr, _ := ParseAddress(token.GenesisAccount) // err is nil
+	ab := NewAccountStub(stub, code)
+	account, err := ab.GetAccount(addr)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the genesis account")
+	}
+	if !account.HasHolder(kid) { // authority
+		return shim.Error("no authority")
+	}
+
+	// balance
+	bb := NewBalanceStub(stub)
+	bal, err := bb.GetBalance(account.GetID())
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the genesis account balance")
+	}
+	if bal.Amount.Cmp(amount) < 0 {
+		amount = bal.Amount.Copy() // real diff
+	}
+	amount.Neg()                     // -
+	_, err = bb.Supply(bal, *amount) // burn
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to burn")
+	}
+
+	// supply
+	token.Supply.Add(amount)
+	token.UpdatedTime = ts
+	if err = tb.PutToken(token); err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to burn")
+	}
+
+	data, err := json.Marshal(token)
+	if err != nil {
+		return shim.Error("failed to marshal the token")
+	}
+	return shim.Success(data)
 }
 
 // params[0] : token code (3~6 alphanum)
@@ -66,12 +141,12 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		ab := NewAccountStub(stub, code)
 		addrs := stringset.New(params[4:]...) // remove duplication
 		// validate co-holders
-		for addr := range addrs {
-			holder, err := ab.GetSignableID(addr)
+		for addr := range addrs.Map() {
+			kids, err := ab.GetHolders(addr)
 			if err != nil {
 				return shim.Error(err.Error())
 			}
-			holders.Add(holder)
+			holders.AppendSlice(kids)
 		}
 	}
 
@@ -118,25 +193,13 @@ func tokenGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 }
 
 // params[0] : token code
-// params[1] : supply (big int string)
+// params[1] : amount (big int string)
 func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) != 2 {
+		return shim.Error("incorrect number of parameters. expecting 2")
+	}
+
 	if err := AssertInvokedByChaincode(stub); err != nil {
-		return shim.Error(err.Error())
-	}
-
-	// TODO:
-
-	// codes below are just for dev...
-	ts, err := txtime.GetTime(stub)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	amount, err := NewAmount(params[1])
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	kid, err := kid.GetID(stub, false)
-	if err != nil {
 		return shim.Error(err.Error())
 	}
 
@@ -144,29 +207,73 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-
-	addr := NewAddress(code, AccountTypePersonal, kid)
-
-	bb := NewBalanceStub(stub)
-	bal, err := bb.GetBalance(addr.String())
+	amount, err := NewAmount(params[1])
+	if err != nil || amount.Sign() < 0 {
+		return shim.Error("amount must be positive integer")
+	}
+	ts, err := txtime.GetTime(stub)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	bal.Amount.Add(amount)
-	bal.UpdatedTime = ts
-	if err = bb.PutBalance(bal); err != nil {
-		return shim.Error(err.Error())
-	}
-	log := &BalanceLog{
-		DOCTYPEID:   bal.DOCTYPEID,
-		Type:        BalanceLogTypeMint,
-		Diff:        *amount,
-		Amount:      bal.Amount,
-		CreatedTime: ts,
-	}
-	if err = bb.PutBalanceLog(log); err != nil {
+
+	// authentication
+	kid, err := kid.GetID(stub, true)
+	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	return shim.Success([]byte("token/mint - test mint"))
+	// token
+	tb := NewTokenStub(stub)
+	token, err := tb.GetToken(code)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the token")
+	}
+	if token.Supply.Cmp(&token.MaxSupply) >= 0 {
+		return shim.Error("max supplied")
+	}
+
+	// genesis account
+	addr, _ := ParseAddress(token.GenesisAccount) // err is nil
+	ab := NewAccountStub(stub, code)
+	account, err := ab.GetAccount(addr)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the genesis account")
+	}
+	if !account.HasHolder(kid) { // authority
+		return shim.Error("no authority")
+	}
+
+	// supply
+	token.Supply.Add(amount)
+	if token.MaxSupply.Cmp(&token.Supply) < 0 {
+		amount.Add(&token.MaxSupply)
+		amount.Add(token.Supply.Neg()) // real diff
+		token.Supply = token.MaxSupply
+	}
+	token.UpdatedTime = ts
+	if err = tb.PutToken(token); err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to mint")
+	}
+
+	// balance
+	bb := NewBalanceStub(stub)
+	bal, err := bb.GetBalance(account.GetID())
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the genesis account balance")
+	}
+	_, err = bb.Supply(bal, *amount) // mint
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to mint")
+	}
+
+	data, err := json.Marshal(token)
+	if err != nil {
+		return shim.Error("failed to marshal the token")
+	}
+	return shim.Success(data)
 }

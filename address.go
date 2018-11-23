@@ -58,8 +58,6 @@ func ParseAddress(addr string) (*Address, error) {
 	_addr.Type = AccountType(idh[0])
 	_addr.Hash = idh[1:]
 
-	logger.Debugf("%#v", _addr)
-
 	if err = _addr.Validate(); err != nil {
 		return nil, err
 	}

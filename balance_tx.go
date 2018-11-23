@@ -108,7 +108,7 @@ func balancePendingList(stub shim.ChaincodeStubInterface, params []string) peer.
 }
 
 // params[0] : pending balance id
-func balanceWithdraw(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+func balancePendingWithdraw(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) != 1 {
 		return shim.Error("incorrect number of parameters. expecting 1")
 	}
@@ -137,11 +137,7 @@ func balanceWithdraw(stub shim.ChaincodeStubInterface, params []string) peer.Res
 	}
 
 	// account
-	addr, err := ParseAddress(pb.Account)
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to parse the account address")
-	}
+	addr, _ := ParseAddress(pb.Account) // err is nil
 	ab := NewAccountStub(stub, addr.Code)
 	account, err := ab.GetAccount(addr)
 	if err != nil {

@@ -57,8 +57,7 @@ func (a *Account) GetType() AccountType {
 
 // HasHolder implements AccountInterface
 func (a *Account) HasHolder(kid string) bool {
-	i := len(a.DOCTYPEID) - 48
-	return a.DOCTYPEID[i:i+40] == strings.ToUpper(kid)
+	return a.Holder() == strings.ToUpper(kid)
 }
 
 // IsSuspended implements AccountInterface
@@ -66,15 +65,21 @@ func (a *Account) IsSuspended() bool {
 	return a.SuspendedTime != nil
 }
 
+// Holder returns holder's KID
+func (a *Account) Holder() string {
+	i := len(a.DOCTYPEID) - 48
+	return strings.ToLower(a.DOCTYPEID[i : i+40])
+}
+
 // JointAccount _
 type JointAccount struct {
 	Account
-	Holders stringset.Set `json:"holders"`
+	Holders *stringset.Set `json:"holders"`
 }
 
 // HasHolder implements AccountInterface
 func (a *JointAccount) HasHolder(kid string) bool {
-	return a.Holders[kid]
+	return a.Holders.Contains(kid)
 }
 
 // Holder represents an account-holder relationship (many-to-many)

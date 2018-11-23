@@ -47,7 +47,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("failed to parse the receiver's account address")
 	}
 	var sAddr *Address
-	if len(params[0]) < 0 {
+	if len(params[0]) > 0 {
 		sAddr, err = ParseAddress(params[0])
 		if err != nil {
 			logger.Debug(err.Error())
@@ -97,6 +97,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the sender's balance")
 	}
+	logger.Debugf("$$$ %s, %s", sBal.Amount.String(), amount.String())
 	if sBal.Amount.Cmp(amount) < 0 {
 		return shim.Error("not enough balance")
 	}
@@ -140,12 +141,12 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 				// extra signers
 				if len(params) > 6 {
 					addrs := stringset.New(params[6:]...) // remove duplication
-					for addr := range addrs {
-						signer, err := ab.GetSignableID(addr)
+					for addr := range addrs.Map() {
+						kids, err := ab.GetHolders(addr)
 						if err != nil {
 							return shim.Error(err.Error())
 						}
-						signers.Add(signer)
+						signers.AppendSlice(kids)
 					}
 				}
 			}

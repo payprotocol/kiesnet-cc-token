@@ -27,7 +27,7 @@ func (tb *TokenStub) CreateKey(code string) string {
 }
 
 // CreateToken _
-func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amount, holders stringset.Set) (*Token, error) {
+func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amount, holders *stringset.Set) (*Token, error) {
 	// create genesis account (joint account)
 	ab := NewAccountStub(tb.stub, code)
 	account, balance, err := ab.CreateJointAccount(holders)
@@ -36,7 +36,7 @@ func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amo
 	}
 	// initial mint
 	bb := NewBalanceStub(tb.stub)
-	_, err = bb.Mint(balance, supply)
+	_, err = bb.Supply(balance, supply)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to mint initial supply")
 	}
