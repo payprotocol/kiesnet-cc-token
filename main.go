@@ -5,6 +5,7 @@ package main
 import (
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
+	"github.com/key-inside/kiesnet-ccpkg/ccid"
 )
 
 var logger = shim.NewLogger("kiesnet-token")
@@ -42,6 +43,8 @@ var routes = map[string]TxFunc{
 	"balance/logs":             balanceLogs,
 	"balance/pending/list":     balancePendingList,
 	"balance/pending/withdraw": balancePendingWithdraw,
+	"contract/execute":         contractExecute,
+	"contract/cancel":          contractCancel,
 	"token/burn":               tokenBurn,
 	"token/create":             tokenCreate,
 	"token/get":                tokenGet,
@@ -56,14 +59,13 @@ func ver(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 // AssertInvokedByChaincode _
 func AssertInvokedByChaincode(stub shim.ChaincodeStubInterface) error {
-	// TODO: un-comment
-	// ccid, err := ccid.GetID(stub)
-	// if err != nil {
-	// 	return err
-	// }
-	// if "kiesnet-token" == ccid || "kiesnet-cc-token" == ccid {
-	// 	return InvalidAccessError{}
-	// }
+	ccid, err := ccid.GetID(stub)
+	if err != nil {
+		return err
+	}
+	if "kiesnet-token" == ccid || "kiesnet-cc-token" == ccid {
+		return InvalidAccessError{}
+	}
 	return nil
 }
 

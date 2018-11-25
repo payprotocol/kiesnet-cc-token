@@ -171,11 +171,13 @@ func (bb *BalanceStub) Supply(bal *Balance, amount Amount) (*BalanceLog, error) 
 	if err != nil {
 		return nil, err
 	}
+
 	bal.Amount.Add(&amount)
 	bal.UpdatedTime = ts
 	if err = bb.PutBalance(bal); err != nil {
 		return nil, err
 	}
+
 	log := NewBalanceSupplyLog(bal, amount)
 	log.CreatedTime = ts
 	if err = bb.PutBalanceLog(log); err != nil {
@@ -192,15 +194,8 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 	}
 
 	if pendingTime != nil && pendingTime.After(*ts) { // time lock
-		pb := &PendingBalance{
-			DOCTYPEID:   bb.stub.GetTxID(),
-			Account:     receiver.DOCTYPEID,
-			RID:         sender.DOCTYPEID,
-			Amount:      amount,
-			Memo:        memo,
-			CreatedTime: ts,
-			PendingTime: pendingTime,
-		}
+		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, amount, memo, pendingTime)
+		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
 			return nil, err
 		}
@@ -232,15 +227,47 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 	return sbl, nil
 }
 
+// Deposit _
+// It does not validate pending time!
+func (bb *BalanceStub) Deposit(id string, sender *Balance, contract *Contract, amount Amount, memo string) (*BalanceLog, error) {
+	ts, err := txtime.GetTime(bb.stub)
+	if err != nil {
+		return nil, err
+	}
+
+	expiryTime, err := contract.GetExpiryTime()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the expiry time")
+	}
+
+	pb := NewPendingBalance(id, sender, contract, amount, memo, expiryTime)
+	pb.CreatedTime = ts
+	if err = bb.PutPendingBalance(pb); err != nil {
+		return nil, errors.Wrap(err, "failed to create the pending balance")
+	}
+
+	amount.Neg() // -
+	sender.Amount.Add(&amount)
+	sender.UpdatedTime = ts
+	if err = bb.PutBalance(sender); err != nil {
+		return nil, err
+	}
+	log := NewBalanceDepositLog(sender, pb)
+	log.CreatedTime = ts
+	if err = bb.PutBalanceLog(log); err != nil {
+		return nil, err
+	}
+
+	return log, nil
+}
+
 // Withdraw _
+// It does not validate pending time!
 func (bb *BalanceStub) Withdraw(pb *PendingBalance) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
 		return nil, err
 	}
-	// if pb.PendingTime.After(*ts) {	<-- checked already
-	// 	return nil, errors.New("too early to withdraw")
-	// }
 
 	bal, err := bb.GetBalance(pb.Account)
 	if err != nil {

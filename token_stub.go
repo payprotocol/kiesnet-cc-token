@@ -34,11 +34,14 @@ func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amo
 	if err != nil {
 		return nil, err
 	}
+
 	// initial mint
-	bb := NewBalanceStub(tb.stub)
-	_, err = bb.Supply(balance, supply)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to mint initial supply")
+	if supply.Sign() > 0 {
+		bb := NewBalanceStub(tb.stub)
+		_, err = bb.Supply(balance, supply)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to mint initial supply")
+		}
 	}
 
 	// token

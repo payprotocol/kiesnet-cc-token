@@ -182,8 +182,8 @@ func (ab *AccountStub) GetQueryHolderAccounts(kid, bookmark string) (*QueryResul
 	return NewQueryResult(meta, iter)
 }
 
-// GetHolders returns holders' KID array
-func (ab *AccountStub) GetHolders(addr string) ([]string, error) {
+// GetSignableIDs returns holders' KID array
+func (ab *AccountStub) GetSignableIDs(addr string) ([]string, error) {
 	_addr, err := ParseAddress(addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse the account address: %s", addr)
@@ -191,15 +191,15 @@ func (ab *AccountStub) GetHolders(addr string) ([]string, error) {
 	if _addr.Code != ab.token {
 		return nil, errors.Errorf("mismatched token account: %s", addr)
 	}
-	_acc, err := ab.GetAccount(_addr)
+	account, err := ab.GetAccount(_addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get the account: %s", addr)
 	}
-	if account, ok := _acc.(*Account); ok {
-		return []string{account.Holder()}, nil
+	if pac, ok := account.(*Account); ok {
+		return []string{pac.Holder()}, nil
 	}
-	account := _acc.(*JointAccount)
-	return account.Holders.Strings(), nil
+	jac := account.(*JointAccount)
+	return jac.Holders.Strings(), nil
 }
 
 // PutAccount _
@@ -221,22 +221,21 @@ func (ab *AccountStub) SuspendAccount(kid string) (*Account, error) {
 		return nil, err
 	}
 
-	_acc, err := ab.GetAccount(NewAddress(ab.token, AccountTypePersonal, kid))
+	account, err := ab.GetAccount(NewAddress(ab.token, AccountTypePersonal, kid))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the personal account")
 	}
-	account := _acc.(*Account)
-
-	if account.SuspendedTime != nil {
+	pac := account.(*Account)
+	if pac.SuspendedTime != nil {
 		return nil, errors.New("already suspended")
 	}
 
-	account.SuspendedTime = ts
-	account.UpdatedTime = ts
-	if err = ab.PutAccount(account); err != nil {
+	pac.SuspendedTime = ts
+	pac.UpdatedTime = ts
+	if err = ab.PutAccount(pac); err != nil {
 		return nil, err
 	}
-	return account, nil
+	return pac, nil
 }
 
 // UnsuspendAccount _
@@ -246,22 +245,21 @@ func (ab *AccountStub) UnsuspendAccount(kid string) (*Account, error) {
 		return nil, err
 	}
 
-	_acc, err := ab.GetAccount(NewAddress(ab.token, AccountTypePersonal, kid))
+	account, err := ab.GetAccount(NewAddress(ab.token, AccountTypePersonal, kid))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the personal account")
 	}
-	account := _acc.(*Account)
-
-	if nil == account.SuspendedTime {
+	pac := account.(*Account)
+	if nil == pac.SuspendedTime {
 		return nil, errors.New("not suspended")
 	}
 
-	account.SuspendedTime = nil
-	account.UpdatedTime = ts
-	if err = ab.PutAccount(account); err != nil {
+	pac.SuspendedTime = nil
+	pac.UpdatedTime = ts
+	if err = ab.PutAccount(pac); err != nil {
 		return nil, err
 	}
-	return account, nil
+	return pac, nil
 }
 
 // CreateHolderKey _

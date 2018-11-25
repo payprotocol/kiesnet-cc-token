@@ -68,7 +68,7 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 	}
 	// validate & get kid of co-holders
 	for addr := range addrs.Map() {
-		kids, err := ab.GetHolders(addr)
+		kids, err := ab.GetSignableIDs(addr)
 		if err != nil {
 			return shim.Error(err.Error())
 		}

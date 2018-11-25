@@ -65,6 +65,11 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if !account.HasHolder(kid) { // authority
 		return shim.Error("no authority")
 	}
+	jac := account.(*JointAccount)
+	if jac.Holders.Size() > 1 {
+		// TODO: contract
+		//return ...
+	}
 
 	// balance
 	bb := NewBalanceStub(stub)
@@ -142,7 +147,7 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		addrs := stringset.New(params[4:]...) // remove duplication
 		// validate co-holders
 		for addr := range addrs.Map() {
-			kids, err := ab.GetHolders(addr)
+			kids, err := ab.GetSignableIDs(addr)
 			if err != nil {
 				return shim.Error(err.Error())
 			}
@@ -187,7 +192,7 @@ func tokenGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	tb := NewTokenStub(stub)
 	data, err := tb.GetTokenState(code)
 	if err != nil {
-		return shim.Error("failed to marshal the token")
+		return shim.Error(err.Error())
 	}
 	return shim.Success(data)
 }
@@ -243,6 +248,11 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	}
 	if !account.HasHolder(kid) { // authority
 		return shim.Error("no authority")
+	}
+	jac := account.(*JointAccount)
+	if jac.Holders.Size() > 1 {
+		// TODO: contract
+		//return ...
 	}
 
 	// supply

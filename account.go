@@ -11,7 +11,7 @@ import (
 
 // AccountInterface _
 type AccountInterface interface {
-	GetID() string
+	Identifiable
 	GetToken() string
 	GetType() AccountType
 	HasHolder(kid string) bool
@@ -40,7 +40,7 @@ type Account struct {
 	SuspendedTime *time.Time  `json:"suspended_time,omitempty"`
 }
 
-// GetID implements AccountInterface
+// GetID implements Identifiable
 func (a *Account) GetID() string {
 	return a.DOCTYPEID
 }
@@ -57,7 +57,7 @@ func (a *Account) GetType() AccountType {
 
 // HasHolder implements AccountInterface
 func (a *Account) HasHolder(kid string) bool {
-	return a.Holder() == strings.ToUpper(kid)
+	return a.Holder() == kid
 }
 
 // IsSuspended implements AccountInterface
@@ -80,6 +80,11 @@ type JointAccount struct {
 // HasHolder implements AccountInterface
 func (a *JointAccount) HasHolder(kid string) bool {
 	return a.Holders.Contains(kid)
+}
+
+// Holder override
+func (a *JointAccount) Holder() string {
+	return ""
 }
 
 // Holder represents an account-holder relationship (many-to-many)

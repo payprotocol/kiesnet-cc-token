@@ -142,7 +142,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 				if len(params) > 6 {
 					addrs := stringset.New(params[6:]...) // remove duplication
 					for addr := range addrs.Map() {
-						kids, err := ab.GetHolders(addr)
+						kids, err := ab.GetSignableIDs(addr)
 						if err != nil {
 							return shim.Error(err.Error())
 						}
@@ -152,21 +152,45 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			}
 		}
 	}
-	_ = expiry // TODO:
 
-	if signers.Size() > 1 {
+	var log *BalanceLog // log for response
+
+	if signers.Size() > 1 { // multi-sig
 		if signers.Size() > 128 {
 			return shim.Error("too many signers")
 		}
-		// TODO: contract
+		// pending balance id
+		pbID := stub.GetTxID()
+		// contract
+		ptStr := "0"
+		if pendingTime != nil {
+			ptStr = params[4]
+		}
+		doc := []string{"transfer", pbID, sender.GetID(), receiver.GetID(), amount.String(), memo, ptStr}
+		docb, err := json.Marshal(doc)
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to create a contract")
+		}
+		contract, err := InvokeContract(stub, docb, expiry, signers)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+		// pending balance
+		log, err = bb.Deposit(pbID, sBal, contract, *amount, memo)
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to create a pending balance")
+		}
+	} else { // instant sending
+		log, err = bb.Transfer(sBal, rBal, *amount, memo, pendingTime)
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to transfer")
+		}
 	}
 
-	log, err := bb.Transfer(sBal, rBal, *amount, memo, pendingTime)
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to transfer")
-	}
-
+	// log is not nil
 	data, err := json.Marshal(log)
 	if err != nil {
 		logger.Debug(err.Error())
@@ -174,4 +198,14 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	return shim.Success(data)
+}
+
+func executeTransfer(stub shim.ChaincodeStubInterface, cid string, params []string) peer.Response {
+	logger.Debug("!!!!! executeTransfer")
+	return shim.Error("not yet")
+}
+
+func cancelTransfer(stub shim.ChaincodeStubInterface, cid string, params []string) peer.Response {
+	logger.Debug("!!!!! cancelTransfer")
+	return shim.Error("not yet")
 }

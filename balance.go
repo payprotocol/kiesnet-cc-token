@@ -12,6 +12,11 @@ type Balance struct {
 	UpdatedTime *time.Time `json:"updated_time,omitempty"`
 }
 
+// GetID implements Identifiable
+func (b *Balance) GetID() string {
+	return b.DOCTYPEID
+}
+
 // BalanceLogType _
 type BalanceLogType int8
 
@@ -81,6 +86,19 @@ func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, memo string) 
 	}
 }
 
+// NewBalanceDepositLog _
+func NewBalanceDepositLog(bal *Balance, pb *PendingBalance) *BalanceLog {
+	diff := pb.Amount.Copy().Neg()
+	return &BalanceLog{
+		DOCTYPEID: bal.DOCTYPEID,
+		Type:      BalanceLogTypeDeposit,
+		RID:       pb.RID,
+		Diff:      *diff,
+		Amount:    bal.Amount,
+		Memo:      pb.Memo,
+	}
+}
+
 // NewBalanceWithdrawLog _
 func NewBalanceWithdrawLog(bal *Balance, pb *PendingBalance) *BalanceLog {
 	return &BalanceLog{
@@ -93,13 +111,41 @@ func NewBalanceWithdrawLog(bal *Balance, pb *PendingBalance) *BalanceLog {
 	}
 }
 
+// PendingBalanceType _
+type PendingBalanceType int8
+
+const (
+	// PendingBalanceTypeAccount _
+	PendingBalanceTypeAccount PendingBalanceType = iota
+	// PendingBalanceTypeContract _
+	PendingBalanceTypeContract
+)
+
 // PendingBalance _
 type PendingBalance struct {
-	DOCTYPEID   string     `json:"@pending_balance"` // id
-	Account     string     `json:"account"`          // address
-	RID         string     `json:"rid"`              // relative ID
-	Amount      Amount     `json:"amount"`
-	Memo        string     `json:"memo"`
-	CreatedTime *time.Time `json:"created_time,omitempty"`
-	PendingTime *time.Time `json:"pending_time,omitempty"`
+	DOCTYPEID   string             `json:"@pending_balance"` // id
+	Type        PendingBalanceType `json:"type"`
+	Account     string             `json:"account"` // account ID (address)
+	RID         string             `json:"rid"`     // relative ID
+	Amount      Amount             `json:"amount"`
+	Memo        string             `json:"memo"`
+	CreatedTime *time.Time         `json:"created_time,omitempty"`
+	PendingTime *time.Time         `json:"pending_time,omitempty"`
+}
+
+// NewPendingBalance _
+func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount Amount, memo string, pTime *time.Time) *PendingBalance {
+	ptype := PendingBalanceTypeAccount
+	if _, ok := rel.(*Contract); ok {
+		ptype = PendingBalanceTypeContract
+	}
+	return &PendingBalance{
+		DOCTYPEID:   id,
+		Type:        ptype,
+		Account:     owner.GetID(),
+		RID:         rel.GetID(),
+		Amount:      amount,
+		Memo:        memo,
+		PendingTime: pTime,
+	}
 }
