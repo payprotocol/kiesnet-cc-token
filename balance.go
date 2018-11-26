@@ -126,7 +126,7 @@ type PendingBalance struct {
 	DOCTYPEID   string             `json:"@pending_balance"` // id
 	Type        PendingBalanceType `json:"type"`
 	Account     string             `json:"account"` // account ID (address)
-	RID         string             `json:"rid"`     // relative ID
+	RID         string             `json:"rid"`     // relative ID - account or contract
 	Amount      Amount             `json:"amount"`
 	Memo        string             `json:"memo"`
 	CreatedTime *time.Time         `json:"created_time,omitempty"`

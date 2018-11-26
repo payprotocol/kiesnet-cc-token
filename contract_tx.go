@@ -11,7 +11,7 @@ import (
 )
 
 // CtrFunc _
-type CtrFunc func(shim.ChaincodeStubInterface, string, []string) peer.Response
+type CtrFunc func(stub shim.ChaincodeStubInterface, cid string, doc []string) peer.Response
 
 // routes is the map of contract functions
 var ctrRoutes = map[string][]CtrFunc{
@@ -23,6 +23,7 @@ func contractCallback(stub shim.ChaincodeStubInterface, fnIdx int, params []stri
 		return shim.Error("incorrect number of parameters. expecting 2")
 	}
 
+	// ISSUE: validate ccid ('kiesnet-contract', 'kiesnet-cc-contract') ?
 	if err := AssertInvokedByChaincode(stub); err != nil {
 		return shim.Error(err.Error())
 	}

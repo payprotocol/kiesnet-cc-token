@@ -227,6 +227,42 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 	return sbl, nil
 }
 
+// TransferPendingBalance _
+func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Balance, pendingTime *time.Time) error {
+	ts, err := txtime.GetTime(bb.stub)
+	if err != nil {
+		return err
+	}
+
+	sender := &Balance{DOCTYPEID: pb.Account} // proxy
+
+	if pendingTime != nil && pendingTime.After(*ts) { // time lock
+		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, pb.Amount, pb.Memo, pendingTime)
+		pb.CreatedTime = ts
+		if err = bb.PutPendingBalance(pb); err != nil {
+			return err
+		}
+	} else {
+		receiver.Amount.Add(&pb.Amount) // deposit
+		receiver.UpdatedTime = ts
+		if err = bb.PutBalance(receiver); err != nil {
+			return err
+		}
+		rbl := NewBalanceTransferLog(sender, receiver, pb.Amount, pb.Memo)
+		rbl.CreatedTime = ts
+		if err = bb.PutBalanceLog(rbl); err != nil {
+			return err
+		}
+	}
+
+	// remove pending balance
+	if err = bb.stub.DelState(bb.CreatePendingKey(pb.DOCTYPEID)); err != nil {
+		return errors.Wrap(err, "failed to delete the pending balance")
+	}
+
+	return nil
+}
+
 // Deposit _
 // It does not validate pending time!
 func (bb *BalanceStub) Deposit(id string, sender *Balance, contract *Contract, amount Amount, memo string) (*BalanceLog, error) {
