@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"strconv"
@@ -30,6 +31,18 @@ func (c *Contract) GetExpiryTime() (*time.Time, error) {
 		return nil, err
 	}
 	return &t, nil
+}
+
+// MarshalJSON _
+func (c *Contract) MarshalJSON() ([]byte, error) {
+	buf := bytes.NewBufferString(`{"@contract":"`)
+	if _, err := buf.WriteString(c.GetID()); err != nil {
+		return nil, err
+	}
+	if _, err := buf.WriteString(`"}`); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // ContractCfg is configuration for 'contract' chaincode

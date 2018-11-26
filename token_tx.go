@@ -10,7 +10,6 @@ import (
 	"github.com/hyperledger/fabric/protos/peer"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
-	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
 // params[0] : token code
@@ -32,10 +31,6 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if err != nil || amount.Sign() < 0 {
 		return shim.Error("amount must be positive integer")
 	}
-	ts, err := txtime.GetTime(stub)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
 
 	// authentication
 	kid, err := kid.GetID(stub, true)
@@ -50,8 +45,8 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the token")
 	}
-	if token.Supply.Sign() == 0 {
-		return shim.Error("no supply")
+	if token.Supply.Cmp(amount) < 0 {
+		return shim.Error("amount must be less or equal than total supply")
 	}
 
 	// genesis account
@@ -65,11 +60,6 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if !account.HasHolder(kid) { // authority
 		return shim.Error("no authority")
 	}
-	jac := account.(*JointAccount)
-	if jac.Holders.Size() > 1 {
-		// TODO: contract
-		//return ...
-	}
 
 	// balance
 	bb := NewBalanceStub(stub)
@@ -78,22 +68,22 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the genesis account balance")
 	}
-	if bal.Amount.Cmp(amount) < 0 {
-		amount = bal.Amount.Copy() // real diff
-	}
-	amount.Neg()                     // -
-	_, err = bb.Supply(bal, *amount) // burn
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to burn")
+	if bal.Amount.Sign() == 0 {
+		return shim.Error("genesis account balance is 0")
 	}
 
-	// supply
-	token.Supply.Add(amount)
-	token.UpdatedTime = ts
-	if err = tb.PutToken(token); err != nil {
+	jac := account.(*JointAccount)
+	if jac.Holders.Size() > 1 {
+		// contract
+		doc := []interface{}{"token/burn", code, amount.String()}
+		return invokeTokenContract(stub, doc, jac.Holders)
+	}
+
+	// burn
+	token, err = tb.Burn(token, bal, *amount)
+	if err != nil {
 		logger.Debug(err.Error())
-		return shim.Error("failed to burn")
+		return shim.Error("failed to burn: " + err.Error())
 	}
 
 	data, err := json.Marshal(token)
@@ -156,8 +146,9 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	}
 
 	if holders.Size() > 1 {
-		// TODO: contract
-		//return ...
+		// contract
+		doc := []interface{}{"token/create", code, decimal, maxSupply.String(), supply.String(), holders.Strings()}
+		return invokeTokenContract(stub, doc, holders)
 	}
 
 	tb := NewTokenStub(stub)
@@ -216,10 +207,6 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if err != nil || amount.Sign() < 0 {
 		return shim.Error("amount must be positive integer")
 	}
-	ts, err := txtime.GetTime(stub)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
 
 	// authentication
 	kid, err := kid.GetID(stub, true)
@@ -251,21 +238,9 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	}
 	jac := account.(*JointAccount)
 	if jac.Holders.Size() > 1 {
-		// TODO: contract
-		//return ...
-	}
-
-	// supply
-	token.Supply.Add(amount)
-	if token.MaxSupply.Cmp(&token.Supply) < 0 {
-		amount.Add(&token.MaxSupply)
-		amount.Add(token.Supply.Neg()) // real diff
-		token.Supply = token.MaxSupply
-	}
-	token.UpdatedTime = ts
-	if err = tb.PutToken(token); err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to mint")
+		// contract
+		doc := []interface{}{"token/mint", code, amount.String()}
+		return invokeTokenContract(stub, doc, jac.Holders)
 	}
 
 	// balance
@@ -275,10 +250,12 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the genesis account balance")
 	}
-	_, err = bb.Supply(bal, *amount) // mint
+
+	// mint
+	token, err = tb.Mint(token, bal, *amount)
 	if err != nil {
 		logger.Debug(err.Error())
-		return shim.Error("failed to mint")
+		return shim.Error("failed to mint: " + err.Error())
 	}
 
 	data, err := json.Marshal(token)
@@ -286,4 +263,126 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		return shim.Error("failed to marshal the token")
 	}
 	return shim.Success(data)
+}
+
+// helpers
+
+func invokeTokenContract(stub shim.ChaincodeStubInterface, doc []interface{}, signers *stringset.Set) peer.Response {
+	docb, err := json.Marshal(doc)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to create a contract")
+	}
+	contract, err := InvokeContract(stub, docb, 0, signers)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	data, err := contract.MarshalJSON()
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to marshal a contract")
+	}
+	return shim.Success(data)
+}
+
+// contract callbacks
+
+// doc: ["token/burn", code, amount]
+func executeTokenBurn(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
+	if len(doc) < 3 {
+		return shim.Error("invalid contract document")
+	}
+
+	code := doc[1].(string)
+	amount, err := NewAmount(doc[2].(string))
+	if err != nil {
+		return shim.Error("invalid amount")
+	}
+
+	// token
+	tb := NewTokenStub(stub)
+	token, err := tb.GetToken(code)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the token")
+	}
+
+	// balance
+	bb := NewBalanceStub(stub)
+	bal, err := bb.GetBalance(token.GenesisAccount)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the genesis account balance")
+	}
+
+	if _, err = tb.Burn(token, bal, *amount); err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(nil)
+}
+
+// doc: ["token/create", code, decimal(int), max-supply, supply, [co-holders...]]
+func executeTokenCreate(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
+	if len(doc) < 6 {
+		return shim.Error("invalid contract document")
+	}
+
+	code := doc[1].(string)
+	decimal := int(doc[2].(float64))
+	maxSupply, err := NewAmount(doc[3].(string))
+	if err != nil {
+		return shim.Error("invalid max supply")
+	}
+	supply, err := NewAmount(doc[4].(string))
+	if err != nil {
+		return shim.Error("invalid initial supply")
+	}
+	kids := doc[5].([]interface{})
+	holders := stringset.New()
+	for _, kid := range kids {
+		holders.Add(kid.(string))
+	}
+
+	tb := NewTokenStub(stub)
+	if _, err = tb.CreateToken(code, decimal, *maxSupply, *supply, holders); err != nil {
+		return shim.Error("failed to create token")
+	}
+
+	return shim.Success(nil)
+}
+
+// doc: ["token/mint", code, amount]
+func executeTokenMint(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
+	if len(doc) < 3 {
+		return shim.Error("invalid contract document")
+	}
+
+	code := doc[1].(string)
+	amount, err := NewAmount(doc[2].(string))
+	if err != nil {
+		return shim.Error("invalid amount")
+	}
+
+	// token
+	tb := NewTokenStub(stub)
+	token, err := tb.GetToken(code)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the token")
+	}
+
+	// balance
+	bb := NewBalanceStub(stub)
+	bal, err := bb.GetBalance(token.GenesisAccount)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the genesis account balance")
+	}
+
+	if _, err = tb.Mint(token, bal, *amount); err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(nil)
 }

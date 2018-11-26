@@ -11,11 +11,14 @@ import (
 )
 
 // CtrFunc _
-type CtrFunc func(stub shim.ChaincodeStubInterface, cid string, doc []string) peer.Response
+type CtrFunc func(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response
 
 // routes is the map of contract functions
 var ctrRoutes = map[string][]CtrFunc{
-	"transfer": []CtrFunc{cancelTransfer, executeTransfer},
+	"token/burn":   []CtrFunc{contractVoid, executeTokenBurn},
+	"token/create": []CtrFunc{contractVoid, executeTokenCreate},
+	"token/mint":   []CtrFunc{contractVoid, executeTokenMint},
+	"transfer":     []CtrFunc{cancelTransfer, executeTransfer},
 }
 
 func contractCallback(stub shim.ChaincodeStubInterface, fnIdx int, params []string) peer.Response {
@@ -35,17 +38,17 @@ func contractCallback(stub shim.ChaincodeStubInterface, fnIdx int, params []stri
 	}
 
 	cid := params[0] // contract ID
-	doc := []string{}
+	doc := []interface{}{}
 	err = json.Unmarshal([]byte(params[1]), &doc)
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to unmarshal contract document")
 	}
-
-	if ctrFn := ctrRoutes[doc[0]][fnIdx]; ctrFn != nil {
+	dtype := doc[0].(string)
+	if ctrFn := ctrRoutes[dtype][fnIdx]; ctrFn != nil {
 		return ctrFn(stub, cid, doc)
 	}
-	return shim.Error("unknown contract: '" + doc[0] + "'")
+	return shim.Error("unknown contract: '" + dtype + "'")
 }
 
 func contractCancel(stub shim.ChaincodeStubInterface, params []string) peer.Response {
@@ -54,4 +57,9 @@ func contractCancel(stub shim.ChaincodeStubInterface, params []string) peer.Resp
 
 func contractExecute(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return contractCallback(stub, 1, params)
+}
+
+// callback has nothing to do
+func contractVoid(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
+	return shim.Success(nil)
 }

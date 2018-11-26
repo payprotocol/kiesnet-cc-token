@@ -102,3 +102,74 @@ func (tb *TokenStub) PutToken(token *Token) error {
 	}
 	return nil
 }
+
+// Burn _
+func (tb *TokenStub) Burn(token *Token, bal *Balance, amount Amount) (*Token, error) {
+	ts, err := txtime.GetTime(tb.stub)
+	if err != nil {
+		return token, err
+	}
+
+	// token
+	if token.Supply.Sign() == 0 {
+		return token, errors.New("no supply")
+	}
+
+	// balance
+	bb := NewBalanceStub(tb.stub)
+	if bal.Amount.Cmp(&amount) < 0 {
+		amount = *(bal.Amount.Copy()) // real diff
+	}
+	if amount.Sign() <= 0 { // nothing to burn
+		return token, nil
+	}
+
+	// burn
+	amount.Neg() // -
+	if _, err = bb.Supply(bal, amount); err != nil {
+		return token, errors.Wrap(err, "failed to burn")
+	}
+
+	// supply
+	token.Supply.Add(&amount)
+	token.UpdatedTime = ts
+	if err = tb.PutToken(token); err != nil {
+		return token, errors.Wrap(err, "failed to burn")
+	}
+
+	return token, nil
+}
+
+// Mint _
+func (tb *TokenStub) Mint(token *Token, bal *Balance, amount Amount) (*Token, error) {
+	ts, err := txtime.GetTime(tb.stub)
+	if err != nil {
+		return token, err
+	}
+
+	// token
+	if token.Supply.Cmp(&token.MaxSupply) >= 0 {
+		return token, errors.New("max supplied")
+	}
+
+	// supply
+	token.Supply.Add(&amount)
+	if token.MaxSupply.Cmp(&token.Supply) < 0 {
+		amount.Add(&token.MaxSupply)
+		amount.Add(token.Supply.Neg()) // real diff
+		token.Supply = token.MaxSupply
+	}
+	token.UpdatedTime = ts
+	if err = tb.PutToken(token); err != nil {
+		return token, errors.Wrap(err, "failed to mint")
+	}
+
+	// balance
+	bb := NewBalanceStub(tb.stub)
+	// mint
+	if _, err = bb.Supply(bal, amount); err != nil {
+		return token, errors.Wrap(err, "failed to mint")
+	}
+
+	return token, nil
+}

@@ -200,68 +200,17 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// contract callback
+// contract callbacks
 
 // doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, memo, pending-time]
-func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []string) peer.Response {
-	logger.Debugf("Params -> %#v", doc) // TODO
-
-	if len(doc) < 7 {
-		return shim.Error("invalid contract document")
-	}
-
-	// pending balance
-	bb := NewBalanceStub(stub)
-	pb, err := bb.GetPendingBalance(doc[1])
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the pending balance")
-	}
-	// validate
-	if pb.Type != PendingBalanceTypeContract || pb.RID != cid {
-		return shim.Error("invalid pending balance")
-	}
-
-	// ISSUE: check accounts ? (suspended)
-
-	// receiver balance
-	rBal, err := bb.GetBalance(doc[3])
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the receiver's balance")
-	}
-
-	// pending time
-	var pendingTime *time.Time
-	if doc[6] != "" && doc[6] != "0" {
-		seconds, err := strconv.ParseInt(doc[6], 10, 64)
-		if err != nil {
-			return shim.Error("invalid pending time")
-		}
-		ut := time.Unix(seconds, 0)
-		pendingTime = &ut
-	}
-
-	// transfer
-	if err = bb.TransferPendingBalance(pb, rBal, pendingTime); err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to transfer a pending balance")
-	}
-
-	return shim.Success(nil)
-}
-
-// doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, memo, pending-time]
-func cancelTransfer(stub shim.ChaincodeStubInterface, cid string, doc []string) peer.Response {
-	logger.Debugf("Params -> %#v", doc) // TODO
-
+func cancelTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	if len(doc) < 2 {
 		return shim.Error("invalid contract document")
 	}
 
 	// pending balance
 	bb := NewBalanceStub(stub)
-	pb, err := bb.GetPendingBalance(doc[1])
+	pb, err := bb.GetPendingBalance(doc[1].(string))
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the pending balance")
@@ -277,6 +226,54 @@ func cancelTransfer(stub shim.ChaincodeStubInterface, cid string, doc []string) 
 	if _, err = bb.Withdraw(pb); err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to withdraw")
+	}
+
+	return shim.Success(nil)
+}
+
+// doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, memo, pending-time]
+func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
+	if len(doc) < 7 {
+		return shim.Error("invalid contract document")
+	}
+
+	// pending balance
+	bb := NewBalanceStub(stub)
+	pb, err := bb.GetPendingBalance(doc[1].(string))
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the pending balance")
+	}
+	// validate
+	if pb.Type != PendingBalanceTypeContract || pb.RID != cid {
+		return shim.Error("invalid pending balance")
+	}
+
+	// ISSUE: check accounts ? (suspended)
+
+	// receiver balance
+	rBal, err := bb.GetBalance(doc[3].(string))
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the receiver's balance")
+	}
+
+	// pending time
+	ptStr := doc[6].(string)
+	var pendingTime *time.Time
+	if ptStr != "" && ptStr != "0" {
+		seconds, err := strconv.ParseInt(ptStr, 10, 64)
+		if err != nil {
+			return shim.Error("invalid pending time")
+		}
+		ut := time.Unix(seconds, 0)
+		pendingTime = &ut
+	}
+
+	// transfer
+	if err = bb.TransferPendingBalance(pb, rBal, pendingTime); err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to transfer a pending balance")
 	}
 
 	return shim.Success(nil)
