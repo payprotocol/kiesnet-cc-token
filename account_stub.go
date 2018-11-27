@@ -278,3 +278,55 @@ func (ab *AccountStub) PutHolder(holder *Holder) error {
 	}
 	return nil
 }
+
+// AddHolder _
+func (ab *AccountStub) AddHolder(account *JointAccount, kid string) (*JointAccount, error) {
+	if account.HasHolder(kid) {
+		return nil, errors.New("already existed holder")
+	}
+
+	ts, err := txtime.GetTime(ab.stub)
+	if err != nil {
+		return nil, err
+	}
+
+	account.Holders.Add(kid)
+	account.UpdatedTime = ts
+	if err = ab.PutAccount(account); err != nil {
+		return nil, errors.Wrap(err, "failed to update the account")
+	}
+
+	// cretae account-holder relationship
+	holder := NewHolder(kid, account)
+	holder.CreatedTime = ts
+	if err = ab.PutHolder(holder); err != nil {
+		return nil, errors.Wrap(err, "failed to create a holder")
+	}
+
+	return account, nil
+}
+
+// RemoveHolder _
+func (ab *AccountStub) RemoveHolder(account *JointAccount, kid string) (*JointAccount, error) {
+	if !account.HasHolder(kid) {
+		return nil, errors.New("not existed holder")
+	}
+
+	ts, err := txtime.GetTime(ab.stub)
+	if err != nil {
+		return nil, err
+	}
+
+	account.Holders.Remove(kid)
+	account.UpdatedTime = ts
+	if err = ab.PutAccount(account); err != nil {
+		return nil, errors.Wrap(err, "failed to update the account")
+	}
+
+	// remove account-holder relationship
+	if err = ab.stub.DelState(ab.CreateHolderKey(kid, account.GetID())); err != nil {
+		return nil, errors.Wrap(err, "failed to delete a holder")
+	}
+
+	return account, nil
+}

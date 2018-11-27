@@ -64,6 +64,11 @@ func ParseAddress(addr string) (*Address, error) {
 	return _addr, nil
 }
 
+// ID _
+func (addr *Address) ID() string {
+	return hex.EncodeToString(addr.Hash[:20])
+}
+
 // Checksum _
 func (addr *Address) Checksum(hash []byte) []byte {
 	buf := bytes.NewBuffer([]byte(addr.Code))

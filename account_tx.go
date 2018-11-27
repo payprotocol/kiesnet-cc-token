@@ -10,6 +10,7 @@ import (
 	"github.com/hyperledger/fabric/protos/peer"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
+	"github.com/pkg/errors"
 )
 
 // params[0] : token code
@@ -79,13 +80,9 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 		return shim.Error("joint account needs co-holders")
 	}
 
-	// TODO: contract
-
-	account, balance, err := ab.CreateJointAccount(holders)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	return responseAccountWithBalance(account, balance)
+	// contract
+	doc := []interface{}{"account/create", code, holders.Strings()}
+	return invokeContract(stub, doc, holders)
 }
 
 // information of the account
@@ -132,6 +129,138 @@ func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response
 	return responseAccountWithBalanceState(account, balance)
 }
 
+func validateAccountHolderParameters(stub shim.ChaincodeStubInterface, params []string) (*JointAccount, *Address, error) {
+	if len(params) != 2 {
+		return nil, nil, errors.New("incorrect number of parameters. expecting 2")
+	}
+
+	addr, err := ParseAddress(params[0])
+	if err != nil {
+		logger.Debug(err.Error())
+		return nil, nil, errors.New("failed to parse the account address")
+	}
+	if addr.Type != AccountTypeJoint {
+		return nil, nil, errors.New("the account must be joint account")
+	}
+
+	taddr, err := ParseAddress(params[1])
+	if err != nil {
+		logger.Debug(err.Error())
+		return nil, nil, errors.New("failed to parse the co-holder's account address")
+	}
+	if taddr.Type != AccountTypePersonal {
+		return nil, nil, errors.New("the co-holder's account must be personal account")
+	}
+
+	if addr.Code != taddr.Code {
+		return nil, nil, errors.New("mismatched token accounts")
+	}
+
+	ab := NewAccountStub(stub, addr.Code)
+	account, err := ab.GetAccount(addr)
+	if err != nil {
+		logger.Debug(err.Error())
+		return nil, nil, errors.New("failed to get the account")
+	}
+	jac := account.(*JointAccount)
+
+	return jac, taddr, nil
+}
+
+// params[0] : account address (joint account only)
+// params[1] : co-holder's personal account address
+func accountHolderAdd(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	jac, taddr, err := validateAccountHolderParameters(stub, params)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	if jac.Holders.Size() > 127 {
+		return shim.Error("already has max holders (128)")
+	}
+
+	// authentication
+	kid, err := kid.GetID(stub, true)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	if !jac.HasHolder(kid) {
+		return shim.Error("no authority")
+	}
+
+	ab := NewAccountStub(stub, "")
+	account, err := ab.GetAccount(taddr)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the co-holder's account")
+	}
+	pac := account.(*Account)
+	holder := pac.Holder()
+
+	if jac.HasHolder(holder) {
+		return shim.Error("existed holder")
+	}
+
+	signers := stringset.New(holder)
+	signers.AppendSet(jac.Holders)
+
+	// contract
+	doc := []interface{}{"account/holder/add", jac.GetID(), holder}
+	return invokeContract(stub, doc, signers)
+}
+
+// params[0] : account address (joint account only)
+// params[1] : co-holder's personal account address
+func accountHolderRemove(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	jac, taddr, err := validateAccountHolderParameters(stub, params)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	if jac.Holders.Size() < 3 {
+		return shim.Error("the account has minimum holders (2)")
+	}
+
+	// authentication
+	kid, err := kid.GetID(stub, true)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	if !jac.HasHolder(kid) {
+		return shim.Error("no authority")
+	}
+
+	holder := taddr.ID()
+	if holder == kid { // self out
+		ab := NewAccountStub(stub, "")
+		jac, err = ab.RemoveHolder(jac, kid)
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to remove holder")
+		}
+		// balance state
+		bb := NewBalanceStub(stub)
+		balance, err := bb.GetBalanceState(jac.GetID())
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to get the balance")
+		}
+		return responseAccountWithBalanceState(jac, balance)
+	}
+
+	if !jac.HasHolder(holder) {
+		return shim.Error("not existed holder")
+	}
+
+	signers := stringset.New()
+	signers.AppendSet(jac.Holders)
+	signers.Remove(holder)
+
+	// contract
+	doc := []interface{}{"account/holder/remove", jac.GetID(), holder}
+	return invokeContract(stub, doc, signers)
+}
+
 // list of account's addresses
 // params[0] : "" | token code
 // params[1] : bookmark
@@ -170,29 +299,6 @@ func accountList(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		return shim.Error("failed to marshal account addresses list")
 	}
 	return shim.Success(data)
-}
-
-// params[0] : account address
-func accountLogs(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if len(params) != 1 {
-		return shim.Error("incorrect number of parameters. expecting 1")
-	}
-
-	addr, err := ParseAddress(params[0])
-	if err != nil {
-		return shim.Error("failed to parse the account address")
-	}
-	_ = addr
-
-	// authentication
-	_, err = kid.GetID(stub, false)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	// TODO
-
-	return shim.Success([]byte("account/logs"))
 }
 
 // ISSUE: more complex suspend/unsuspend ? (ex, joint account, admin ...)
@@ -262,12 +368,6 @@ func accountUnsuspend(stub shim.ChaincodeStubInterface, params []string) peer.Re
 	return shim.Success(data)
 }
 
-// params[0] : token code | account address
-// params[1:] : co-holders' personal account addresses (exclude invoker, max 127)
-func accountUpdateHolders(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	return shim.Error("not yet")
-}
-
 // helpers
 
 func responseAccountWithBalance(account AccountInterface, balance *Balance) peer.Response {
@@ -308,4 +408,95 @@ func responseAccountWithBalanceState(account AccountInterface, balance []byte) p
 		}
 	}
 	return shim.Error("failed to marshal the payload")
+}
+
+// contract callbacks
+
+// doc: ["account/create", code, [co-holders...]]
+func executeAccountCreate(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
+	if len(doc) < 3 {
+		return shim.Error("invalid contract document")
+	}
+
+	code := doc[1].(string)
+	kids := doc[2].([]interface{})
+	holders := stringset.New()
+	for _, kid := range kids {
+		holders.Add(kid.(string))
+	}
+
+	ab := NewAccountStub(stub, code)
+	if _, _, err := ab.CreateJointAccount(holders); err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(nil)
+}
+
+// doc: ["account/create", address, holder-kid]
+func executeAccountHolderAdd(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
+	if len(doc) < 3 {
+		return shim.Error("invalid contract document")
+	}
+
+	addr, err := ParseAddress(doc[1].(string))
+	if err != nil {
+		return shim.Error("failed to parse the account address")
+	}
+	holder := doc[2].(string)
+
+	ab := NewAccountStub(stub, addr.Code)
+	account, err := ab.GetAccount(addr)
+	if err != nil {
+		return shim.Error("failed to get the account")
+	}
+	jac := account.(*JointAccount)
+
+	// validate
+	if jac.Holders.Size() > 127 {
+		return shim.Error("already has max holders (128)")
+	}
+	if jac.HasHolder(holder) {
+		return shim.Error("existed holder")
+	}
+
+	if _, err = ab.AddHolder(jac, holder); err != nil {
+		return shim.Error("failed to add holder")
+	}
+
+	return shim.Success(nil)
+}
+
+// doc: ["account/create", address, holder-kid]
+func executeAccountHolderRemove(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
+	if len(doc) < 3 {
+		return shim.Error("invalid contract document")
+	}
+
+	addr, err := ParseAddress(doc[1].(string))
+	if err != nil {
+		return shim.Error("failed to parse the account address")
+	}
+	holder := doc[2].(string)
+
+	ab := NewAccountStub(stub, addr.Code)
+	account, err := ab.GetAccount(addr)
+	if err != nil {
+		return shim.Error("failed to get the account")
+	}
+	jac := account.(*JointAccount)
+
+	// validate
+	if jac.Holders.Size() < 3 {
+		return shim.Error("the account has minimum holders (2)")
+	}
+	if !jac.HasHolder(holder) {
+		return shim.Error("not existed holder")
+	}
+
+	if _, err = ab.RemoveHolder(jac, holder); err != nil {
+		return shim.Error("failed to remove holder")
+	}
+
+	return shim.Success(nil)
 }

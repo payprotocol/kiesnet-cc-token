@@ -172,7 +172,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			logger.Debug(err.Error())
 			return shim.Error("failed to create a contract")
 		}
-		contract, err := InvokeContract(stub, docb, expiry, signers)
+		contract, err := InvokeContractChaincode(stub, docb, expiry, signers)
 		if err != nil {
 			return shim.Error(err.Error())
 		}

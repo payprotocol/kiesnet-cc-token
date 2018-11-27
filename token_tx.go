@@ -76,7 +76,7 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if jac.Holders.Size() > 1 {
 		// contract
 		doc := []interface{}{"token/burn", code, amount.String()}
-		return invokeTokenContract(stub, doc, jac.Holders)
+		return invokeContract(stub, doc, jac.Holders)
 	}
 
 	// burn
@@ -148,7 +148,7 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	if holders.Size() > 1 {
 		// contract
 		doc := []interface{}{"token/create", code, decimal, maxSupply.String(), supply.String(), holders.Strings()}
-		return invokeTokenContract(stub, doc, holders)
+		return invokeContract(stub, doc, holders)
 	}
 
 	tb := NewTokenStub(stub)
@@ -240,7 +240,7 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if jac.Holders.Size() > 1 {
 		// contract
 		doc := []interface{}{"token/mint", code, amount.String()}
-		return invokeTokenContract(stub, doc, jac.Holders)
+		return invokeContract(stub, doc, jac.Holders)
 	}
 
 	// balance
@@ -261,26 +261,6 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	data, err := json.Marshal(token)
 	if err != nil {
 		return shim.Error("failed to marshal the token")
-	}
-	return shim.Success(data)
-}
-
-// helpers
-
-func invokeTokenContract(stub shim.ChaincodeStubInterface, doc []interface{}, signers *stringset.Set) peer.Response {
-	docb, err := json.Marshal(doc)
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to create a contract")
-	}
-	contract, err := InvokeContract(stub, docb, 0, signers)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	data, err := contract.MarshalJSON()
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal a contract")
 	}
 	return shim.Success(data)
 }

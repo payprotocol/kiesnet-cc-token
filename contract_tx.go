@@ -8,6 +8,7 @@ import (
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
+	"github.com/key-inside/kiesnet-ccpkg/stringset"
 )
 
 // CtrFunc _
@@ -15,10 +16,13 @@ type CtrFunc func(stub shim.ChaincodeStubInterface, cid string, doc []interface{
 
 // routes is the map of contract functions
 var ctrRoutes = map[string][]CtrFunc{
-	"token/burn":   []CtrFunc{contractVoid, executeTokenBurn},
-	"token/create": []CtrFunc{contractVoid, executeTokenCreate},
-	"token/mint":   []CtrFunc{contractVoid, executeTokenMint},
-	"transfer":     []CtrFunc{cancelTransfer, executeTransfer},
+	"account/create":        []CtrFunc{contractVoid, executeAccountCreate},
+	"account/holder/add":    []CtrFunc{contractVoid, executeAccountHolderAdd},
+	"account/holder/remove": []CtrFunc{contractVoid, executeAccountHolderRemove},
+	"token/burn":            []CtrFunc{contractVoid, executeTokenBurn},
+	"token/create":          []CtrFunc{contractVoid, executeTokenCreate},
+	"token/mint":            []CtrFunc{contractVoid, executeTokenMint},
+	"transfer":              []CtrFunc{cancelTransfer, executeTransfer},
 }
 
 func contractCallback(stub shim.ChaincodeStubInterface, fnIdx int, params []string) peer.Response {
@@ -62,4 +66,24 @@ func contractExecute(stub shim.ChaincodeStubInterface, params []string) peer.Res
 // callback has nothing to do
 func contractVoid(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	return shim.Success(nil)
+}
+
+// helpers
+
+func invokeContract(stub shim.ChaincodeStubInterface, doc []interface{}, signers *stringset.Set) peer.Response {
+	docb, err := json.Marshal(doc)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to create a contract")
+	}
+	contract, err := InvokeContractChaincode(stub, docb, 0, signers)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	data, err := contract.MarshalJSON()
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to marshal a contract")
+	}
+	return shim.Success(data)
 }

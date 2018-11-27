@@ -58,8 +58,8 @@ func init() {
 	}
 }
 
-// InvokeContract invokes contract chaincode returns contract ID
-func InvokeContract(stub shim.ChaincodeStubInterface, doc []byte, expiry int64, signers *stringset.Set) (*Contract, error) {
+// InvokeContractChaincode invokes contract chaincode returns contract ID
+func InvokeContractChaincode(stub shim.ChaincodeStubInterface, doc []byte, expiry int64, signers *stringset.Set) (*Contract, error) {
 	expb := []byte(strconv.FormatInt(expiry, 10))
 	args := [][]byte{[]byte("create"), doc, expb}
 	for signer := range signers.Map() {
