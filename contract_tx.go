@@ -33,7 +33,10 @@ func contractCallback(stub shim.ChaincodeStubInterface, fnIdx int, params []stri
 	}
 
 	ccid, err := ccid.GetID(stub)
-	if err != nil || "kiesnet-contract" != ccid || "kiesnet-cc-contract" != ccid {
+	if err != nil {
+		return shim.Error("failed to get ccid")
+	}
+	if "kiesnet-contract" != ccid && "kiesnet-cc-contract" != ccid {
 		return shim.Error("invalid access")
 	}
 

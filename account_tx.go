@@ -131,48 +131,10 @@ func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response
 	return responseAccountWithBalanceState(account, balance)
 }
 
-func validateAccountHolderParameters(stub shim.ChaincodeStubInterface, params []string) (*JointAccount, *Address, error) {
-	if len(params) != 2 {
-		return nil, nil, errors.New("incorrect number of parameters. expecting 2")
-	}
-
-	addr, err := ParseAddress(params[0])
-	if err != nil {
-		logger.Debug(err.Error())
-		return nil, nil, errors.New("failed to parse the account address")
-	}
-	if addr.Type != AccountTypeJoint {
-		return nil, nil, errors.New("the account must be joint account")
-	}
-
-	taddr, err := ParseAddress(params[1])
-	if err != nil {
-		logger.Debug(err.Error())
-		return nil, nil, errors.New("failed to parse the co-holder's account address")
-	}
-	if taddr.Type != AccountTypePersonal {
-		return nil, nil, errors.New("the co-holder's account must be personal account")
-	}
-
-	if addr.Code != taddr.Code {
-		return nil, nil, errors.New("mismatched token accounts")
-	}
-
-	ab := NewAccountStub(stub, addr.Code)
-	account, err := ab.GetAccount(addr)
-	if err != nil {
-		logger.Debug(err.Error())
-		return nil, nil, errors.New("failed to get the account")
-	}
-	jac := account.(*JointAccount)
-
-	return jac, taddr, nil
-}
-
 // params[0] : account address (joint account only)
 // params[1] : co-holder's personal account address
 func accountHolderAdd(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	jac, taddr, err := validateAccountHolderParameters(stub, params)
+	jac, taddr, err := getValidatedAccountHolderParameters(stub, params)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -214,7 +176,7 @@ func accountHolderAdd(stub shim.ChaincodeStubInterface, params []string) peer.Re
 // params[0] : account address (joint account only)
 // params[1] : co-holder's personal account address
 func accountHolderRemove(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	jac, taddr, err := validateAccountHolderParameters(stub, params)
+	jac, taddr, err := getValidatedAccountHolderParameters(stub, params)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -371,6 +333,44 @@ func accountUnsuspend(stub shim.ChaincodeStubInterface, params []string) peer.Re
 }
 
 // helpers
+
+func getValidatedAccountHolderParameters(stub shim.ChaincodeStubInterface, params []string) (*JointAccount, *Address, error) {
+	if len(params) != 2 {
+		return nil, nil, errors.New("incorrect number of parameters. expecting 2")
+	}
+
+	addr, err := ParseAddress(params[0])
+	if err != nil {
+		logger.Debug(err.Error())
+		return nil, nil, errors.New("failed to parse the account address")
+	}
+	if addr.Type != AccountTypeJoint {
+		return nil, nil, errors.New("the account must be joint account")
+	}
+
+	taddr, err := ParseAddress(params[1])
+	if err != nil {
+		logger.Debug(err.Error())
+		return nil, nil, errors.New("failed to parse the co-holder's account address")
+	}
+	if taddr.Type != AccountTypePersonal {
+		return nil, nil, errors.New("the co-holder's account must be personal account")
+	}
+
+	if addr.Code != taddr.Code {
+		return nil, nil, errors.New("mismatched token accounts")
+	}
+
+	ab := NewAccountStub(stub, addr.Code)
+	account, err := ab.GetAccount(addr)
+	if err != nil {
+		logger.Debug(err.Error())
+		return nil, nil, errors.New("failed to get the account")
+	}
+	jac := account.(*JointAccount)
+
+	return jac, taddr, nil
+}
 
 func responseAccountWithBalance(account AccountInterface, balance *Balance) peer.Response {
 	var data []byte
