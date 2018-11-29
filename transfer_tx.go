@@ -9,6 +9,7 @@ import (
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
+	"github.com/key-inside/kiesnet-ccpkg/contract"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
 )
@@ -172,12 +173,12 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			logger.Debug(err.Error())
 			return shim.Error("failed to create a contract")
 		}
-		contract, err := InvokeContractChaincode(stub, docb, expiry, signers)
+		con, err := contract.CreateContract(stub, docb, expiry, signers)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
 		// pending balance
-		log, err = bb.Deposit(pbID, sBal, contract, *amount, memo)
+		log, err = bb.Deposit(pbID, sBal, con, *amount, memo)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to create a pending balance")

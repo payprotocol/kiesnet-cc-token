@@ -4,12 +4,15 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
+	"github.com/pkg/errors"
 )
 
 // params[0] : token code
@@ -19,21 +22,7 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		return shim.Error("incorrect number of parameters. expecting 2")
 	}
 
-	if err := AssertInvokedByChaincode(stub); err != nil {
-		return shim.Error(err.Error())
-	}
-
 	code, err := ValidateTokenCode(params[0])
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	amount, err := NewAmount(params[1])
-	if err != nil || amount.Sign() < 0 {
-		return shim.Error("amount must be positive integer")
-	}
-
-	// authentication
-	kid, err := kid.GetID(stub, true)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -45,8 +34,25 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the token")
 	}
+
+	// get burnable amount
+	burnable, err := invokeKNT(stub, code, []string{"burn", params[1]})
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	amount, err := NewAmount(string(burnable))
+	if err != nil || amount.Sign() < 0 {
+		return shim.Error("not burnable")
+	}
+
 	if token.Supply.Cmp(amount) < 0 {
 		return shim.Error("amount must be less or equal than total supply")
+	}
+
+	// authentication
+	kid, err := kid.GetID(stub, true)
+	if err != nil {
+		return shim.Error(err.Error())
 	}
 
 	// genesis account
@@ -94,34 +100,30 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 }
 
 // params[0] : token code (3~6 alphanum)
-// params[1] : decimal (int string, min 0, max 18)
-// params[2] : max supply (big int string)
-// params[3] : initial supply (big int string)
-// params[4:] : co-holders (personal account addresses)
+// params[1:] : co-holders (personal account addresses)
 func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if err := AssertInvokedByChaincode(stub); err != nil {
-		return shim.Error(err.Error())
-	}
-
-	if len(params) < 4 {
-		return shim.Error("incorrect number of parameters. expecting 4+")
+	if len(params) < 1 {
+		return shim.Error("incorrect number of parameters. expecting 1+")
 	}
 
 	code, err := ValidateTokenCode(params[0])
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	decimal, err := strconv.Atoi(params[1])
-	if err != nil || decimal < 0 || decimal > 18 {
-		return shim.Error("decimal must be integer between 0 and 18")
+
+	tb := NewTokenStub(stub)
+	if _, err = tb.GetTokenState(code); err != nil { // check issued
+		if _, ok := err.(NotIssuedTokenError); !ok {
+			logger.Debug(err.Error())
+			return shim.Error("failed to get the token state")
+		}
+	} else {
+		return shim.Error("already issued token : " + code)
 	}
-	maxSupply, err := NewAmount(params[2])
-	if err != nil || maxSupply.Sign() < 0 {
-		return shim.Error("max supply must be positive integer")
-	}
-	supply, err := NewAmount(params[3])
-	if err != nil || supply.Sign() < 0 || supply.Cmp(maxSupply) > 0 {
-		return shim.Error("initial supply must be positive integer and less(or equal) than max supply")
+
+	decimal, maxSupply, supply, err := getValidatedTokenMeta(stub, code)
+	if err != nil {
+		return shim.Error(err.Error())
 	}
 
 	// authentication
@@ -132,9 +134,9 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 
 	// co-holders
 	holders := stringset.New(kid)
-	if len(params) > 4 {
+	if len(params) > 1 {
 		ab := NewAccountStub(stub, code)
-		addrs := stringset.New(params[4:]...) // remove duplication
+		addrs := stringset.New(params[1:]...) // remove duplication
 		// validate co-holders
 		for addr := range addrs.Map() {
 			kids, err := ab.GetSignableIDs(addr)
@@ -147,18 +149,19 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 
 	if holders.Size() > 1 {
 		// contract
-		doc := []interface{}{"token/create", code, decimal, maxSupply.String(), supply.String(), holders.Strings()}
+		doc := []interface{}{"token/create", code, holders.Strings()}
 		return invokeContract(stub, doc, holders)
 	}
 
-	tb := NewTokenStub(stub)
 	token, err := tb.CreateToken(code, decimal, *maxSupply, *supply, holders)
 	if err != nil {
+		logger.Debug(err.Error())
 		return shim.Error("failed to create token")
 	}
 
 	data, err := json.Marshal(token)
 	if err != nil {
+		logger.Debug(err.Error())
 		return shim.Error("failed to marshal the token")
 	}
 	return shim.Success(data)
@@ -195,21 +198,7 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		return shim.Error("incorrect number of parameters. expecting 2")
 	}
 
-	if err := AssertInvokedByChaincode(stub); err != nil {
-		return shim.Error(err.Error())
-	}
-
 	code, err := ValidateTokenCode(params[0])
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	amount, err := NewAmount(params[1])
-	if err != nil || amount.Sign() < 0 {
-		return shim.Error("amount must be positive integer")
-	}
-
-	// authentication
-	kid, err := kid.GetID(stub, true)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -223,6 +212,22 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	}
 	if token.Supply.Cmp(&token.MaxSupply) >= 0 {
 		return shim.Error("max supplied")
+	}
+
+	// get mintable amount
+	mintable, err := invokeKNT(stub, code, []string{"mint", params[1]})
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	amount, err := NewAmount(string(mintable))
+	if err != nil || amount.Sign() < 0 {
+		return shim.Error("not mintable")
+	}
+
+	// authentication
+	kid, err := kid.GetID(stub, true)
+	if err != nil {
+		return shim.Error(err.Error())
 	}
 
 	// genesis account
@@ -265,6 +270,54 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	return shim.Success(data)
 }
 
+// helpers
+
+func invokeKNT(stub shim.ChaincodeStubInterface, code string, params []string) ([]byte, error) {
+	ccid := strings.ToLower(code)
+	if os.Getenv("DEV_CHANNEL_NAME") != "" {
+		ccid = "knt-cc-" + ccid
+	} else {
+		ccid = "knt-" + ccid
+	}
+	args := [][]byte{}
+	for _, p := range params {
+		args = append(args, []byte(p))
+	}
+	res := stub.InvokeChaincode(ccid, args, "")
+	if res.GetStatus() == 200 {
+		return res.GetPayload(), nil
+	}
+	return nil, errors.New(res.GetMessage())
+}
+
+func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, *Amount, *Amount, error) {
+	// get token meta
+	meta, err := invokeKNT(stub, code, []string{"token"})
+	if err != nil {
+		return 0, nil, nil, errors.Wrap(err, "failed to get the token meta")
+	}
+	metaMap := map[string]string{}
+	if err = json.Unmarshal(meta, &metaMap); err != nil {
+		return 0, nil, nil, errors.Wrap(err, "failed to unmarshal the token meta")
+	}
+
+	// validate meta
+	decimal, err := strconv.Atoi(metaMap["decimal"])
+	if err != nil || decimal < 0 || decimal > 18 {
+		return 0, nil, nil, errors.New("decimal must be integer between 0 and 18")
+	}
+	maxSupply, err := NewAmount(metaMap["max_supply"])
+	if err != nil || maxSupply.Sign() < 0 {
+		return 0, nil, nil, errors.New("max supply must be positive integer")
+	}
+	supply, err := NewAmount(metaMap["initial_supply"])
+	if err != nil || supply.Sign() < 0 || supply.Cmp(maxSupply) > 0 {
+		return 0, nil, nil, errors.New("initial supply must be positive integer and less(or equal) than max supply")
+	}
+
+	return decimal, maxSupply, supply, nil
+}
+
 // contract callbacks
 
 // doc: ["token/burn", code, amount]
@@ -302,30 +355,37 @@ func executeTokenBurn(stub shim.ChaincodeStubInterface, cid string, doc []interf
 	return shim.Success(nil)
 }
 
-// doc: ["token/create", code, decimal(int), max-supply, supply, [co-holders...]]
+// doc: ["token/create", code, [co-holders...]]
 func executeTokenCreate(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	if len(doc) < 6 {
 		return shim.Error("invalid contract document")
 	}
 
 	code := doc[1].(string)
-	decimal := int(doc[2].(float64))
-	maxSupply, err := NewAmount(doc[3].(string))
-	if err != nil {
-		return shim.Error("invalid max supply")
+
+	tb := NewTokenStub(stub)
+	if _, err := tb.GetTokenState(code); err != nil { // check issued
+		if _, ok := err.(NotIssuedTokenError); !ok {
+			logger.Debug(err.Error())
+			return shim.Error("failed to get the token state")
+		}
+	} else {
+		return shim.Error("already issued token : " + code)
 	}
-	supply, err := NewAmount(doc[4].(string))
+
+	decimal, maxSupply, supply, err := getValidatedTokenMeta(stub, code)
 	if err != nil {
-		return shim.Error("invalid initial supply")
+		return shim.Error(err.Error())
 	}
-	kids := doc[5].([]interface{})
+
+	kids := doc[2].([]interface{})
 	holders := stringset.New()
 	for _, kid := range kids {
 		holders.Add(kid.(string))
 	}
 
-	tb := NewTokenStub(stub)
 	if _, err = tb.CreateToken(code, decimal, *maxSupply, *supply, holders); err != nil {
+		logger.Debug(err.Error())
 		return shim.Error("failed to create token")
 	}
 

@@ -1,22 +1,22 @@
 // Copyright Key Inside Co., Ltd. 2018 All Rights Reserved.
 
-package main
+package contract
 
 import (
-	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
-	"github.com/pkg/errors"
 )
 
 // Contract _
 type Contract struct {
-	_map map[string]interface{}
+	_payload []byte
+	_map     map[string]interface{}
 }
 
 // GetID implements Identifiable
@@ -35,14 +35,7 @@ func (c *Contract) GetExpiryTime() (*time.Time, error) {
 
 // MarshalJSON _
 func (c *Contract) MarshalJSON() ([]byte, error) {
-	buf := bytes.NewBufferString(`{"@contract":"`)
-	if _, err := buf.WriteString(c.GetID()); err != nil {
-		return nil, err
-	}
-	if _, err := buf.WriteString(`"}`); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return c._payload, nil
 }
 
 // ContractCfg is configuration for 'contract' chaincode
@@ -58,8 +51,8 @@ func init() {
 	}
 }
 
-// InvokeContractChaincode invokes contract chaincode returns contract ID
-func InvokeContractChaincode(stub shim.ChaincodeStubInterface, doc []byte, expiry int64, signers *stringset.Set) (*Contract, error) {
+// CreateContract invokes contract chaincode returns contract ID
+func CreateContract(stub shim.ChaincodeStubInterface, doc []byte, expiry int64, signers *stringset.Set) (*Contract, error) {
 	expb := []byte(strconv.FormatInt(expiry, 10))
 	args := [][]byte{[]byte("create"), doc, expb}
 	for signer := range signers.Map() {
@@ -68,13 +61,13 @@ func InvokeContractChaincode(stub shim.ChaincodeStubInterface, doc []byte, expir
 	// invoke
 	res := stub.InvokeChaincode(ContractCfg.CC, args, "")
 	if res.GetStatus() == 200 {
+		payload := res.GetPayload()
 		m := make(map[string]interface{})
-		err := json.Unmarshal(res.GetPayload(), &m)
+		err := json.Unmarshal(payload, &m)
 		if err != nil {
 			return nil, err
 		}
-		contract := &Contract{_map: m}
-		// ISSUE: contract-document fingerprint
+		contract := &Contract{_payload: payload, _map: m}
 		return contract, nil
 	}
 	return nil, errors.New(res.GetMessage())

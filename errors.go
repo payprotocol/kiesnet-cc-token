@@ -4,6 +4,16 @@ package main
 
 import "fmt"
 
+// NotIssuedTokenError _
+type NotIssuedTokenError struct {
+	code string
+}
+
+// Error implements error interface
+func (e NotIssuedTokenError) Error() string {
+	return fmt.Sprintf("the token '%s' is not issued", e.code)
+}
+
 // InvalidAccessError _
 type InvalidAccessError struct{}
 

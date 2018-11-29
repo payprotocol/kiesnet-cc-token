@@ -7,6 +7,8 @@ import (
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
+	"github.com/key-inside/kiesnet-ccpkg/ccid"
+	"github.com/key-inside/kiesnet-ccpkg/contract"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
 )
@@ -30,13 +32,13 @@ func contractCallback(stub shim.ChaincodeStubInterface, fnIdx int, params []stri
 		return shim.Error("incorrect number of parameters. expecting 2")
 	}
 
-	// ISSUE: validate ccid ('kiesnet-contract', 'kiesnet-cc-contract') ?
-	if err := AssertInvokedByChaincode(stub); err != nil {
-		return shim.Error(err.Error())
+	ccid, err := ccid.GetID(stub)
+	if err != nil || "kiesnet-contract" != ccid || "kiesnet-cc-contract" != ccid {
+		return shim.Error("invalid access")
 	}
 
 	// authentication
-	_, err := kid.GetID(stub, true)
+	_, err = kid.GetID(stub, true)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -76,11 +78,11 @@ func invokeContract(stub shim.ChaincodeStubInterface, doc []interface{}, signers
 		logger.Debug(err.Error())
 		return shim.Error("failed to create a contract")
 	}
-	contract, err := InvokeContractChaincode(stub, docb, 0, signers)
+	con, err := contract.CreateContract(stub, docb, 0, signers)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	data, err := contract.MarshalJSON()
+	data, err := con.MarshalJSON()
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to marshal a contract")

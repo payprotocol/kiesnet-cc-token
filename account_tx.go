@@ -25,15 +25,17 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 		return shim.Error(err.Error())
 	}
 
-	if err = AssertInvokedByChaincode(stub); err != nil {
-		if _, ok := err.(InvalidAccessError); !ok {
-			return shim.Error(err.Error())
+	// validate available token
+	tb := NewTokenStub(stub)
+	if _, err = tb.GetTokenState(code); err != nil { // check issued
+		if _, ok := err.(NotIssuedTokenError); !ok {
+			logger.Debug(err.Error())
+			return shim.Error("failed to get the token state")
 		}
-		// check token issued
-		tb := NewTokenStub(stub)
-		_, err = tb.GetTokenState(code)
-		if err != nil {
-			return shim.Error(err.Error())
+		// check knt chaincode
+		if _, err = invokeKNT(stub, code, []string{"token"}); err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to get the token meta")
 		}
 	}
 

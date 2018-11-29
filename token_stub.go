@@ -88,7 +88,7 @@ func (tb *TokenStub) GetTokenState(code string) ([]byte, error) {
 	if data != nil {
 		return data, nil
 	}
-	return nil, errors.Errorf("token '%s' is not issued", code)
+	return nil, NotIssuedTokenError{code}
 }
 
 // PutToken _

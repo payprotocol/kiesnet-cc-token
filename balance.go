@@ -2,7 +2,11 @@
 
 package main
 
-import "time"
+import (
+	"time"
+
+	"github.com/key-inside/kiesnet-ccpkg/contract"
+)
 
 // Balance _
 type Balance struct {
@@ -136,7 +140,7 @@ type PendingBalance struct {
 // NewPendingBalance _
 func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount Amount, memo string, pTime *time.Time) *PendingBalance {
 	ptype := PendingBalanceTypeAccount
-	if _, ok := rel.(*Contract); ok {
+	if _, ok := rel.(*contract.Contract); ok {
 		ptype = PendingBalanceTypeContract
 	}
 	return &PendingBalance{

@@ -2,16 +2,26 @@
 
 
 [[projects]]
+  digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  pruneopts = "UT"
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
+
+[[projects]]
   branch = "master"
-  digest = "1:b2a8cf8156edbf5518f684af018887135eac00f4a8b4da0edf972c55c9a9e9c0"
+  digest = "1:ac624951d5ed7d42651161445baa0c28c57feb4a3e21e5fe19729cd6d0310b52"
   name = "github.com/key-inside/kiesnet-ccpkg"
   packages = [
+    "ccid",
+    "contract",
     "kid",
     "stringset",
     "txtime",
   ]
   pruneopts = "UT"
-  revision = "dfa253e46361e38966d8f3076390b811451a546b"
+  revision = "fc4837d8f95a505a2829e3664c2de2fc8b9b24a0"
 
 [[projects]]
   digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
@@ -33,6 +43,8 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/key-inside/kiesnet-ccpkg/ccid",
+    "github.com/key-inside/kiesnet-ccpkg/contract",
     "github.com/key-inside/kiesnet-ccpkg/kid",
     "github.com/key-inside/kiesnet-ccpkg/stringset",
     "github.com/key-inside/kiesnet-ccpkg/txtime",

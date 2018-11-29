@@ -5,7 +5,6 @@ package main
 import (
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
-	"github.com/key-inside/kiesnet-ccpkg/ccid"
 )
 
 var logger = shim.NewLogger("kiesnet-token")
@@ -58,18 +57,6 @@ var routes = map[string]TxFunc{
 
 func ver(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success([]byte("Kiesnet Token v1.0 created by Key Inside Co., Ltd."))
-}
-
-// AssertInvokedByChaincode _
-func AssertInvokedByChaincode(stub shim.ChaincodeStubInterface) error {
-	ccid, err := ccid.GetID(stub)
-	if err != nil {
-		return err
-	}
-	if "kiesnet-token" == ccid || "kiesnet-cc-token" == ccid {
-		return InvalidAccessError{}
-	}
-	return nil
 }
 
 func main() {
