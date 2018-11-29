@@ -12,6 +12,31 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
 )
 
+// tokenMeta is a trivial test function.
+// params[0] : chainode name of token instance
+func tokenMeta(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) != 1 {
+		return shim.Error("incorrect number of parameters. expecting 1")
+	}
+
+	// authentication
+	_, err := kid.GetID(stub, true)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	chaincodeName := params[0]
+	tokenMeta, err := QueryTokenMeta(stub, chaincodeName)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	payload, err := json.Marshal(tokenMeta._map)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	return shim.Success(payload)
+}
+
 // params[0] : token code
 // params[1] : amount (big int string)
 func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response {

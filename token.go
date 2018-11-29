@@ -3,10 +3,12 @@
 package main
 
 import (
+	"encoding/json"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/pkg/errors"
 )
 
@@ -30,4 +32,25 @@ type Token struct {
 	GenesisAccount string     `json:"genesis_account"`
 	CreatedTime    *time.Time `json:"created_time,omitempty"`
 	UpdatedTime    *time.Time `json:"updated_time,omitempty"`
+}
+
+// TokenMeta is meta information struct defined by each token instance chaincode.
+type TokenMeta struct {
+	_map map[string]interface{}
+}
+
+// QueryTokenMeta retrieves TokenMeta of each token instance chaincode.
+func QueryTokenMeta(stub shim.ChaincodeStubInterface, chaincodeName string) (*TokenMeta, error) {
+	args := [][]byte{[]byte("meta")}
+	res := stub.InvokeChaincode(chaincodeName, args, "")
+	if res.GetStatus() == 200 {
+		m := make(map[string]interface{})
+		err := json.Unmarshal(res.GetPayload(), &m)
+		if err != nil {
+			return nil, err
+		}
+		tokenMeta := &TokenMeta{_map: m}
+		return tokenMeta, nil
+	}
+	return nil, errors.New(res.GetMessage())
 }
