@@ -322,7 +322,7 @@ func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, 
 
 // doc: ["token/burn", code, amount]
 func executeTokenBurn(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
-	if len(doc) < 3 {
+	if len(doc) != 3 {
 		return shim.Error("invalid contract document")
 	}
 
@@ -357,7 +357,7 @@ func executeTokenBurn(stub shim.ChaincodeStubInterface, cid string, doc []interf
 
 // doc: ["token/create", code, [co-holders...]]
 func executeTokenCreate(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
-	if len(doc) < 6 {
+	if len(doc) != 3 {
 		return shim.Error("invalid contract document")
 	}
 
@@ -394,7 +394,7 @@ func executeTokenCreate(stub shim.ChaincodeStubInterface, cid string, doc []inte
 
 // doc: ["token/mint", code, amount]
 func executeTokenMint(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
-	if len(doc) < 3 {
+	if len(doc) != 3 {
 		return shim.Error("invalid contract document")
 	}
 
