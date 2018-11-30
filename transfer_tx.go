@@ -98,7 +98,6 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the sender's balance")
 	}
-	logger.Debugf("$$$ %s, %s", sBal.Amount.String(), amount.String())
 	if sBal.Amount.Cmp(amount) < 0 {
 		return shim.Error("not enough balance")
 	}

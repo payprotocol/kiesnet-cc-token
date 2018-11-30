@@ -2,16 +2,8 @@
 
 
 [[projects]]
-  digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
-  name = "github.com/golang/protobuf"
-  packages = ["proto"]
-  pruneopts = "UT"
-  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
-  version = "v1.2.0"
-
-[[projects]]
   branch = "master"
-  digest = "1:ac624951d5ed7d42651161445baa0c28c57feb4a3e21e5fe19729cd6d0310b52"
+  digest = "1:9d8486b1b4b5d45ba2eca0c43debbc2368638c5285a9ae0cd584bfa16fba2aec"
   name = "github.com/key-inside/kiesnet-ccpkg"
   packages = [
     "ccid",
@@ -21,7 +13,7 @@
     "txtime",
   ]
   pruneopts = "UT"
-  revision = "fc4837d8f95a505a2829e3664c2de2fc8b9b24a0"
+  revision = "70f3e8dc0cfb663a173af144f79082f9e4fcdf7a"
 
 [[projects]]
   digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
@@ -37,7 +29,7 @@
   name = "golang.org/x/crypto"
   packages = ["sha3"]
   pruneopts = "UT"
-  revision = "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
+  revision = "eb0de9b17e854e9b1ccd9963efafc79862359959"
 
 [solve-meta]
   analyzer-name = "dep"
