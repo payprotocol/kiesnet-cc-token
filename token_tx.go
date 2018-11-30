@@ -35,20 +35,6 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		return shim.Error("failed to get the token")
 	}
 
-	// get burnable amount
-	burnable, err := invokeKNT(stub, code, []string{"burn", params[1]})
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	amount, err := NewAmount(string(burnable))
-	if err != nil || amount.Sign() < 0 {
-		return shim.Error("not burnable")
-	}
-
-	if token.Supply.Cmp(amount) < 0 {
-		return shim.Error("amount must be less or equal than total supply")
-	}
-
 	// authentication
 	kid, err := kid.GetID(stub, true)
 	if err != nil {
@@ -76,6 +62,20 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	}
 	if bal.Amount.Sign() == 0 {
 		return shim.Error("genesis account balance is 0")
+	}
+
+	// get burnable amount
+	burnable, err := invokeKNT(stub, code, []string{"burn", token.Supply.String(), bal.Amount.String(), params[1]})
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	amount, err := NewAmount(string(burnable))
+	if err != nil || amount.Sign() < 0 {
+		return shim.Error("not burnable")
+	}
+
+	if token.Supply.Cmp(amount) < 0 {
+		return shim.Error("amount must be less or equal than total supply")
 	}
 
 	jac := account.(*JointAccount)
@@ -214,16 +214,6 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		return shim.Error("max supplied")
 	}
 
-	// get mintable amount
-	mintable, err := invokeKNT(stub, code, []string{"mint", params[1]})
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	amount, err := NewAmount(string(mintable))
-	if err != nil || amount.Sign() < 0 {
-		return shim.Error("not mintable")
-	}
-
 	// authentication
 	kid, err := kid.GetID(stub, true)
 	if err != nil {
@@ -241,12 +231,6 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if !account.HasHolder(kid) { // authority
 		return shim.Error("no authority")
 	}
-	jac := account.(*JointAccount)
-	if jac.Holders.Size() > 1 {
-		// contract
-		doc := []interface{}{"token/mint", code, amount.String()}
-		return invokeContract(stub, doc, jac.Holders)
-	}
 
 	// balance
 	bb := NewBalanceStub(stub)
@@ -254,6 +238,23 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the genesis account balance")
+	}
+
+	// get mintable amount
+	mintable, err := invokeKNT(stub, code, []string{"mint", token.Supply.String(), bal.Amount.String(), params[1]})
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	amount, err := NewAmount(string(mintable))
+	if err != nil || amount.Sign() < 0 {
+		return shim.Error("not mintable")
+	}
+
+	jac := account.(*JointAccount)
+	if jac.Holders.Size() > 1 {
+		// contract
+		doc := []interface{}{"token/mint", code, amount.String()}
+		return invokeContract(stub, doc, jac.Holders)
 	}
 
 	// mint
@@ -287,6 +288,7 @@ func invokeKNT(stub shim.ChaincodeStubInterface, code string, params []string) (
 	if res.GetStatus() == 200 {
 		return res.GetPayload(), nil
 	}
+	// ISSUE: arbitrary token
 	return nil, errors.New(res.GetMessage())
 }
 
