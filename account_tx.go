@@ -435,7 +435,7 @@ func executeAccountCreate(stub shim.ChaincodeStubInterface, cid string, doc []in
 	return shim.Success(nil)
 }
 
-// doc: ["account/create", address, holder-kid]
+// doc: ["account/holder/add", address, holder-kid]
 func executeAccountHolderAdd(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	if len(doc) < 3 {
 		return shim.Error("invalid contract document")
@@ -469,7 +469,7 @@ func executeAccountHolderAdd(stub shim.ChaincodeStubInterface, cid string, doc [
 	return shim.Success(nil)
 }
 
-// doc: ["account/create", address, holder-kid]
+// doc: ["account/holder/remove", address, holder-kid]
 func executeAccountHolderRemove(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	if len(doc) < 3 {
 		return shim.Error("invalid contract document")
