@@ -64,8 +64,12 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		return shim.Error("genesis account balance is 0")
 	}
 
+	burnAmount, err := NewAmount(params[1])
+	if err != nil {
+		return shim.Error(err.Error())
+	}
 	// get burnable amount
-	burnable, err := invokeKNT(stub, code, []string{"burn", token.Supply.String(), bal.Amount.String(), params[1]})
+	burnable, err := invokeKNT(stub, code, []string{"burn", token.Supply.String(), bal.Amount.String(), burnAmount.String()})
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -239,9 +243,12 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the genesis account balance")
 	}
-
+	mintAmount, err := NewAmount(params[1])
+	if err != nil {
+		return shim.Error(err.Error())
+	}
 	// get mintable amount
-	mintable, err := invokeKNT(stub, code, []string{"mint", token.Supply.String(), bal.Amount.String(), params[1]})
+	mintable, err := invokeKNT(stub, code, []string{"mint", token.Supply.String(), bal.Amount.String(), mintAmount.String()})
 	if err != nil {
 		return shim.Error(err.Error())
 	}
