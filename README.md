@@ -7,7 +7,7 @@ An account/balance based token
 ## requirement
 - kiesnet-id chaincode (devmode: kiesnet-cc-id)
 - kiesnet-contract chaincode (devmode: kiesnet-cc-contract)
-- knt-{_token_code_} chaincodes
+- knt-{_token_code_} chaincodes (devmode: knt-cc-{_token_code_})
 
 #
 
