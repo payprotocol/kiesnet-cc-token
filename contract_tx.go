@@ -27,6 +27,9 @@ var ctrRoutes = map[string][]CtrFunc{
 	"transfer":              []CtrFunc{cancelTransfer, executeTransfer},
 }
 
+// fnIdx : 0 = cancel, 1 = execute
+// params[0] : contract ID
+// params[1] : contract document
 func contractCallback(stub shim.ChaincodeStubInterface, fnIdx int, params []string) peer.Response {
 	if len(params) != 2 {
 		return shim.Error("incorrect number of parameters. expecting 2")
