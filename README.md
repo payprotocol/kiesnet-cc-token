@@ -106,7 +106,7 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 
 > invoke __`transfer`__ [sender, receiver, amount, _memo_, _pending_time_, _expiry_, _extra-signers..._] {_"kiesnet-id/pin"_}
 - Transfer the amount of the token or create a contract
-- sender : an account address
+- sender : an account address, __empty = PAOT__
 - receiver : an account address
 - amount : big int
 - memo : max 128 charactors
