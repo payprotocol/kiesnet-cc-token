@@ -31,8 +31,7 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	tb := NewTokenStub(stub)
 	token, err := tb.GetToken(code)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the token")
+		return responseError(err, "failed to get the token")
 	}
 
 	// authentication
@@ -46,8 +45,7 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	ab := NewAccountStub(stub, code)
 	account, err := ab.GetAccount(addr)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the genesis account")
+		return responseError(err, "failed to get the genesis account")
 	}
 	if !account.HasHolder(kid) { // authority
 		return shim.Error("no authority")
@@ -57,8 +55,7 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	bb := NewBalanceStub(stub)
 	bal, err := bb.GetBalance(account.GetID())
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the genesis account balance")
+		return responseError(err, "failed to get the genesis account balance")
 	}
 	if bal.Amount.Sign() == 0 {
 		return shim.Error("genesis account balance is 0")
@@ -71,7 +68,7 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	// get burnable amount
 	burnable, err := invokeKNT(stub, code, []string{"burn", token.Supply.String(), bal.Amount.String(), _amount.String()})
 	if err != nil {
-		return shim.Error(err.Error())
+		return responseError(err, "failed to get the burnable amount")
 	}
 	amount, err := NewAmount(string(burnable))
 	if err != nil || amount.Sign() < 0 {
@@ -92,13 +89,12 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	// burn
 	token, err = tb.Burn(token, bal, *amount)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to burn: " + err.Error())
+		return responseError(err, "failed to burn")
 	}
 
 	data, err := json.Marshal(token)
 	if err != nil {
-		return shim.Error("failed to marshal the token")
+		return responseError(err, "failed to marshal the token")
 	}
 	return shim.Success(data)
 }
@@ -118,8 +114,7 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	tb := NewTokenStub(stub)
 	if _, err = tb.GetTokenState(code); err != nil { // check issued
 		if _, ok := err.(NotIssuedTokenError); !ok {
-			logger.Debug(err.Error())
-			return shim.Error("failed to get the token state")
+			return responseError(err, "failed to get the token state")
 		}
 	} else {
 		return shim.Error("already issued token : " + code)
@@ -145,7 +140,7 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		for addr := range addrs.Map() {
 			kids, err := ab.GetSignableIDs(addr)
 			if err != nil {
-				return shim.Error(err.Error())
+				return responseError(err, "invalid co-holder")
 			}
 			holders.AppendSlice(kids)
 		}
@@ -159,14 +154,12 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 
 	token, err := tb.CreateToken(code, decimal, *maxSupply, *supply, holders)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to create token")
+		return responseError(err, "failed to create the token")
 	}
 
 	data, err := json.Marshal(token)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal the token")
+		return responseError(err, "failed to marshal the token")
 	}
 	return shim.Success(data)
 }
@@ -190,7 +183,7 @@ func tokenGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	tb := NewTokenStub(stub)
 	data, err := tb.GetTokenState(code)
 	if err != nil {
-		return shim.Error(err.Error())
+		return responseError(err, "failed to get the token state")
 	}
 	return shim.Success(data)
 }
@@ -211,8 +204,7 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	tb := NewTokenStub(stub)
 	token, err := tb.GetToken(code)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the token")
+		return responseError(err, "failed to get the token")
 	}
 	if token.Supply.Cmp(&token.MaxSupply) >= 0 {
 		return shim.Error("max supplied")
@@ -229,8 +221,7 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	ab := NewAccountStub(stub, code)
 	account, err := ab.GetAccount(addr)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the genesis account")
+		return responseError(err, "failed to get the genesis account")
 	}
 	if !account.HasHolder(kid) { // authority
 		return shim.Error("no authority")
@@ -240,8 +231,7 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	bb := NewBalanceStub(stub)
 	bal, err := bb.GetBalance(account.GetID())
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the genesis account balance")
+		return responseError(err, "failed to get the genesis account balance")
 	}
 
 	_amount, err := NewAmount(params[1]) // validate amount
@@ -251,7 +241,7 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	// get mintable amount
 	mintable, err := invokeKNT(stub, code, []string{"mint", token.Supply.String(), bal.Amount.String(), _amount.String()})
 	if err != nil {
-		return shim.Error(err.Error())
+		return responseError(err, "failed to get the mintable amount")
 	}
 	amount, err := NewAmount(string(mintable))
 	if err != nil || amount.Sign() < 0 {
@@ -268,13 +258,12 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	// mint
 	token, err = tb.Mint(token, bal, *amount)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to mint: " + err.Error())
+		return responseError(err, "failed to mint")
 	}
 
 	data, err := json.Marshal(token)
 	if err != nil {
-		return shim.Error("failed to marshal the token")
+		return responseError(err, "failed to marshal the token")
 	}
 	return shim.Success(data)
 }
@@ -346,20 +335,18 @@ func executeTokenBurn(stub shim.ChaincodeStubInterface, cid string, doc []interf
 	tb := NewTokenStub(stub)
 	token, err := tb.GetToken(code)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the token")
+		return responseError(err, "failed to get the token")
 	}
 
 	// balance
 	bb := NewBalanceStub(stub)
 	bal, err := bb.GetBalance(token.GenesisAccount)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the genesis account balance")
+		return responseError(err, "failed to get the genesis account balance")
 	}
 
 	if _, err = tb.Burn(token, bal, *amount); err != nil {
-		return shim.Error(err.Error())
+		return responseError(err, "failed to burn")
 	}
 
 	return shim.Success(nil)
@@ -376,8 +363,7 @@ func executeTokenCreate(stub shim.ChaincodeStubInterface, cid string, doc []inte
 	tb := NewTokenStub(stub)
 	if _, err := tb.GetTokenState(code); err != nil { // check issued
 		if _, ok := err.(NotIssuedTokenError); !ok {
-			logger.Debug(err.Error())
-			return shim.Error("failed to get the token state")
+			return responseError(err, "failed to get the token state")
 		}
 	} else {
 		return shim.Error("already issued token : " + code)
@@ -395,8 +381,7 @@ func executeTokenCreate(stub shim.ChaincodeStubInterface, cid string, doc []inte
 	}
 
 	if _, err = tb.CreateToken(code, decimal, *maxSupply, *supply, holders); err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to create token")
+		return responseError(err, "failed to create token")
 	}
 
 	return shim.Success(nil)
@@ -418,20 +403,18 @@ func executeTokenMint(stub shim.ChaincodeStubInterface, cid string, doc []interf
 	tb := NewTokenStub(stub)
 	token, err := tb.GetToken(code)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the token")
+		return responseError(err, "failed to get the token")
 	}
 
 	// balance
 	bb := NewBalanceStub(stub)
 	bal, err := bb.GetBalance(token.GenesisAccount)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the genesis account balance")
+		return responseError(err, "failed to get the genesis account balance")
 	}
 
 	if _, err = tb.Mint(token, bal, *amount); err != nil {
-		return shim.Error(err.Error())
+		return responseError(err, "failed to mint")
 	}
 
 	return shim.Success(nil)

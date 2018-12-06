@@ -38,14 +38,14 @@ func (ab *AccountStub) CreateKey(id string) string {
 func (ab *AccountStub) CreateAccount(kid string) (*Account, *Balance, error) {
 	ts, err := txtime.GetTime(ab.stub)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	addr := NewAddress(ab.token, AccountTypePersonal, kid)
 	_, err = ab.GetAccount(addr)
 	if err != nil {
 		if _, ok := err.(NotExistedAccountError); !ok {
-			return nil, nil, errors.Wrap(err, "failed to create an account")
+			return nil, nil, errors.Wrap(err, "failed to get an existed account")
 		}
 
 		// create personal account
@@ -77,20 +77,20 @@ func (ab *AccountStub) CreateAccount(kid string) (*Account, *Balance, error) {
 		return account, balance, nil
 	}
 
-	return nil, nil, ExistedAccountError{addr.String()}
+	return nil, nil, ExistedAccountError{addr: addr.String()}
 }
 
 // CreateJointAccount _
 func (ab *AccountStub) CreateJointAccount(holders *stringset.Set) (*JointAccount, *Balance, error) {
 	ts, err := txtime.GetTime(ab.stub)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	addr := NewAddress(ab.token, AccountTypeJoint, ab.stub.GetTxID()) // random address
 	if _, err = ab.GetAccount(addr); err != nil {
 		if _, ok := err.(NotExistedAccountError); !ok {
-			return nil, nil, errors.Wrap(err, "failed to create an account")
+			return nil, nil, errors.Wrap(err, "failed to get an existed account")
 		}
 
 		// create joint account
@@ -162,7 +162,7 @@ func (ab *AccountStub) GetAccountState(addr string) ([]byte, error) {
 	if data != nil {
 		return data, nil
 	}
-	return nil, NotExistedAccountError{addr}
+	return nil, NotExistedAccountError{addr: addr}
 }
 
 // GetQueryHolderAccounts _
@@ -218,7 +218,7 @@ func (ab *AccountStub) PutAccount(account AccountInterface) error {
 func (ab *AccountStub) SuspendAccount(kid string) (*Account, error) {
 	ts, err := txtime.GetTime(ab.stub)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	account, err := ab.GetAccount(NewAddress(ab.token, AccountTypePersonal, kid))
@@ -233,7 +233,7 @@ func (ab *AccountStub) SuspendAccount(kid string) (*Account, error) {
 	pac.SuspendedTime = ts
 	pac.UpdatedTime = ts
 	if err = ab.PutAccount(pac); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to update an account")
 	}
 	return pac, nil
 }
@@ -242,7 +242,7 @@ func (ab *AccountStub) SuspendAccount(kid string) (*Account, error) {
 func (ab *AccountStub) UnsuspendAccount(kid string) (*Account, error) {
 	ts, err := txtime.GetTime(ab.stub)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	account, err := ab.GetAccount(NewAddress(ab.token, AccountTypePersonal, kid))
@@ -257,7 +257,7 @@ func (ab *AccountStub) UnsuspendAccount(kid string) (*Account, error) {
 	pac.SuspendedTime = nil
 	pac.UpdatedTime = ts
 	if err = ab.PutAccount(pac); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to update an account")
 	}
 	return pac, nil
 }
@@ -287,7 +287,7 @@ func (ab *AccountStub) AddHolder(account *JointAccount, kid string) (*JointAccou
 
 	ts, err := txtime.GetTime(ab.stub)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	account.Holders.Add(kid)
@@ -300,7 +300,7 @@ func (ab *AccountStub) AddHolder(account *JointAccount, kid string) (*JointAccou
 	holder := NewHolder(kid, account)
 	holder.CreatedTime = ts
 	if err = ab.PutHolder(holder); err != nil {
-		return nil, errors.Wrap(err, "failed to create a holder")
+		return nil, errors.Wrap(err, "failed to create the relationship")
 	}
 
 	return account, nil
@@ -314,7 +314,7 @@ func (ab *AccountStub) RemoveHolder(account *JointAccount, kid string) (*JointAc
 
 	ts, err := txtime.GetTime(ab.stub)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	account.Holders.Remove(kid)
@@ -325,7 +325,7 @@ func (ab *AccountStub) RemoveHolder(account *JointAccount, kid string) (*JointAc
 
 	// remove account-holder relationship
 	if err = ab.stub.DelState(ab.CreateHolderKey(kid, account.GetID())); err != nil {
-		return nil, errors.Wrap(err, "failed to delete a holder")
+		return nil, errors.Wrap(err, "failed to delete the relationship")
 	}
 
 	return account, nil

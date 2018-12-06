@@ -29,8 +29,7 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 	tb := NewTokenStub(stub)
 	if _, err = tb.GetTokenState(code); err != nil { // check issued
 		if _, ok := err.(NotIssuedTokenError); !ok {
-			logger.Debug(err.Error())
-			return shim.Error("failed to get the token state")
+			return responseError(err, "failed to create an account")
 		}
 		// check knt chaincode
 		if _, err = invokeKNT(stub, code, []string{"token"}); err != nil {
@@ -50,7 +49,7 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 	if len(params) < 2 { // personal account
 		account, balance, err := ab.CreateAccount(kid)
 		if err != nil {
-			return shim.Error(err.Error())
+			return responseError(err, "failed to create a personal account")
 		}
 		return responseAccountWithBalance(account, balance)
 	}
@@ -59,8 +58,7 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 
 	// check invoker's main(personal) account
 	if _, err = ab.GetAccount(NewAddress(code, AccountTypePersonal, kid)); err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get invoker's personal account")
+		return responseError(err, "failed to get invoker's personal account")
 	}
 
 	holders := stringset.New(kid) // KIDs
@@ -73,7 +71,7 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 	for addr := range addrs.Map() {
 		kids, err := ab.GetSignableIDs(addr)
 		if err != nil {
-			return shim.Error(err.Error())
+			return responseError(err, "invalid co-holder")
 		}
 		holders.AppendSlice(kids)
 	}
@@ -109,23 +107,20 @@ func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response
 	} else { // by address
 		addr, err = ParseAddress(params[0])
 		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to parse the account address")
+			return responseError(err, "failed to get the account")
 		}
 	}
 	ab := NewAccountStub(stub, addr.Code)
 	account, err = ab.GetAccount(addr)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the account")
+		return responseError(err, "failed to get the account")
 	}
 
 	// balance state
 	bb := NewBalanceStub(stub)
 	balance, err := bb.GetBalanceState(account.GetID())
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the balance")
+		return responseError(err, "failed to get the account balance")
 	}
 
 	return responseAccountWithBalanceState(account, balance)
@@ -155,8 +150,7 @@ func accountHolderAdd(stub shim.ChaincodeStubInterface, params []string) peer.Re
 	ab := NewAccountStub(stub, "")
 	account, err := ab.GetAccount(taddr)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the co-holder's account")
+		return responseError(err, "failed to get the holder")
 	}
 	pac := account.(*Account)
 	holder := pac.Holder()
@@ -199,15 +193,13 @@ func accountHolderRemove(stub shim.ChaincodeStubInterface, params []string) peer
 		ab := NewAccountStub(stub, "")
 		jac, err = ab.RemoveHolder(jac, kid)
 		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to remove holder")
+			return responseError(err, "failed to remove the holder")
 		}
 		// balance state
 		bb := NewBalanceStub(stub)
 		balance, err := bb.GetBalanceState(jac.GetID())
 		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to get the balance")
+			return responseError(err, "failed to get updated account")
 		}
 		return responseAccountWithBalanceState(jac, balance)
 	}
@@ -253,14 +245,12 @@ func accountList(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	ab := NewAccountStub(stub, code)
 	res, err := ab.GetQueryHolderAccounts(kid, bookmark)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get account addresses list")
+		return responseError(err, "failed to get accounts list")
 	}
 
 	data, err := json.Marshal(res)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal account addresses list")
+		return responseError(err, "failed to marshal accounts list")
 	}
 	return shim.Success(data)
 }
@@ -287,14 +277,12 @@ func accountSuspend(stub shim.ChaincodeStubInterface, params []string) peer.Resp
 	ab := NewAccountStub(stub, code)
 	account, err := ab.SuspendAccount(kid)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to suspend the account")
+		return responseError(err, "failed to suspend the account")
 	}
 
 	data, err := json.Marshal(account)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal the account")
+		return responseError(err, "failed to marshal the account")
 	}
 	return shim.Success(data)
 }
@@ -320,14 +308,12 @@ func accountUnsuspend(stub shim.ChaincodeStubInterface, params []string) peer.Re
 	ab := NewAccountStub(stub, code)
 	account, err := ab.UnsuspendAccount(kid)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to unsuspend the account")
+		return responseError(err, "failed to unsuspend the account")
 	}
 
 	data, err := json.Marshal(account)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal the account")
+		return responseError(err, "failed to marshal the account")
 	}
 	return shim.Success(data)
 }
@@ -341,8 +327,7 @@ func getValidatedAccountHolderParameters(stub shim.ChaincodeStubInterface, param
 
 	addr, err := ParseAddress(params[0])
 	if err != nil {
-		logger.Debug(err.Error())
-		return nil, nil, errors.New("failed to parse the account address")
+		return nil, nil, errors.Wrap(err, "failed to parse the account address")
 	}
 	if addr.Type != AccountTypeJoint {
 		return nil, nil, errors.New("the account must be joint account")
@@ -350,8 +335,7 @@ func getValidatedAccountHolderParameters(stub shim.ChaincodeStubInterface, param
 
 	taddr, err := ParseAddress(params[1])
 	if err != nil {
-		logger.Debug(err.Error())
-		return nil, nil, errors.New("failed to parse the co-holder's account address")
+		return nil, nil, errors.Wrap(err, "failed to parse the co-holder's account address")
 	}
 	if taddr.Type != AccountTypePersonal {
 		return nil, nil, errors.New("the co-holder's account must be personal account")
@@ -364,8 +348,7 @@ func getValidatedAccountHolderParameters(stub shim.ChaincodeStubInterface, param
 	ab := NewAccountStub(stub, addr.Code)
 	account, err := ab.GetAccount(addr)
 	if err != nil {
-		logger.Debug(err.Error())
-		return nil, nil, errors.New("failed to get the account")
+		return nil, nil, errors.Wrap(err, "failed to get the account")
 	}
 	jac := account.(*JointAccount)
 
@@ -389,8 +372,7 @@ func responseAccountWithBalance(account AccountInterface, balance *Balance) peer
 		return shim.Error("unknown account type")
 	}
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal the payload")
+		return responseError(err, "failed to marshal the payload")
 	}
 	return shim.Success(data)
 }
@@ -398,8 +380,7 @@ func responseAccountWithBalance(account AccountInterface, balance *Balance) peer
 func responseAccountWithBalanceState(account AccountInterface, balance []byte) peer.Response {
 	data, err := json.Marshal(account)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal the account")
+		return responseError(err, "failed to marshal the account")
 	}
 	buf := bytes.NewBuffer(data[:(len(data) - 1)]) // eliminate last '}'
 	if _, err := buf.WriteString(`,"balance":`); nil == err {
@@ -409,7 +390,7 @@ func responseAccountWithBalanceState(account AccountInterface, balance []byte) p
 			}
 		}
 	}
-	return shim.Error("failed to marshal the payload")
+	return responseError(err, "failed to marshal the payload")
 }
 
 // contract callbacks
@@ -429,7 +410,7 @@ func executeAccountCreate(stub shim.ChaincodeStubInterface, cid string, doc []in
 
 	ab := NewAccountStub(stub, code)
 	if _, _, err := ab.CreateJointAccount(holders); err != nil {
-		return shim.Error(err.Error())
+		return responseError(err, "failed to create a joint account")
 	}
 
 	return shim.Success(nil)
@@ -443,14 +424,14 @@ func executeAccountHolderAdd(stub shim.ChaincodeStubInterface, cid string, doc [
 
 	addr, err := ParseAddress(doc[1].(string))
 	if err != nil {
-		return shim.Error("failed to parse the account address")
+		return responseError(err, "failed to add the holder")
 	}
 	holder := doc[2].(string)
 
 	ab := NewAccountStub(stub, addr.Code)
 	account, err := ab.GetAccount(addr)
 	if err != nil {
-		return shim.Error("failed to get the account")
+		return responseError(err, "failed to add the holder")
 	}
 	jac := account.(*JointAccount)
 
@@ -463,7 +444,7 @@ func executeAccountHolderAdd(stub shim.ChaincodeStubInterface, cid string, doc [
 	}
 
 	if _, err = ab.AddHolder(jac, holder); err != nil {
-		return shim.Error("failed to add holder")
+		return responseError(err, "failed to add the holder")
 	}
 
 	return shim.Success(nil)
@@ -477,14 +458,14 @@ func executeAccountHolderRemove(stub shim.ChaincodeStubInterface, cid string, do
 
 	addr, err := ParseAddress(doc[1].(string))
 	if err != nil {
-		return shim.Error("failed to parse the account address")
+		return responseError(err, "failed to remove the holder")
 	}
 	holder := doc[2].(string)
 
 	ab := NewAccountStub(stub, addr.Code)
 	account, err := ab.GetAccount(addr)
 	if err != nil {
-		return shim.Error("failed to get the account")
+		return responseError(err, "failed to remove the holder")
 	}
 	jac := account.(*JointAccount)
 
@@ -497,7 +478,7 @@ func executeAccountHolderRemove(stub shim.ChaincodeStubInterface, cid string, do
 	}
 
 	if _, err = ab.RemoveHolder(jac, holder); err != nil {
-		return shim.Error("failed to remove holder")
+		return responseError(err, "failed to remove the holder")
 	}
 
 	return shim.Success(nil)

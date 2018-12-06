@@ -38,7 +38,7 @@ func (bb *BalanceStub) CreateKey(id string) string {
 func (bb *BalanceStub) CreateBalance(id string) (*Balance, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	balance := &Balance{}
@@ -170,7 +170,7 @@ func (bb *BalanceStub) PutPendingBalance(balance *PendingBalance) error {
 func (bb *BalanceStub) Supply(bal *Balance, amount Amount) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	bal.Amount.Add(&amount)
@@ -191,7 +191,7 @@ func (bb *BalanceStub) Supply(bal *Balance, amount Amount) (*BalanceLog, error) 
 func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo string, pendingTime *time.Time) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	if pendingTime != nil && pendingTime.After(*ts) { // time lock
@@ -232,7 +232,7 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Balance, pendingTime *time.Time) error {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	sender := &Balance{DOCTYPEID: pb.Account} // proxy
@@ -269,7 +269,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contract, amount Amount, memo string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	expiryTime, err := con.GetExpiryTime()
@@ -303,7 +303,7 @@ func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contrac
 func (bb *BalanceStub) Withdraw(pb *PendingBalance) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	bal, err := bb.GetBalance(pb.Account)

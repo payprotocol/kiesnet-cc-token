@@ -53,8 +53,7 @@ func contractCallback(stub shim.ChaincodeStubInterface, fnIdx int, params []stri
 	doc := []interface{}{}
 	err = json.Unmarshal([]byte(params[1]), &doc)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to unmarshal contract document")
+		return responseError(err, "failed to unmarshal the contract document")
 	}
 	dtype := doc[0].(string)
 	if ctrFn := ctrRoutes[dtype][fnIdx]; ctrFn != nil {
@@ -81,17 +80,15 @@ func contractVoid(stub shim.ChaincodeStubInterface, cid string, doc []interface{
 func invokeContract(stub shim.ChaincodeStubInterface, doc []interface{}, signers *stringset.Set) peer.Response {
 	docb, err := json.Marshal(doc)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to create a contract")
+		return responseError(err, "failed to marshal the contract document")
 	}
 	con, err := contract.CreateContract(stub, docb, 0, signers)
 	if err != nil {
-		return shim.Error(err.Error())
+		return responseError(err, "failed to create a contract")
 	}
 	data, err := con.MarshalJSON()
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal a contract")
+		return responseError(err, "failed to marshal the contract")
 	}
 	return shim.Success(data)
 }

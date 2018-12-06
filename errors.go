@@ -4,8 +4,22 @@ package main
 
 import "fmt"
 
+// ResponsibleError is the interface used to distinguish responsible errors
+type ResponsibleError interface {
+	IsReponsible() bool
+}
+
+// ResponsibleErrorImpl _
+type ResponsibleErrorImpl struct{}
+
+// IsReponsible _
+func (e ResponsibleErrorImpl) IsReponsible() bool {
+	return true
+}
+
 // NotIssuedTokenError _
 type NotIssuedTokenError struct {
+	ResponsibleErrorImpl
 	code string
 }
 
@@ -15,28 +29,43 @@ func (e NotIssuedTokenError) Error() string {
 }
 
 // InvalidAccessError _
-type InvalidAccessError struct{}
+type InvalidAccessError struct {
+	ResponsibleErrorImpl
+}
 
 // Error implements error interface
 func (e InvalidAccessError) Error() string {
 	return "invalid access"
 }
 
+// SupplyError _
+type SupplyError struct {
+	ResponsibleErrorImpl
+	reason string
+}
+
+// Error implements error interface
+func (e SupplyError) Error() string {
+	return e.reason
+}
+
 // InvalidAccountAddrError _
 type InvalidAccountAddrError struct {
-	msg string
+	ResponsibleErrorImpl
+	reason string
 }
 
 // Error implements error interface
 func (e InvalidAccountAddrError) Error() string {
-	if len(e.msg) > 0 {
-		return fmt.Sprintf("invalid account address: %s", e.msg)
+	if len(e.reason) > 0 {
+		return fmt.Sprintf("invalid account address: %s", e.reason)
 	}
 	return "invalid account address"
 }
 
 // ExistedAccountError _
 type ExistedAccountError struct {
+	ResponsibleErrorImpl
 	addr string
 }
 
@@ -47,6 +76,7 @@ func (e ExistedAccountError) Error() string {
 
 // NotExistedAccountError _
 type NotExistedAccountError struct {
+	ResponsibleErrorImpl
 	addr string
 }
 

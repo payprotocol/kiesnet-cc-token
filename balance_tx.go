@@ -36,22 +36,19 @@ func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	} else { // by address
 		addr, err = ParseAddress(params[0])
 		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to parse the account address")
+			return responseError(err, "failed to parse the account address")
 		}
 	}
 
 	bb := NewBalanceStub(stub)
 	res, err := bb.GetQueryBalanceLogs(addr.String(), bookmark)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to query balance logs")
+		return responseError(err, "failed to get balance logs")
 	}
 
 	data, err := json.Marshal(res)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal balance logs")
+		return responseError(err, "failed to marshal balance logs")
 	}
 	return shim.Success(data)
 }
@@ -87,22 +84,19 @@ func balancePendingList(stub shim.ChaincodeStubInterface, params []string) peer.
 	} else { // by address
 		addr, err = ParseAddress(params[0])
 		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to parse the account address")
+			return responseError(err, "failed to parse the account address")
 		}
 	}
 
 	bb := NewBalanceStub(stub)
 	res, err := bb.GetQueryPendingBalances(addr.String(), sort, bookmark)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to query pending balances")
+		return responseError(err, "failed to get pending balances")
 	}
 
 	data, err := json.Marshal(res)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal pending balances")
+		return responseError(err, "failed to marshal pending balances")
 	}
 	return shim.Success(data)
 }
@@ -115,8 +109,7 @@ func balancePendingWithdraw(stub shim.ChaincodeStubInterface, params []string) p
 
 	ts, err := txtime.GetTime(stub)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to withdraw")
+		return responseError(err, "failed to get the timestamp")
 	}
 
 	// authentication
@@ -129,8 +122,7 @@ func balancePendingWithdraw(stub shim.ChaincodeStubInterface, params []string) p
 	bb := NewBalanceStub(stub)
 	pb, err := bb.GetPendingBalance(params[0])
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the pending balance")
+		return responseError(err, "failed to get the pending balance")
 	}
 	if pb.PendingTime.After(*ts) {
 		return shim.Error("too early to withdraw")
@@ -141,8 +133,7 @@ func balancePendingWithdraw(stub shim.ChaincodeStubInterface, params []string) p
 	ab := NewAccountStub(stub, addr.Code)
 	account, err := ab.GetAccount(addr)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the account")
+		return responseError(err, "failed to get the account")
 	}
 	if !account.HasHolder(kid) {
 		return shim.Error("invoker is not holder")
@@ -154,14 +145,12 @@ func balancePendingWithdraw(stub shim.ChaincodeStubInterface, params []string) p
 	// withdraw
 	log, err := bb.Withdraw(pb)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to withdraw")
+		return responseError(err, "failed to withdraw")
 	}
 
 	data, err := json.Marshal(log)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal the log")
+		return responseError(err, "failed to marshal the log")
 	}
 
 	return shim.Success(data)

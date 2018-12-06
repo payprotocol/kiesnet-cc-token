@@ -59,6 +59,21 @@ func ver(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success([]byte("Kiesnet Token v1.0 created by Key Inside Co., Ltd."))
 }
 
+// If 'err' is ResponsibleError, it will add err's message to the 'msg'.
+func responseError(err error, msg string) peer.Response {
+	if nil != err {
+		logger.Debug(err.Error())
+		if _, ok := err.(ResponsibleError); ok {
+			if len(msg) > 0 {
+				msg = msg + ": " + err.Error()
+			} else {
+				msg = err.Error()
+			}
+		}
+	}
+	return shim.Error(msg)
+}
+
 func main() {
 	if err := shim.Start(new(Chaincode)); err != nil {
 		logger.Criticalf("failed to start chaincode: %s", err)

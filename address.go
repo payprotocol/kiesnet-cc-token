@@ -44,7 +44,7 @@ func ParseAddress(addr string) (*Address, error) {
 	addr = strings.ToUpper(addr)
 	l := len(addr)
 	if l < 50 {
-		return nil, InvalidAccountAddrError{"length"}
+		return nil, InvalidAccountAddrError{reason: "length"}
 	}
 	i := l - 50 // start index of hex
 
@@ -94,16 +94,16 @@ func (addr *Address) String() string {
 func (addr *Address) Validate() error {
 	// token code
 	if _, err := ValidateTokenCode(addr.Code); err != nil {
-		return InvalidAccountAddrError{"token code"}
+		return InvalidAccountAddrError{reason: "token code"}
 	}
 	// account type
 	if addr.Type <= AccountTypeUnknown || addr.Type > AccountTypeJoint {
-		return InvalidAccountAddrError{"account type"}
+		return InvalidAccountAddrError{reason: "account type"}
 	}
 	// checksum
 	checksum := addr.Checksum(addr.Hash[:20])
 	if bytes.HasSuffix(addr.Hash, checksum) {
 		return nil // valid
 	}
-	return InvalidAccountAddrError{"checksum"}
+	return InvalidAccountAddrError{reason: "checksum"}
 }

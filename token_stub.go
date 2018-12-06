@@ -32,7 +32,7 @@ func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amo
 	ab := NewAccountStub(tb.stub, code)
 	account, balance, err := ab.CreateJointAccount(holders)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create the genesis account")
 	}
 
 	// initial mint
@@ -47,7 +47,7 @@ func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amo
 	// token
 	ts, err := txtime.GetTime(tb.stub)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 	token := &Token{
 		DOCTYPEID:      code,
@@ -88,7 +88,7 @@ func (tb *TokenStub) GetTokenState(code string) ([]byte, error) {
 	if data != nil {
 		return data, nil
 	}
-	return nil, NotIssuedTokenError{code}
+	return nil, NotIssuedTokenError{code: code}
 }
 
 // PutToken _
@@ -107,12 +107,12 @@ func (tb *TokenStub) PutToken(token *Token) error {
 func (tb *TokenStub) Burn(token *Token, bal *Balance, amount Amount) (*Token, error) {
 	ts, err := txtime.GetTime(tb.stub)
 	if err != nil {
-		return token, err
+		return token, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	// token
 	if token.Supply.Sign() == 0 {
-		return token, errors.New("no supply")
+		return token, SupplyError{reason: "no supply"}
 	}
 
 	// balance
@@ -134,7 +134,7 @@ func (tb *TokenStub) Burn(token *Token, bal *Balance, amount Amount) (*Token, er
 	token.Supply.Add(&amount)
 	token.UpdatedTime = ts
 	if err = tb.PutToken(token); err != nil {
-		return token, errors.Wrap(err, "failed to burn")
+		return token, errors.Wrap(err, "failed to update the token")
 	}
 
 	return token, nil
@@ -144,12 +144,12 @@ func (tb *TokenStub) Burn(token *Token, bal *Balance, amount Amount) (*Token, er
 func (tb *TokenStub) Mint(token *Token, bal *Balance, amount Amount) (*Token, error) {
 	ts, err := txtime.GetTime(tb.stub)
 	if err != nil {
-		return token, err
+		return token, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	// token
 	if token.Supply.Cmp(&token.MaxSupply) >= 0 {
-		return token, errors.New("max supplied")
+		return token, SupplyError{reason: "max supplied"}
 	}
 
 	// supply
@@ -161,7 +161,7 @@ func (tb *TokenStub) Mint(token *Token, bal *Balance, amount Amount) (*Token, er
 	}
 	token.UpdatedTime = ts
 	if err = tb.PutToken(token); err != nil {
-		return token, errors.Wrap(err, "failed to mint")
+		return token, errors.Wrap(err, "failed to update the token")
 	}
 
 	// balance
