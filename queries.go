@@ -2,7 +2,10 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // QueryBalanceLogsByID _
 const QueryBalanceLogsByID = `{
@@ -16,6 +19,34 @@ const QueryBalanceLogsByID = `{
 // CreateQueryBalanceLogsByID _
 func CreateQueryBalanceLogsByID(id string) string {
 	return fmt.Sprintf(QueryBalanceLogsByID, id)
+}
+
+// QueryBalanceLogsByIDAndTimes _
+const QueryBalanceLogsByIDAndTimes = `{
+	"selector": {
+		"@balance_log": "%s",
+		"created_time": {
+			"$gte": "%s"
+		},
+		"created_time": {
+			"$lt": "%s"
+		}
+	},
+	"sort": [{"@balance_log": "desc"}, {"created_time": "desc"}],
+	"use_index": ["balance", "logs"]
+}`
+
+// CreateQueryBalanceLogsByIDAndTimes _
+func CreateQueryBalanceLogsByIDAndTimes(id string, stime, etime *time.Time) string {
+	if nil == stime {
+		ut := time.Unix(0, 0)
+		stime = &ut
+	}
+	if nil == etime {
+		ut := time.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
+		etime = &ut
+	}
+	return fmt.Sprintf(QueryBalanceLogsByIDAndTimes, id, stime.Format(time.RFC3339Nano), etime.Format(time.RFC3339Nano))
 }
 
 // QueryHoldersByID _

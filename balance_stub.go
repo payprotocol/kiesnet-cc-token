@@ -81,8 +81,13 @@ func (bb *BalanceStub) GetBalanceState(id string) ([]byte, error) {
 }
 
 // GetQueryBalanceLogs _
-func (bb *BalanceStub) GetQueryBalanceLogs(id, bookmark string) (*QueryResult, error) {
-	query := CreateQueryBalanceLogsByID(id)
+func (bb *BalanceStub) GetQueryBalanceLogs(id, bookmark string, stime, etime *time.Time) (*QueryResult, error) {
+	query := ""
+	if stime != nil || etime != nil {
+		query = CreateQueryBalanceLogsByIDAndTimes(id, stime, etime)
+	} else {
+		query = CreateQueryBalanceLogsByID(id)
+	}
 	iter, meta, err := bb.stub.GetQueryResultWithPagination(query, BalanceLogsFetchSize, bookmark)
 	if err != nil {
 		return nil, err
