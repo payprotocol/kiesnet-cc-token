@@ -32,7 +32,7 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 > invoke __`account/create`__ [token_code, _co-holders..._] {_"kiesnet-id/pin"_}
 - Create an account
 - token_code : issued token code
-- co-holders : PAOTs (exclude invoker, max 127)
+- _co-holders_ : PAOTs (exclude invoker, max 127)
 - If holders(include invoker) are more then 1, it creates a joint account. If not, it creates the PAOT.
 
 > query __`account/get`__ [token_code|address]
@@ -63,9 +63,11 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 > invoke __`account/unsuspend`__ [token_code] {_"kiesnet-id/pin"_}
 - Unsuspend the PAOT
 
-> query __`balance/logs`__ [token_code|address, _bookmark_]
+> query __`balance/logs`__ [token_code|address, _bookmark_, _starttime_, _endtime_]
 - Get balance logs
 - If the parameter is token code, it returns logs of the PAOT.
+- _starttime_ : __time(seconds)__ represented by int64
+- _endtime_ : __time(seconds)__ represented by int64
 - log types
     - 0x00 : mint
     - 0x01 : burn
@@ -77,7 +79,7 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 > query __`balance/pending/list`__ [token_code|address, _sort_, _bookmark_]
 - Get pending balances list
 - If the parameter is token code, it returns logs of the PAOT.
-- sort : 'created_time' or 'pending_time'(default)
+- _sort_ : 'created_time' or 'pending_time'(default)
 - pending types
     - 0x00 : account
     - 0x01 : contract
@@ -93,7 +95,7 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 > invoke __`token/create`__ [token_code, _co-holders..._] {_"kiesnet-id/pin"_}
 - Create(Issue) the token
 - token_code : 3~6 alphanum
-- co-holders : PAOTs (exclude invoker, max 127)
+- _co-holders_ : PAOTs (exclude invoker, max 127)
 - It queries meta-data of the token from the knt-{token_code} chaincode.
 
 > query __`token/get`__ [token_code]
@@ -109,10 +111,10 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - sender : an account address, __empty = PAOT__
 - receiver : an account address
 - amount : big int
-- memo : max 128 charactors
-- pending_time : __time(seconds)__ represented by int64
-- expiry : __duration(seconds)__ represented by int64, multi-sig only
-- extra-signers : PAOTs (exclude invoker, max 127)
+- _memo_ : max 128 charactors
+- _pending_time_ : __time(seconds)__ represented by int64
+- _expiry_ : __duration(seconds)__ represented by int64, multi-sig only
+- _extra-signers_ : PAOTs (exclude invoker, max 127)
 
 > query __`ver`__
 - Get version
