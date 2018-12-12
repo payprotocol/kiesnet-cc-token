@@ -53,9 +53,10 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [account] : the joint account address
 - [holder] : PAOT of the holder to be removed
 
-> query __`account/list`__ [token_code, _bookmark_]
+> query __`account/list`__ [token_code, _bookmark_, _fetch_size_]
 - Get account list
 - If token_code is empty, it returns all account regardless of tokens.
+- [_fetch_size_] : max 200, if it is less than 1, default size will be used (20)
 
 > invoke __`account/suspend`__ [token_code] {_"kiesnet-id/pin"_}
 - Suspend the PAOT
@@ -63,11 +64,12 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 > invoke __`account/unsuspend`__ [token_code] {_"kiesnet-id/pin"_}
 - Unsuspend the PAOT
 
-> query __`balance/logs`__ [token_code|address, _bookmark_, _starttime_, _endtime_]
+> query __`balance/logs`__ [token_code|address, _bookmark_, _starttime_, _endtime_, _fetch_size_]
 - Get balance logs
 - If the parameter is token code, it returns logs of the PAOT.
 - [_starttime_] : __time(seconds)__ represented by int64
 - [_endtime_] : __time(seconds)__ represented by int64
+- [_fetch_size_] : max 200, if it is less than 1, default size will be used (20)
 - log types
     - 0x00 : mint
     - 0x01 : burn
@@ -76,10 +78,11 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
     - 0x04 : deposit (create a pending balance)
     - 0x05 : withdraw (from the pending balance)
 
-> query __`balance/pending/list`__ [token_code|address, _sort_, _bookmark_]
+> query __`balance/pending/list`__ [token_code|address, _sort_, _bookmark_, _fetch_size_]
 - Get pending balances list
 - If the parameter is token code, it returns logs of the PAOT.
 - [_sort_] : 'created_time' or 'pending_time'(default)
+- [_fetch_size_] : max 200, if it is less than 1, default size will be used (20)
 - pending types
     - 0x00 : account
     - 0x01 : contract

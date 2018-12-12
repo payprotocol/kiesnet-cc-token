@@ -81,14 +81,17 @@ func (bb *BalanceStub) GetBalanceState(id string) ([]byte, error) {
 }
 
 // GetQueryBalanceLogs _
-func (bb *BalanceStub) GetQueryBalanceLogs(id, bookmark string, stime, etime *time.Time) (*QueryResult, error) {
+func (bb *BalanceStub) GetQueryBalanceLogs(id, bookmark string, fetchSize int, stime, etime *time.Time) (*QueryResult, error) {
+	if fetchSize < 1 || fetchSize > 200 {
+		fetchSize = BalanceLogsFetchSize
+	}
 	query := ""
 	if stime != nil || etime != nil {
 		query = CreateQueryBalanceLogsByIDAndTimes(id, stime, etime)
 	} else {
 		query = CreateQueryBalanceLogsByID(id)
 	}
-	iter, meta, err := bb.stub.GetQueryResultWithPagination(query, BalanceLogsFetchSize, bookmark)
+	iter, meta, err := bb.stub.GetQueryResultWithPagination(query, int32(fetchSize), bookmark)
 	if err != nil {
 		return nil, err
 	}
@@ -148,9 +151,12 @@ func (bb *BalanceStub) GetPendingBalance(id string) (*PendingBalance, error) {
 }
 
 // GetQueryPendingBalances _
-func (bb *BalanceStub) GetQueryPendingBalances(addr, sort, bookmark string) (*QueryResult, error) {
+func (bb *BalanceStub) GetQueryPendingBalances(addr, sort, bookmark string, fetchSize int) (*QueryResult, error) {
+	if fetchSize < 1 || fetchSize > 200 {
+		fetchSize = PendingBalancesFetchSize
+	}
 	query := CreateQueryPendingBalancesByAddress(addr, sort)
-	iter, meta, err := bb.stub.GetQueryResultWithPagination(query, PendingBalancesFetchSize, bookmark)
+	iter, meta, err := bb.stub.GetQueryResultWithPagination(query, int32(fetchSize), bookmark)
 	if err != nil {
 		return nil, err
 	}

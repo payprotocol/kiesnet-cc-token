@@ -15,8 +15,9 @@ import (
 
 // params[0] : token code | account address
 // params[1] : bookmark
-// params[2] : start_time (time represented by int64 seconds)
-// params[3] : end_time (time represented by int64 seconds)
+// params[2] : fetch size (if < 1 => default size, max 200)
+// params[3] : start time (time represented by int64 seconds)
+// params[4] : end time (time represented by int64 seconds)
 func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 1 {
 		return shim.Error("incorrect number of parameters. expecting 1+")
@@ -28,33 +29,41 @@ func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		return shim.Error(err.Error())
 	}
 
-	// options
 	bookmark := ""
+	fetchSize := 0
 	var stime, etime *time.Time
+	// bookmark
 	if len(params) > 1 {
 		bookmark = params[1]
-		// start time
+		// fetch size
 		if len(params) > 2 {
-			if len(params[2]) > 0 {
-				seconds, err := strconv.ParseInt(params[2], 10, 64)
-				if err != nil {
-					return shim.Error("invalid start time: need seconds since 1970")
-				}
-				ut := time.Unix(seconds, 0)
-				stime = &ut
+			fetchSize, err = strconv.Atoi(params[2])
+			if err != nil {
+				return shim.Error("invalid fetch size")
 			}
-			// end time
+			// start time
 			if len(params) > 3 {
 				if len(params[3]) > 0 {
 					seconds, err := strconv.ParseInt(params[3], 10, 64)
 					if err != nil {
-						return shim.Error("invalid end time: need seconds since 1970")
+						return shim.Error("invalid start time: need seconds since 1970")
 					}
 					ut := time.Unix(seconds, 0)
-					if stime != nil && stime.After(ut) {
-						return shim.Error("invalid time parameters")
+					stime = &ut
+				}
+				// end time
+				if len(params) > 4 {
+					if len(params[4]) > 0 {
+						seconds, err := strconv.ParseInt(params[4], 10, 64)
+						if err != nil {
+							return shim.Error("invalid end time: need seconds since 1970")
+						}
+						ut := time.Unix(seconds, 0)
+						if stime != nil && stime.After(ut) {
+							return shim.Error("invalid time parameters")
+						}
+						etime = &ut
 					}
-					etime = &ut
 				}
 			}
 		}
@@ -72,7 +81,7 @@ func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	}
 
 	bb := NewBalanceStub(stub)
-	res, err := bb.GetQueryBalanceLogs(addr.String(), bookmark, stime, etime)
+	res, err := bb.GetQueryBalanceLogs(addr.String(), bookmark, fetchSize, stime, etime)
 	if err != nil {
 		return responseError(err, "failed to get balance logs")
 	}
@@ -87,6 +96,7 @@ func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 // params[0] : token code | account address
 // params[1] : sort ('created_time' | 'pending_time')
 // params[2] : bookmark
+// params[3] : fetch size (if < 1 => default size, max 200)
 func balancePendingList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 1 {
 		return shim.Error("incorrect number of parameters. expecting 1+")
@@ -99,13 +109,22 @@ func balancePendingList(stub shim.ChaincodeStubInterface, params []string) peer.
 	}
 
 	sort := "pending_time"
+	bookmark := ""
+	fetchSize := 0
+	// sort
 	if len(params) > 1 {
 		sort = params[1]
-	}
-
-	bookmark := ""
-	if len(params) > 2 {
-		bookmark = params[2]
+		// bookmark
+		if len(params) > 2 {
+			bookmark = params[2]
+			// fetch size
+			if len(params) > 3 {
+				fetchSize, err = strconv.Atoi(params[3])
+				if err != nil {
+					return shim.Error("invalid fetch size")
+				}
+			}
+		}
 	}
 
 	var addr *Address
@@ -120,7 +139,7 @@ func balancePendingList(stub shim.ChaincodeStubInterface, params []string) peer.
 	}
 
 	bb := NewBalanceStub(stub)
-	res, err := bb.GetQueryPendingBalances(addr.String(), sort, bookmark)
+	res, err := bb.GetQueryPendingBalances(addr.String(), sort, bookmark, fetchSize)
 	if err != nil {
 		return responseError(err, "failed to get pending balances")
 	}

@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"strconv"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
@@ -220,6 +221,7 @@ func accountHolderRemove(stub shim.ChaincodeStubInterface, params []string) peer
 // list of account's addresses
 // params[0] : "" | token code
 // params[1] : bookmark
+// params[2] : fetch size (if < 1 => default size, max 200)
 // ISSUE: list by an account address (privacy problem)
 func accountList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// authentication
@@ -230,6 +232,8 @@ func accountList(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 
 	code := ""
 	bookmark := ""
+	fetchSize := 0
+	// code
 	if len(params) > 0 {
 		if len(params[0]) > 0 {
 			code, err = ValidateTokenCode(params[0])
@@ -237,13 +241,21 @@ func accountList(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 				return shim.Error(err.Error())
 			}
 		}
+		// bookamrk
 		if len(params) > 1 {
 			bookmark = params[1]
+			// fetch size
+			if len(params) > 2 {
+				fetchSize, err = strconv.Atoi(params[2])
+				if err != nil {
+					return shim.Error("invalid fetch size")
+				}
+			}
 		}
 	}
 
 	ab := NewAccountStub(stub, code)
-	res, err := ab.GetQueryHolderAccounts(kid, bookmark)
+	res, err := ab.GetQueryHolderAccounts(kid, bookmark, fetchSize)
 	if err != nil {
 		return responseError(err, "failed to get accounts list")
 	}

@@ -166,14 +166,17 @@ func (ab *AccountStub) GetAccountState(addr string) ([]byte, error) {
 }
 
 // GetQueryHolderAccounts _
-func (ab *AccountStub) GetQueryHolderAccounts(kid, bookmark string) (*QueryResult, error) {
-	var query string
+func (ab *AccountStub) GetQueryHolderAccounts(kid, bookmark string, fetchSize int) (*QueryResult, error) {
+	if fetchSize < 1 || fetchSize > 200 {
+		fetchSize = AccountsFetchSize
+	}
+	query := ""
 	if len(ab.token) > 0 {
 		query = CreateQueryHoldersByIDAndTokenCode(kid, ab.token)
 	} else {
 		query = CreateQueryHoldersByID(kid)
 	}
-	iter, meta, err := ab.stub.GetQueryResultWithPagination(query, AccountsFetchSize, bookmark)
+	iter, meta, err := ab.stub.GetQueryResultWithPagination(query, int32(fetchSize), bookmark)
 	if err != nil {
 		return nil, err
 	}
