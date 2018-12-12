@@ -167,8 +167,11 @@ func (ab *AccountStub) GetAccountState(addr string) ([]byte, error) {
 
 // GetQueryHolderAccounts _
 func (ab *AccountStub) GetQueryHolderAccounts(kid, bookmark string, fetchSize int) (*QueryResult, error) {
-	if fetchSize < 1 || fetchSize > 200 {
+	if fetchSize < 1 {
 		fetchSize = AccountsFetchSize
+	}
+	if fetchSize > 200 {
+		fetchSize = 200
 	}
 	query := ""
 	if len(ab.token) > 0 {
