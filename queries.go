@@ -25,12 +25,18 @@ func CreateQueryBalanceLogsByID(id string) string {
 const QueryBalanceLogsByIDAndTimes = `{
 	"selector": {
 		"@balance_log": "%s",
-		"created_time": {
-			"$gte": "%s"
-		},
-		"created_time": {
-			"$lt": "%s"
-		}
+		"$and": [
+            {
+                "created_time": {
+                    "$gte": "%s"
+                }
+            },
+            {
+                "created_time": {
+                    "$lt": "%s"
+                }
+            }
+        ]
 	},
 	"sort": [{"@balance_log": "desc"}, {"created_time": "desc"}],
 	"use_index": ["balance", "logs"]
