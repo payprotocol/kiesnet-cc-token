@@ -5,6 +5,8 @@ package main
 import (
 	"fmt"
 	"time"
+
+	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
 // QueryBalanceLogsByID _
@@ -52,7 +54,7 @@ func CreateQueryBalanceLogsByIDAndTimes(id string, stime, etime *time.Time) stri
 		ut := time.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
 		etime = &ut
 	}
-	return fmt.Sprintf(QueryBalanceLogsByIDAndTimes, id, stime.Format(time.RFC3339Nano), etime.Format(time.RFC3339Nano))
+	return fmt.Sprintf(QueryBalanceLogsByIDAndTimes, id, txtime.FormatRFC3339Nano(*stime), txtime.FormatRFC3339Nano(*etime))
 }
 
 // QueryHoldersByID _
