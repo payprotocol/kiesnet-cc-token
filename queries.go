@@ -45,16 +45,16 @@ const QueryBalanceLogsByIDAndTimes = `{
 }`
 
 // CreateQueryBalanceLogsByIDAndTimes _
-func CreateQueryBalanceLogsByIDAndTimes(id string, stime, etime *time.Time) string {
+func CreateQueryBalanceLogsByIDAndTimes(id string, stime, etime *txtime.Time) string {
 	if nil == stime {
 		ut := time.Unix(0, 0)
-		stime = &ut
+		stime = &txtime.Time{Time: &ut}
 	}
 	if nil == etime {
 		ut := time.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
-		etime = &ut
+		etime = &txtime.Time{Time: &ut}
 	}
-	return fmt.Sprintf(QueryBalanceLogsByIDAndTimes, id, txtime.FormatRFC3339Nano(*stime), txtime.FormatRFC3339Nano(*etime))
+	return fmt.Sprintf(QueryBalanceLogsByIDAndTimes, id, stime.String(), etime.String())
 }
 
 // QueryHoldersByID _

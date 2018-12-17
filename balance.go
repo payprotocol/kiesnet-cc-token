@@ -3,17 +3,16 @@
 package main
 
 import (
-	"time"
-
 	"github.com/key-inside/kiesnet-ccpkg/contract"
+	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
 // Balance _
 type Balance struct {
-	DOCTYPEID   string     `json:"@balance"` // address
-	Amount      Amount     `json:"amount"`
-	CreatedTime *time.Time `json:"created_time,omitempty"`
-	UpdatedTime *time.Time `json:"updated_time,omitempty"`
+	DOCTYPEID   string       `json:"@balance"` // address
+	Amount      Amount       `json:"amount"`
+	CreatedTime *txtime.Time `json:"created_time,omitempty"`
+	UpdatedTime *txtime.Time `json:"updated_time,omitempty"`
 }
 
 // GetID implements Identifiable
@@ -47,7 +46,7 @@ type BalanceLog struct {
 	Diff        Amount         `json:"diff"`
 	Amount      Amount         `json:"amount"`
 	Memo        string         `json:"memo"`
-	CreatedTime *time.Time     `json:"created_time,omitempty"`
+	CreatedTime *txtime.Time   `json:"created_time,omitempty"`
 }
 
 // NewBalanceSupplyLog _
@@ -133,12 +132,12 @@ type PendingBalance struct {
 	RID         string             `json:"rid"`     // relative ID - account or contract
 	Amount      Amount             `json:"amount"`
 	Memo        string             `json:"memo"`
-	CreatedTime *time.Time         `json:"created_time,omitempty"`
-	PendingTime *time.Time         `json:"pending_time,omitempty"`
+	CreatedTime *txtime.Time       `json:"created_time,omitempty"`
+	PendingTime *txtime.Time       `json:"pending_time,omitempty"`
 }
 
 // NewPendingBalance _
-func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount Amount, memo string, pTime *time.Time) *PendingBalance {
+func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount Amount, memo string, pTime *txtime.Time) *PendingBalance {
 	ptype := PendingBalanceTypeAccount
 	if _, ok := rel.(*contract.Contract); ok {
 		ptype = PendingBalanceTypeContract

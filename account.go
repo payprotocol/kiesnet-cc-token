@@ -4,9 +4,9 @@ package main
 
 import (
 	"strings"
-	"time"
 
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
+	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
 // AccountInterface _
@@ -32,12 +32,12 @@ const (
 
 // Account _
 type Account struct {
-	DOCTYPEID     string      `json:"@account"` // address
-	Token         string      `json:"token"`
-	Type          AccountType `json:"type"`
-	CreatedTime   *time.Time  `json:"created_time,omitempty"`
-	UpdatedTime   *time.Time  `json:"updated_time,omitempty"`
-	SuspendedTime *time.Time  `json:"suspended_time,omitempty"`
+	DOCTYPEID     string       `json:"@account"` // address
+	Token         string       `json:"token"`
+	Type          AccountType  `json:"type"`
+	CreatedTime   *txtime.Time `json:"created_time,omitempty"`
+	UpdatedTime   *txtime.Time `json:"updated_time,omitempty"`
+	SuspendedTime *txtime.Time `json:"suspended_time,omitempty"`
 }
 
 // GetID implements Identifiable
@@ -89,11 +89,11 @@ func (a *JointAccount) Holder() string {
 
 // Holder represents an account-holder relationship (many-to-many)
 type Holder struct {
-	DOCTYPEID   string      `json:"@holder"`
-	Address     string      `json:"address"`
-	Token       string      `json:"token"`
-	Type        AccountType `json:"type"`
-	CreatedTime *time.Time  `json:"created_time,omitempty"`
+	DOCTYPEID   string       `json:"@holder"`
+	Address     string       `json:"address"`
+	Token       string       `json:"token"`
+	Type        AccountType  `json:"type"`
+	CreatedTime *txtime.Time `json:"created_time,omitempty"`
 }
 
 // NewHolder _

@@ -3,7 +3,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4273a6b9d4715f780047d910cdb145567d6f803e2e91e3258e6fe7f7751c7aa3"
+  digest = "1:aa4602525a51fd0b71284c39fcdcc314d4e2c169794e0c73c2fa89f24775b1d5"
   name = "github.com/key-inside/kiesnet-ccpkg"
   packages = [
     "ccid",
@@ -13,7 +13,7 @@
     "txtime",
   ]
   pruneopts = "UT"
-  revision = "e67f69c14fa71c19ac99a9097a84a3a462321dd4"
+  revision = "e720d4ed827f4994ad19268eecde0228d5ef3170"
 
 [[projects]]
   digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"

@@ -31,7 +31,7 @@ func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 
 	bookmark := ""
 	fetchSize := 0
-	var stime, etime *time.Time
+	var stime, etime *txtime.Time
 	// bookmark
 	if len(params) > 1 {
 		bookmark = params[1]
@@ -49,7 +49,7 @@ func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 						return shim.Error("invalid start time: need seconds since 1970")
 					}
 					ut := time.Unix(seconds, 0)
-					stime = &ut
+					stime = &txtime.Time{Time: &ut}
 				}
 				// end time
 				if len(params) > 4 {
@@ -62,7 +62,7 @@ func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 						if stime != nil && stime.After(ut) {
 							return shim.Error("invalid time parameters")
 						}
-						etime = &ut
+						etime = &txtime.Time{Time: &ut}
 					}
 				}
 			}
@@ -174,7 +174,7 @@ func balancePendingWithdraw(stub shim.ChaincodeStubInterface, params []string) p
 	if err != nil {
 		return responseError(err, "failed to get the pending balance")
 	}
-	if pb.PendingTime.After(*ts) {
+	if pb.PendingTime.After(*ts.Time) {
 		return shim.Error("too early to withdraw")
 	}
 

@@ -5,7 +5,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/key-inside/kiesnet-ccpkg/contract"
@@ -81,7 +80,7 @@ func (bb *BalanceStub) GetBalanceState(id string) ([]byte, error) {
 }
 
 // GetQueryBalanceLogs _
-func (bb *BalanceStub) GetQueryBalanceLogs(id, bookmark string, fetchSize int, stime, etime *time.Time) (*QueryResult, error) {
+func (bb *BalanceStub) GetQueryBalanceLogs(id, bookmark string, fetchSize int, stime, etime *txtime.Time) (*QueryResult, error) {
 	if fetchSize < 1 {
 		fetchSize = BalanceLogsFetchSize
 	}
@@ -205,13 +204,13 @@ func (bb *BalanceStub) Supply(bal *Balance, amount Amount) (*BalanceLog, error) 
 }
 
 // Transfer _
-func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo string, pendingTime *time.Time) (*BalanceLog, error) {
+func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo string, pendingTime *txtime.Time) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	if pendingTime != nil && pendingTime.After(*ts) { // time lock
+	if pendingTime != nil && pendingTime.After(*ts.Time) { // time lock
 		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, amount, memo, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
@@ -246,7 +245,7 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 }
 
 // TransferPendingBalance _
-func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Balance, pendingTime *time.Time) error {
+func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Balance, pendingTime *txtime.Time) error {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
 		return errors.Wrap(err, "failed to get the timestamp")
@@ -254,7 +253,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 
 	sender := &Balance{DOCTYPEID: pb.Account} // proxy
 
-	if pendingTime != nil && pendingTime.After(*ts) { // time lock
+	if pendingTime != nil && pendingTime.After(*ts.Time) { // time lock
 		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, pb.Amount, pb.Memo, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {

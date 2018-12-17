@@ -12,6 +12,7 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/contract"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
+	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
 // params[0] : sender address (empty string = personal account)
@@ -111,7 +112,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// options
 	memo := ""
-	var pendingTime *time.Time
+	var pendingTime *txtime.Time
 	var expiry int64
 	signers := stringset.New(kid)
 	if a, ok := sender.(*JointAccount); ok {
@@ -136,7 +137,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			}
 			if ts.GetSeconds() < seconds { // meaning pending time
 				ut := time.Unix(seconds, 0)
-				pendingTime = &ut
+				pendingTime = &txtime.Time{Time: &ut}
 			}
 			// expiry
 			if len(params) > 5 && len(params[5]) > 0 {
@@ -266,14 +267,14 @@ func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interfa
 
 	// pending time
 	ptStr := doc[6].(string)
-	var pendingTime *time.Time
+	var pendingTime *txtime.Time
 	if ptStr != "" && ptStr != "0" {
 		seconds, err := strconv.ParseInt(ptStr, 10, 64)
 		if err != nil {
 			return shim.Error("invalid pending time")
 		}
 		ut := time.Unix(seconds, 0)
-		pendingTime = &ut
+		pendingTime = &txtime.Time{Time: &ut}
 	}
 
 	// transfer
