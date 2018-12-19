@@ -210,7 +210,7 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	if pendingTime != nil && pendingTime.After(*ts.Time) { // time lock
+	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
 		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, amount, memo, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
@@ -253,7 +253,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 
 	sender := &Balance{DOCTYPEID: pb.Account} // proxy
 
-	if pendingTime != nil && pendingTime.After(*ts.Time) { // time lock
+	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
 		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, pb.Amount, pb.Memo, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {

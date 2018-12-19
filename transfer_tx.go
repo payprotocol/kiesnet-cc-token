@@ -5,7 +5,6 @@ package main
 import (
 	"encoding/json"
 	"strconv"
-	"time"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
@@ -136,8 +135,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 				return shim.Error("failed to get the timestamp")
 			}
 			if ts.GetSeconds() < seconds { // meaning pending time
-				ut := time.Unix(seconds, 0)
-				pendingTime = &txtime.Time{Time: &ut}
+				pendingTime = txtime.Unix(seconds, 0)
 			}
 			// expiry
 			if len(params) > 5 && len(params[5]) > 0 {
@@ -273,8 +271,7 @@ func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interfa
 		if err != nil {
 			return shim.Error("invalid pending time")
 		}
-		ut := time.Unix(seconds, 0)
-		pendingTime = &txtime.Time{Time: &ut}
+		pendingTime = txtime.Unix(seconds, 0)
 	}
 
 	// transfer

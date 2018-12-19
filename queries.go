@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
@@ -47,12 +46,10 @@ const QueryBalanceLogsByIDAndTimes = `{
 // CreateQueryBalanceLogsByIDAndTimes _
 func CreateQueryBalanceLogsByIDAndTimes(id string, stime, etime *txtime.Time) string {
 	if nil == stime {
-		ut := time.Unix(0, 0)
-		stime = &txtime.Time{Time: &ut}
+		stime = txtime.Unix(0, 0)
 	}
 	if nil == etime {
-		ut := time.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
-		etime = &txtime.Time{Time: &ut}
+		etime = txtime.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
 	}
 	return fmt.Sprintf(QueryBalanceLogsByIDAndTimes, id, stime.String(), etime.String())
 }

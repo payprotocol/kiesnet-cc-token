@@ -5,7 +5,6 @@ package main
 import (
 	"encoding/json"
 	"strconv"
-	"time"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
@@ -48,8 +47,7 @@ func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 					if err != nil {
 						return shim.Error("invalid start time: need seconds since 1970")
 					}
-					ut := time.Unix(seconds, 0)
-					stime = &txtime.Time{Time: &ut}
+					stime = txtime.Unix(seconds, 0)
 				}
 				// end time
 				if len(params) > 4 {
@@ -58,11 +56,10 @@ func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 						if err != nil {
 							return shim.Error("invalid end time: need seconds since 1970")
 						}
-						ut := time.Unix(seconds, 0)
-						if stime != nil && stime.After(ut) {
+						etime = txtime.Unix(seconds, 0)
+						if stime != nil && stime.Cmp(etime) >= 0 {
 							return shim.Error("invalid time parameters")
 						}
-						etime = &txtime.Time{Time: &ut}
 					}
 				}
 			}
@@ -174,7 +171,7 @@ func balancePendingWithdraw(stub shim.ChaincodeStubInterface, params []string) p
 	if err != nil {
 		return responseError(err, "failed to get the pending balance")
 	}
-	if pb.PendingTime.After(*ts.Time) {
+	if pb.PendingTime.Cmp(ts) > 0 {
 		return shim.Error("too early to withdraw")
 	}
 
