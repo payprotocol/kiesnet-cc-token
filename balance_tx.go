@@ -90,6 +90,33 @@ func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	return shim.Success(data)
 }
 
+// params[0] : pending balance id
+func balancePendingGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) != 1 {
+		return shim.Error("incorrect number of parameters. expecting 1")
+	}
+
+	// authentication
+	_, err := kid.GetID(stub, false)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// pending balance
+	bb := NewBalanceStub(stub)
+	pb, err := bb.GetPendingBalance(params[0])
+	if err != nil {
+		return responseError(err, "failed to get the pending balance")
+	}
+
+	data, err := json.Marshal(pb)
+	if err != nil {
+		return responseError(err, "failed to marshal the pending balance")
+	}
+
+	return shim.Success(data)
+}
+
 // params[0] : token code | account address
 // params[1] : sort ('created_time' | 'pending_time')
 // params[2] : bookmark

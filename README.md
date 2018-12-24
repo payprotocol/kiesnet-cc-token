@@ -78,6 +78,12 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
     - 0x04 : deposit (create a pending balance)
     - 0x05 : withdraw (from the pending balance)
 
+> query __`balance/pending/get`__ [pending_balance_id]
+- Get the pending balance
+- pending types
+    - 0x00 : account
+    - 0x01 : contract
+
 > query __`balance/pending/list`__ [token_code|address, _sort_, _bookmark_, _fetch_size_]
 - Get pending balances list
 - If the parameter is token code, it returns logs of the PAOT.

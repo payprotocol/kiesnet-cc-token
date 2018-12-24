@@ -40,6 +40,7 @@ var routes = map[string]TxFunc{
 	"account/suspend":          accountSuspend,
 	"account/unsuspend":        accountUnsuspend,
 	"balance/logs":             balanceLogs,
+	"balance/pending/get":      balancePendingGet,
 	"balance/pending/list":     balancePendingList,
 	"balance/pending/withdraw": balancePendingWithdraw,
 	"contract/execute":         contractExecute,
