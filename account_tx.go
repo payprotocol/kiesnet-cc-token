@@ -83,7 +83,7 @@ func accountCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respo
 
 	// contract
 	doc := []interface{}{"account/create", code, holders.Strings()}
-	return invokeContract(stub, doc, holders)
+	return contractCreate(stub, kid, doc, holders)
 }
 
 // information of the account
@@ -165,7 +165,7 @@ func accountHolderAdd(stub shim.ChaincodeStubInterface, params []string) peer.Re
 
 	// contract
 	doc := []interface{}{"account/holder/add", jac.GetID(), holder}
-	return invokeContract(stub, doc, signers)
+	return contractCreate(stub, kid, doc, signers)
 }
 
 // params[0] : account address (joint account only)
@@ -215,7 +215,7 @@ func accountHolderRemove(stub shim.ChaincodeStubInterface, params []string) peer
 
 	// contract
 	doc := []interface{}{"account/holder/remove", jac.GetID(), holder}
-	return invokeContract(stub, doc, signers)
+	return contractCreate(stub, kid, doc, signers)
 }
 
 // list of account's addresses

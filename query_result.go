@@ -77,3 +77,8 @@ func (qr *QueryResult) MarshalJSON() ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+// MarshalPayload _
+func (qr *QueryResult) MarshalPayload() ([]byte, error) {
+	return qr.MarshalJSON()
+}

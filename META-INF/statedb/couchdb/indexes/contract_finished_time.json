@@ -1,0 +1,13 @@
+{
+    "index": {
+        "partial_filter_selector": {
+            "@contract": {
+                "$exists": true
+            }
+        },
+        "fields": [ "sign.signer", "finished_time" ]
+    },
+    "ddoc": "contract",
+    "name": "finished-time",
+    "type": "json"
+}

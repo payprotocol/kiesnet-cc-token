@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
-	"github.com/key-inside/kiesnet-ccpkg/contract"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 	"github.com/pkg/errors"
 )
@@ -282,18 +281,13 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 
 // Deposit _
 // It does not validate pending time!
-func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contract, amount Amount, memo string) (*BalanceLog, error) {
+func (bb *BalanceStub) Deposit(id string, sender *Balance, con *Contract, amount Amount, memo string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	expiryTime, err := con.GetExpiryTime()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get the expiry time")
-	}
-
-	pb := NewPendingBalance(id, sender, con, amount, memo, expiryTime)
+	pb := NewPendingBalance(id, sender, con, amount, memo, con.ExpiryTime)
 	pb.CreatedTime = ts
 	if err = bb.PutPendingBalance(pb); err != nil {
 		return nil, errors.Wrap(err, "failed to create the pending balance")

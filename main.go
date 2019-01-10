@@ -7,7 +7,7 @@ import (
 	"github.com/hyperledger/fabric/protos/peer"
 )
 
-var logger = shim.NewLogger("kiesnet-token")
+var logger = shim.NewLogger("payprotocol-token")
 
 // Chaincode _
 type Chaincode struct {
@@ -43,21 +43,30 @@ var routes = map[string]TxFunc{
 	"balance/pending/get":      balancePendingGet,
 	"balance/pending/list":     balancePendingList,
 	"balance/pending/withdraw": balancePendingWithdraw,
-	"contract/execute":         contractExecute,
+	"contract/approve":         contractApprove,
 	"contract/cancel":          contractCancel,
+	"contract/disapprove":      contractDisapprove,
+	"contract/get":             contractGet,
+	"contract/list":            contractList,
 	"token/burn":               tokenBurn,
 	"token/create":             tokenCreate,
 	"token/get":                tokenGet,
 	"token/mint":               tokenMint,
 	"transfer":                 transfer,
 	"ver":                      ver,
-	// ISSUE: need functions below ?
-	// "account/logs":
-	// "token/logs":
 }
 
 func ver(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	return shim.Success([]byte("Kiesnet Token v1.0 created by Key Inside Co., Ltd."))
+	return shim.Success([]byte("Payprotocol Token v1.0 created by Key Inside Co., Ltd."))
+}
+
+func response(payload Payload) peer.Response {
+	data, err := payload.MarshalPayload()
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to marshal payload")
+	}
+	return shim.Success(data)
 }
 
 // If 'err' is ResponsibleError, it will add err's message to the 'msg'.

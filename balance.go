@@ -3,7 +3,6 @@
 package main
 
 import (
-	"github.com/key-inside/kiesnet-ccpkg/contract"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
@@ -139,7 +138,7 @@ type PendingBalance struct {
 // NewPendingBalance _
 func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount Amount, memo string, pTime *txtime.Time) *PendingBalance {
 	ptype := PendingBalanceTypeAccount
-	if _, ok := rel.(*contract.Contract); ok {
+	if _, ok := rel.(*Contract); ok {
 		ptype = PendingBalanceTypeContract
 	}
 	return &PendingBalance{

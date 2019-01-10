@@ -83,7 +83,7 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if jac.Holders.Size() > 1 {
 		// contract
 		doc := []interface{}{"token/burn", code, amount.String()}
-		return invokeContract(stub, doc, jac.Holders)
+		return contractCreate(stub, kid, doc, jac.Holders)
 	}
 
 	// burn
@@ -149,7 +149,7 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	if holders.Size() > 1 {
 		// contract
 		doc := []interface{}{"token/create", code, holders.Strings()}
-		return invokeContract(stub, doc, holders)
+		return contractCreate(stub, kid, doc, holders)
 	}
 
 	token, err := tb.CreateToken(code, decimal, *maxSupply, *supply, holders)
@@ -252,7 +252,7 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if jac.Holders.Size() > 1 {
 		// contract
 		doc := []interface{}{"token/mint", code, amount.String()}
-		return invokeContract(stub, doc, jac.Holders)
+		return contractCreate(stub, kid, doc, jac.Holders)
 	}
 
 	// mint

@@ -105,3 +105,156 @@ func CreateQueryPendingBalancesByAddress(addr, sort string) string {
 	}
 	return fmt.Sprintf(QueryPendingBalancesByAddress, addr, _sort)
 }
+
+// QueryContractsByID _
+const QueryContractsByID = `{
+	"selector": {
+		"@contract": "%s"
+	},
+	"use_index": ["contract", "id"]
+}`
+
+// CreateQueryContractsByID _
+func CreateQueryContractsByID(id string) string {
+	return fmt.Sprintf(QueryContractsByID, id)
+}
+
+// QueryContractsBySigner _
+const QueryContractsBySigner = `{
+	"selector": {
+		"@contract": {
+			"$exists": true
+		},
+		"sign.signer": "%s"
+	},
+	"sort": [{"sign.signer": "desc"}, {"created_time": "desc"}],
+	"use_index": ["contract", "created-time"]
+}`
+
+// CreateQueryContractsBySigner _
+func CreateQueryContractsBySigner(kid string) string {
+	return fmt.Sprintf(QueryContractsBySigner, kid)
+}
+
+// QueryFinishedContractsBySigner _
+const QueryFinishedContractsBySigner = `{
+	"selector": {
+		"@contract": {
+			"$exists": true
+		},
+		"sign.signer": "%s",
+		"finished_time": {
+			"$lte": "%s"
+		}
+	},
+	"sort": [{"sign.signer": "desc"}, {"finished_time": "desc"}],
+	"use_index": ["contract", "finished-time"]
+}`
+
+// CreateQueryFinishedContractsBySigner _
+func CreateQueryFinishedContractsBySigner(kid string, ts *txtime.Time) string {
+	return fmt.Sprintf(QueryFinishedContractsBySigner, kid, ts.String())
+}
+
+// QueryUnfinishedContractsBySigner _
+const QueryUnfinishedContractsBySigner = `{
+	"selector": {
+		"@contract": {
+			"$exists": true
+		},
+		"sign.signer": "%s",
+		"finished_time": {
+			"$gt": "%s"
+		}
+	},
+	"sort": ["sign.signer", "finished_time"],
+	"use_index": ["contract", "finished-time"]
+}`
+
+// CreateQueryUnfinishedContractsBySigner _
+func CreateQueryUnfinishedContractsBySigner(kid string, ts *txtime.Time) string {
+	return fmt.Sprintf(QueryUnfinishedContractsBySigner, kid, ts.String())
+}
+
+// QueryApprovedContractsBySigner - unfinished, approved
+const QueryApprovedContractsBySigner = `{
+	"selector": {
+		"$and": [
+			{
+				"@contract": {
+					"$exists": true
+				}
+			},
+			{
+				"sign.approved_time": {
+					"$exists": true
+				}
+			},
+			{
+				"executed_time": {
+					"$exists": false
+				}
+			},
+			{
+				"canceled_time": {
+					"$exists": false
+				}
+			}
+		],
+		"sign.signer": "%s",
+		"expiry_time": {
+			"$gt": "%s"
+		}
+	},
+	"sort": ["sign.signer", "expiry_time"],
+	"use_index": ["contract", "approved-expiry-time"]
+}`
+
+// CreateQueryApprovedContractsBySigner _
+func CreateQueryApprovedContractsBySigner(kid string, ts *txtime.Time) string {
+	return fmt.Sprintf(QueryApprovedContractsBySigner, kid, ts.String())
+}
+
+// QueryUnsignedContractsBySigner - unfinished, unsigned
+const QueryUnsignedContractsBySigner = `{
+	"selector": {
+		"$and": [
+			{
+				"@contract": {
+					"$exists": true
+				}
+			},
+			{
+				"sign.approved_time": {
+					"$exists": false
+				}
+			},
+			{
+				"sign.disapproved_time": {
+					"$exists": false
+				}
+			},
+			{
+				"executed_time": {
+					"$exists": false
+				}
+			},
+			{
+				"canceled_time": {
+					"$exists": false
+				}
+			}
+		],
+		"sign.signer": "%s",
+		"expiry_time": {
+			"$gt": "%s"
+		}
+	},
+	"sort": ["sign.signer", "expiry_time"],
+	"use_index": ["contract", "unsigned-expiry-time"]
+}`
+
+// CreateQueryUnsignedContractsBySigner _
+func CreateQueryUnsignedContractsBySigner(kid string, ts *txtime.Time) string {
+	return fmt.Sprintf(QueryUnsignedContractsBySigner, kid, ts.String())
+}

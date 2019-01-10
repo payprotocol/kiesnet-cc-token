@@ -1,0 +1,8 @@
+{
+    "index": {
+        "fields": [ "@contract" ]
+    },
+    "ddoc": "contract",
+    "name": "id",
+    "type": "json"
+}

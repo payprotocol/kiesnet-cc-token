@@ -1,0 +1,37 @@
+{
+    "index": {
+        "partial_filter_selector": {
+            "$and": [
+                {
+                    "@contract": {
+                        "$exists": true
+                    }
+                },
+                {
+                    "sign.approved_time": {
+                        "$exists": false
+                    }
+                },
+                {
+                    "sign.disapproved_time": {
+                        "$exists": false
+                    }
+                },
+                {
+                    "executed_time": {
+                        "$exists": false
+                    }
+                },
+                {
+                    "canceled_time": {
+                        "$exists": false
+                    }
+                }
+            ]
+        },
+        "fields": [ "sign.signer", "expiry_time" ]
+    },
+    "ddoc": "contract",
+    "name": "unsigned-expiry-time",
+    "type": "json"
+}

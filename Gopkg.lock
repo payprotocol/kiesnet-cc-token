@@ -3,11 +3,9 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:45b8edabd63f1be0c03f1f8782ebf8ea9d550da0bf7b082a91ed44198ad00789"
+  digest = "1:95fa2d7b424ea79febc0991e67b064b097928833612ee724c2cb6e6fc48f8eec"
   name = "github.com/key-inside/kiesnet-ccpkg"
   packages = [
-    "ccid",
-    "contract",
     "kid",
     "stringset",
     "txtime",
@@ -35,8 +33,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/key-inside/kiesnet-ccpkg/ccid",
-    "github.com/key-inside/kiesnet-ccpkg/contract",
     "github.com/key-inside/kiesnet-ccpkg/kid",
     "github.com/key-inside/kiesnet-ccpkg/stringset",
     "github.com/key-inside/kiesnet-ccpkg/txtime",

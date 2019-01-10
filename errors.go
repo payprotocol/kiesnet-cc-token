@@ -87,3 +87,15 @@ func (e NotExistedAccountError) Error() string {
 	}
 	return "the account is not exists"
 }
+
+// NotExistedContractError _
+type NotExistedContractError struct {
+	ResponsibleErrorImpl
+	id     string
+	signer string
+}
+
+// Error implements error interface
+func (e NotExistedContractError) Error() string {
+	return fmt.Sprintf("the contract '%s' for the signer '%s' is not exists", e.id, e.signer)
+}
