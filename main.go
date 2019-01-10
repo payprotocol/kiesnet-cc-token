@@ -7,7 +7,7 @@ import (
 	"github.com/hyperledger/fabric/protos/peer"
 )
 
-var logger = shim.NewLogger("payprotocol-token")
+var logger = shim.NewLogger("kiesnet-token")
 
 // Chaincode _
 type Chaincode struct {
@@ -57,7 +57,7 @@ var routes = map[string]TxFunc{
 }
 
 func ver(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	return shim.Success([]byte("Payprotocol Token v1.0 created by Key Inside Co., Ltd."))
+	return shim.Success([]byte("Kiesnet Token v1.0 created by Key Inside Co., Ltd."))
 }
 
 func response(payload Payload) peer.Response {
