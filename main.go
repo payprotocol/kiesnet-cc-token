@@ -50,6 +50,8 @@ var routes = map[string]TxFunc{
 	"token/get":                tokenGet,
 	"token/mint":               tokenMint,
 	"transfer":                 transfer,
+	"pay":                      pay,
+	"prune":                    prune,
 	"ver":                      ver,
 	// ISSUE: need functions below ?
 	// "account/logs":

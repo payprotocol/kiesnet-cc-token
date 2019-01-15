@@ -244,6 +244,45 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 	return sbl, nil
 }
 
+// Pay _
+func (bb *BalanceStub) Pay(sender *Balance, receiver string, amount Amount, memo string) error {
+	ts, err := txtime.GetTime(bb.stub)
+	if nil != err {
+		return nil, errors.Wrap(err, "failed to get the timestamp")
+	}
+
+	// 리시버 청크에 붙여주기
+	chunk := NewPayChunkType(bb.stub.GetTxID(), receiver, sender, amount, memo, ts)
+	data, err != json.Marshal(chunk)
+	if nil != err {
+		return errors.Wrap(err, "failed to marshal the chunk")
+	}
+	if err = bb.stub.PutState(bb.CreateKey(id, data); nil != err{
+		return errors.Wrap(err, )
+	}
+	
+
+	amount.Neg()
+	sender.Amount.Add(&amount)
+	sender.UpdatedTime = ts
+	if err = bb.PutBalance(sender); nil != err {
+		return err
+	}
+
+}
+
+// PutChunk _
+func (bb *BalanceStub) PutChunk(balance *Balance) error {
+	data, err := json.Marshal(balance)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal the balance")
+	}
+	if err = bb.stub.PutState(bb.CreateKey(balance.DOCTYPEID), data); err != nil {
+		return errors.Wrap(err, "failed to put the balance state")
+	}
+	return nil
+}
+
 // TransferPendingBalance _
 func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Balance, pendingTime *txtime.Time) error {
 	ts, err := txtime.GetTime(bb.stub)
