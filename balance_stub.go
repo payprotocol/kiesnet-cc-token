@@ -136,6 +136,11 @@ func (bb *BalanceStub) CreatePendingKey(id string) string {
 	return "PBLC_" + id
 }
 
+// CreateChunkKey _
+func (bb *BalanceStub) CreateChunkKey(id string) string {
+	return "CHNK_" + id
+}
+
 // GetPendingBalance _
 func (bb *BalanceStub) GetPendingBalance(id string) (*PendingBalance, error) {
 	data, err := bb.stub.GetState(bb.CreatePendingKey(id))
@@ -245,39 +250,43 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 }
 
 // Pay _
-func (bb *BalanceStub) Pay(sender *Balance, receiver string, amount Amount, memo string) error {
+func (bb *BalanceStub) Pay(sender, receiver *Balance, amount Amount, memo string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
-
 	// 리시버 청크에 붙여주기
 	chunk := NewPayChunkType(bb.stub.GetTxID(), receiver, sender, amount, memo, ts)
-	data, err != json.Marshal(chunk)
-	if nil != err {
-		return errors.Wrap(err, "failed to marshal the chunk")
+	if err = bb.PutChunk(chunk); nil != err {
+		return nil, err
 	}
-	if err = bb.stub.PutState(bb.CreateKey(id, data); nil != err{
-		return errors.Wrap(err, )
-	}
-	
+	/*
+		utxo history?
+	*/
 
-	amount.Neg()
-	sender.Amount.Add(&amount)
+	amount.Neg()               // -
+	sender.Amount.Add(&amount) // withdraw
 	sender.UpdatedTime = ts
-	if err = bb.PutBalance(sender); nil != err {
-		return err
+	if err = bb.PutBalance(sender); err != nil {
+		return nil, err
 	}
+	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
+	sbl.CreatedTime = ts
+	if err = bb.PutBalanceLog(sbl); err != nil {
+		return nil, err
+	}
+
+	return sbl, nil
 
 }
 
 // PutChunk _
-func (bb *BalanceStub) PutChunk(balance *Balance) error {
-	data, err := json.Marshal(balance)
+func (bb *BalanceStub) PutChunk(chunk *PayChunk) error {
+	data, err := json.Marshal(chunk)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the balance")
 	}
-	if err = bb.stub.PutState(bb.CreateKey(balance.DOCTYPEID), data); err != nil {
+	if err = bb.stub.PutState(bb.CreateChunkKey(chunk.DOCTYPEID), data); err != nil {
 		return errors.Wrap(err, "failed to put the balance state")
 	}
 	return nil

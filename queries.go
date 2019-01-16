@@ -105,3 +105,33 @@ func CreateQueryPendingBalancesByAddress(addr, sort string) string {
 	}
 	return fmt.Sprintf(QueryPendingBalancesByAddress, addr, _sort)
 }
+
+// QueryPayChunks _
+const QueryPayChunks = `{
+	"selector":{
+		"@pay_chunk":{
+			"$exists": true
+		},
+		"account": "%s",
+		"$and":[
+			{
+				"created_time":{
+					"$gte": "%s"
+				}
+			},{
+				"created_time":{
+					"$lte": "%s"
+				}
+
+			}
+		] 
+	},
+	"fields":[
+		"amount"
+	]
+}`
+
+// CreateQueryPayChunks _
+func CreateQueryPayChunks(id string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryPayChunks, id, stime, etime)
+}

@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -101,8 +102,16 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("not enough balance")
 	}
 
+	// receiver balance
+	rBal, err := bb.GetBalance(receiver.GetID())
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the receiver's balance")
+	}
+
 	// options
 	memo := ""
+	var pendingTime *txtime.Time
 	var expiry int64
 	signers := stringset.New(kid)
 	if a, ok := sender.(*JointAccount); ok {
@@ -115,21 +124,35 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		} else {
 			memo = params[3]
 		}
-		// expiry..
-		if len(params) > 4 && len(params[4]) > 0 {
-			expiry, err = strconv.ParseInt(params[5], 10, 64)
+		// pending time
+		if len(params) > 4 {
+			seconds, err := strconv.ParseInt(params[4], 10, 64)
 			if err != nil {
-				return shim.Error("invalid expiry: need seconds")
+				return shim.Error("invalid pending time: need seconds since 1970")
 			}
-			// extra signers
-			if len(params) > 5 {
-				addrs := stringset.New(params[6:]...) // remove duplication
-				for addr := range addrs.Map() {
-					kids, err := ab.GetSignableIDs(addr)
-					if err != nil {
-						return shim.Error(err.Error())
+			ts, err := stub.GetTxTimestamp()
+			if err != nil {
+				return shim.Error("failed to get the timestamp")
+			}
+			if ts.GetSeconds() < seconds { // meaning pending time
+				pendingTime = txtime.Unix(seconds, 0)
+			}
+			// expiry
+			if len(params) > 5 && len(params[5]) > 0 {
+				expiry, err = strconv.ParseInt(params[5], 10, 64)
+				if err != nil {
+					return shim.Error("invalid expiry: need seconds")
+				}
+				// extra signers
+				if len(params) > 6 {
+					addrs := stringset.New(params[6:]...) // remove duplication
+					for addr := range addrs.Map() {
+						kids, err := ab.GetSignableIDs(addr)
+						if err != nil {
+							return shim.Error(err.Error())
+						}
+						signers.AppendSlice(kids)
 					}
-					signers.AppendSlice(kids)
 				}
 			}
 		}
@@ -144,7 +167,11 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		// pending balance id
 		pbID := stub.GetTxID()
 		// contract
-		doc := []string{"pay", pbID, sender.GetID(), receiver.GetID(), amount.String(), memo}
+		ptStr := "0"
+		if pendingTime != nil {
+			ptStr = params[4]
+		}
+		doc := []string{"pay", pbID, sender.GetID(), receiver.GetID(), amount.String(), memo, ptStr}
 		docb, err := json.Marshal(doc)
 		if err != nil {
 			logger.Debug(err.Error())
@@ -161,8 +188,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return shim.Error("failed to create a pending balance")
 		}
 	} else { // instant sending
-		log, err = bb.Pay(sBal, rAddr, *amount, memo)
-		log, err = bb.Transfer(sBal, rBal, *amount, memo, pendingTime)
+		log, err = bb.Pay(sBal, rBal, *amount, memo)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to transfer")
@@ -179,80 +205,79 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// contract callbacks
-
-// doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, memo, pending-time]
-func cancelTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
-	if len(doc) < 2 {
-		return shim.Error("invalid contract document")
+// params[0] : tokencode | target address (empty string = personal account)
+// params[1] : start timestamp
+// params[2] : end timestamp
+// params[3] : bookmark ?
+func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) < 3 {
+		return shim.Error("incorrect number of parameters. expecting 3")
 	}
-
-	// pending balance
-	bb := NewBalanceStub(stub)
-	pb, err := bb.GetPendingBalance(doc[1].(string))
+	// authentication
+	kid, err := kid.GetID(stub, true)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the pending balance")
+		return shim.Error(err.Error())
 	}
-	// validate
-	if pb.Type != PendingBalanceTypeContract || pb.RID != cid {
-		return shim.Error("invalid pending balance")
-	}
-
-	// ISSUE: check account ?
-
-	// withdraw
-	if _, err = bb.Withdraw(pb); err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to withdraw")
-	}
-
-	return shim.Success(nil)
-}
-
-// doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, memo, pending-time]
-func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
-	if len(doc) < 7 {
-		return shim.Error("invalid contract document")
-	}
-
-	// pending balance
-	bb := NewBalanceStub(stub)
-	pb, err := bb.GetPendingBalance(doc[1].(string))
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the pending balance")
-	}
-	// validate
-	if pb.Type != PendingBalanceTypeContract || pb.RID != cid {
-		return shim.Error("invalid pending balance")
-	}
-
-	// ISSUE: check accounts ? (suspended)
-
-	// receiver balance
-	rBal, err := bb.GetBalance(doc[3].(string))
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the receiver's balance")
-	}
-
-	// pending time
-	ptStr := doc[6].(string)
-	var pendingTime *txtime.Time
-	if ptStr != "" && ptStr != "0" {
-		seconds, err := strconv.ParseInt(ptStr, 10, 64)
+	var addr *Address
+	code, err := ValidateTokenCode(params[0])
+	if nil == err { // by token code
+		addr = NewAddress(code, AccountTypePersonal, kid)
+	} else { // by address
+		addr, err = ParseAddress(params[0])
 		if err != nil {
-			return shim.Error("invalid pending time")
+			return responseError(err, "failed to get the account")
 		}
-		pendingTime = txtime.Unix(seconds, 0)
 	}
-
-	// transfer
-	if err = bb.TransferPendingBalance(pb, rBal, pendingTime); err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to transfer a pending balance")
+	ab := NewAccountStub(stub, addr.Code)
+	account, err := ab.GetAccount(addr)
+	if err != nil {
+		return responseError(err, "failed to get the account")
 	}
+	account.GetID()
 
-	return shim.Success(nil)
+	seconds, err := strconv.ParseInt(params[1], 10, 64)
+	if nil != err {
+		return shim.Error(err.Error())
+	}
+	stime := txtime.Unix(seconds, 0)
+
+	seconds, err = strconv.ParseInt(params[2], 10, 64)
+	if nil != err {
+		return shim.Error(err.Error())
+	}
+	etime := txtime.Unix(seconds, 0)
+
+	// ub := NewUtxoStub(stub)
+	// ub.GetQueryUtxoChunks(account.GetID(), "", stime, etime)
+	query := CreateQueryPayChunks(account.GetID(), stime, etime)
+	var sum int64
+	iter, _, err := stub.GetQueryResultWithPagination(query, 1000, "")
+	if nil != err {
+		return shim.Error(err.Error())
+	}
+	defer iter.Close()
+	for iter.HasNext() {
+		type temp struct {
+			Amount string `json:"amount"`
+		}
+		tmp := temp{}
+		kv, _ := iter.Next()
+		err = json.Unmarshal(kv.Value, &tmp)
+		fmt.Println(tmp.Amount)
+		val, err := strconv.ParseInt(tmp.Amount, 10, 64)
+		if nil != err {
+			return shim.Error(err.Error())
+		}
+		sum += val
+
+	}
+	fmt.Println(sum)
+	// // the number of chunck is more than 1000
+	// for 1000 > meta.FetchedRecordsCount {
+	// 	iter, meta, err = stub.GetQueryResultWithPagination(query, 1000, meta.Bookmark)
+	// 	if nil != err {
+	// 		return shim.Error(err.Error())
+	// 	}
+	// }
+	return shim.Success([]byte(""))
 }
