@@ -77,3 +77,21 @@ func (qr *QueryResult) MarshalJSON() ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+// ChunkResult _
+// func ChunkResult(meta *peer.QueryResponseMetadata, iter shim.StateQueryIteratorInterface) error {
+// 	buf := bytes.NewBufferString("")
+// 	for iter.HasNext() {
+// 		kv, err := iter.Next()
+// 		if nil != err {
+// 			return nil
+// 		}
+// 		if _, err := buf.Write(kv.Value); nil != err {
+// 			return err
+// 		}
+// 		if err = buf.WriteByte(','); nil != err {
+// 			return err
+// 		}
+// 	}
+// 	return buf.Bytes(), nil
+// }

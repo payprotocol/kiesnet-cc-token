@@ -237,9 +237,9 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 	amount.Neg()               // -
 	sender.Amount.Add(&amount) // withdraw
 	sender.UpdatedTime = ts
-	if err = bb.PutBalance(sender); err != nil {
-		return nil, err
-	}
+	// if err = bb.PutBalance(sender); err != nil {
+	// 	return nil, err
+	// }
 	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {

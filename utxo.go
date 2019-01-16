@@ -26,6 +26,11 @@ type PayChunk struct {
 	CreatedTime *txtime.Time `json:"created_time,omitempty"`
 }
 
+// ChunkAmount _
+type ChunkAmount struct {
+	Amount Amount `json:"amount"`
+}
+
 // NewPayChunkType _
 func NewPayChunkType(id string, owner Identifiable, rel Identifiable, amount Amount, memo string, cTime *txtime.Time) *PayChunk {
 	ptype := PayChunkTypeAccount

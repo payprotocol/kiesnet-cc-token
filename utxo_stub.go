@@ -1,14 +1,12 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
 // UtxoChunksFetchSize _
-const UtxoChunksFetchSize = 1000
+const UtxoChunksFetchSize = 2
 
 // UtxoStub _
 type UtxoStub struct {
@@ -22,29 +20,37 @@ func NewUtxoStub(stub shim.ChaincodeStubInterface) *UtxoStub {
 
 // GetAllUtxoChunks _
 // func (ub *UtxoStub) GetAllUtxoChunks(id string, stime, etime *txtime.Time) error {
+// 	query := CreateQueryPayChunks(id, stime, etime)
 // 	bookmark := ""
 // 	var result *QueryResult
-// 	for result, err := ub.GetQueryUtxoChunks(id, bookmark, stime, etime); result.Meta.FetchedRecordsCount == 1000; {
-// 		if nil != err {
+// 	var err error
+// 	buf := bytes.NewBufferString("")
+// 	for {
+// 		iter, meta, err := ub.stub.GetQueryResultWithPagination(query, int32(UtxoChunksFetchSize), bookmark)
+// 		if err != nil {
 // 			return err
 // 		}
-// 		result
+// 		defer iter.Close()
+// 		bookmark = meta.Bookmark
+// 		if meta.FetchedRecordsCount < UtxoChunksFetchSize {
+// 			break
+// 		}
+
 // 	}
-// 	if nil != err {
-// 		return err
-// 	}
+
+// 	b, _ := result.MarshalJSON()
+// 	fmt.Println(string(b))
+// 	return nil
 
 // }
 
 // GetQueryUtxoChunks _
 func (ub *UtxoStub) GetQueryUtxoChunks(id, bookmark string, stime, etime *txtime.Time) (*QueryResult, error) {
 	query := CreateQueryPayChunks(id, stime, etime)
-	fmt.Println(query)
 	iter, meta, err := ub.stub.GetQueryResultWithPagination(query, int32(UtxoChunksFetchSize), bookmark)
 	if err != nil {
 		return nil, err
 	}
 	defer iter.Close()
-
 	return NewQueryResult(meta, iter)
 }

@@ -4,7 +4,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -210,68 +209,87 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[2] : end timestamp
 // params[3] : bookmark ?
 func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if len(params) < 3 {
-		return shim.Error("incorrect number of parameters. expecting 3")
-	}
-	// authentication
-	kid, err := kid.GetID(stub, true)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	var addr *Address
-	code, err := ValidateTokenCode(params[0])
-	if nil == err { // by token code
-		addr = NewAddress(code, AccountTypePersonal, kid)
-	} else { // by address
-		addr, err = ParseAddress(params[0])
-		if err != nil {
-			return responseError(err, "failed to get the account")
-		}
-	}
-	ab := NewAccountStub(stub, addr.Code)
-	account, err := ab.GetAccount(addr)
-	if err != nil {
-		return responseError(err, "failed to get the account")
-	}
-	account.GetID()
+	// if len(params) < 3 {
+	// 	return shim.Error("incorrect number of parameters. expecting 3")
+	// }
+	// // authentication
+	// kid, err := kid.GetID(stub, true)
+	// if err != nil {
+	// 	return shim.Error(err.Error())
+	// }
+	// var addr *Address
+	// code, err := ValidateTokenCode(params[0])
+	// if nil == err { // by token code
+	// 	addr = NewAddress(code, AccountTypePersonal, kid)
+	// } else { // by address
+	// 	addr, err = ParseAddress(params[0])
+	// 	if err != nil {
+	// 		return responseError(err, "failed to get the account")
+	// 	}
+	// }
+	// ab := NewAccountStub(stub, addr.Code)
+	// account, err := ab.GetAccount(addr)
+	// if err != nil {
+	// 	return responseError(err, "failed to get the account")
+	// }
+	// account.GetID()
 
-	seconds, err := strconv.ParseInt(params[1], 10, 64)
-	if nil != err {
-		return shim.Error(err.Error())
-	}
-	stime := txtime.Unix(seconds, 0)
+	// seconds, err := strconv.ParseInt(params[1], 10, 64)
+	// if nil != err {
+	// 	return shim.Error(err.Error())
+	// }
+	// stime := txtime.Unix(seconds, 0)
 
-	seconds, err = strconv.ParseInt(params[2], 10, 64)
-	if nil != err {
-		return shim.Error(err.Error())
-	}
-	etime := txtime.Unix(seconds, 0)
+	// seconds, err = strconv.ParseInt(params[2], 10, 64)
+	// if nil != err {
+	// 	return shim.Error(err.Error())
+	// }
+	// etime := txtime.Unix(seconds, 0)
 
 	// ub := NewUtxoStub(stub)
+	// bookmark := ""
+	// buf := bytes.NewBufferString("")
+	// var res *QueryResult
+	//ub.GetAllUtxoChunks(account.GetID(), stime, etime)
 	// ub.GetQueryUtxoChunks(account.GetID(), "", stime, etime)
-	query := CreateQueryPayChunks(account.GetID(), stime, etime)
-	var sum int64
-	iter, _, err := stub.GetQueryResultWithPagination(query, 1000, "")
-	if nil != err {
-		return shim.Error(err.Error())
-	}
-	defer iter.Close()
-	for iter.HasNext() {
-		type temp struct {
-			Amount string `json:"amount"`
-		}
-		tmp := temp{}
-		kv, _ := iter.Next()
-		err = json.Unmarshal(kv.Value, &tmp)
-		fmt.Println(tmp.Amount)
-		val, err := strconv.ParseInt(tmp.Amount, 10, 64)
-		if nil != err {
-			return shim.Error(err.Error())
-		}
-		sum += val
+	// for res, err = ub.GetQueryUtxoChunks(account.GetID(), bookmark, stime, etime); res.Meta.FetchedRecordsCount >= 2; {
+	// 	fmt.Println(res.Meta.Bookmark)
+	// 	if nil != err {
+	// 		return shim.Error(err.Error())
+	// 	}
+	// 	_, err = buf.Write(res.Records)
+	// 	if nil != err {
+	// 		return shim.Error(err.Error())
+	// 	}
+	// 	bookmark = res.Meta.Bookmark
 
-	}
-	fmt.Println(sum)
+	// }
+	// b, _ := res.MarshalJSON()
+
+	// fmt.Println(b)
+	// query := CreateQueryPayChunks(account.GetID(), stime, etime)
+	// var sum int64
+	// iter, _, err := stub.GetQueryResultWithPagination(query, 1000, "")
+	// if nil != err {
+	// 	return shim.Error(err.Error())
+	// }
+	// defer iter.Close()
+	// for iter.HasNext() {
+	// 	type temp struct {
+	// 		Amount string `json:"amount"`
+	// 	}
+	// 	tmp := temp{}
+	// 	kv, _ := iter.Next()
+	// 	err = json.Unmarshal(kv.Value, &tmp)
+	// 	fmt.Println(tmp.Amount)
+	// 	val, err := strconv.ParseInt(tmp.Amount, 10, 64)
+	// 	if nil != err {
+	// 		return shim.Error(err.Error())
+	// 	}
+	// 	sum += val
+
+	// }
+	// fmt.Println(sum)
 	// // the number of chunck is more than 1000
 	// for 1000 > meta.FetchedRecordsCount {
 	// 	iter, meta, err = stub.GetQueryResultWithPagination(query, 1000, meta.Bookmark)
