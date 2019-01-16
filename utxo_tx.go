@@ -4,12 +4,10 @@ package main
 
 import (
 	"encoding/json"
-	"strconv"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
-	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
 // params[0] : sender address (empty string = personal account)
