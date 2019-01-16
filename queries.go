@@ -109,7 +109,7 @@ func CreateQueryPendingBalancesByAddress(addr, sort string) string {
 // QueryPayChunks _
 const QueryPayChunks = `{
 	"selector":{
-		"@pay_chunk":{
+		"@chunk":{
 			"$exists": true
 		},
 		"account": "%s",

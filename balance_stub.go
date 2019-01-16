@@ -256,20 +256,22 @@ func (bb *BalanceStub) Pay(sender, receiver *Balance, amount Amount, memo string
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 	// 리시버 청크에 붙여주기
-	chunk := NewPayChunkType(bb.stub.GetTxID(), receiver, sender, amount, memo, ts)
+	chunk := NewPayChunkType(bb.stub.GetTxID(), receiver, amount, ts)
 	if err = bb.PutChunk(chunk); nil != err {
 		return nil, err
 	}
 	/*
-		utxo history?
+		//TODO: create the receiver's utxo/pay log
 	*/
-
-	amount.Neg()               // -
-	sender.Amount.Add(&amount) // withdraw
+	// withdraw from the sender's account
+	amount.Neg()
+	sender.Amount.Add(&amount)
 	sender.UpdatedTime = ts
 	if err = bb.PutBalance(sender); err != nil {
 		return nil, err
 	}
+
+	//create the sender's balance log
 	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
