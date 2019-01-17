@@ -260,9 +260,7 @@ func (bb *BalanceStub) Pay(sender, receiver *Balance, amount Amount, memo string
 	if err = bb.PutChunk(chunk); nil != err {
 		return nil, err
 	}
-	/*
-		//TODO: create the receiver's utxo/pay log
-	*/
+
 	// withdraw from the sender's account
 	amount.Neg()
 	sender.Amount.Add(&amount)
@@ -271,15 +269,18 @@ func (bb *BalanceStub) Pay(sender, receiver *Balance, amount Amount, memo string
 		return nil, err
 	}
 
-	//create the sender's balance log
+	//create the sender's balance log. This sender's balance log is returned as response.
 	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
 		return nil, err
 	}
 
-	return sbl, nil
+	/*
+		//TODO: do we need to create the receiver's utxo/pay log, too??
+	*/
 
+	return sbl, nil
 }
 
 // PutChunk _
