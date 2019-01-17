@@ -224,9 +224,9 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 	} else {
 		receiver.Amount.Add(&amount) // deposit
 		receiver.UpdatedTime = ts
-		// if err = bb.PutBalance(receiver); err != nil {
-		// 	return nil, err
-		// }
+		if err = bb.PutBalance(receiver); err != nil {
+			return nil, err
+		}
 		rbl := NewBalanceTransferLog(sender, receiver, amount, memo)
 		rbl.CreatedTime = ts
 		if err = bb.PutBalanceLog(rbl); err != nil {
@@ -237,9 +237,9 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 	amount.Neg()               // -
 	sender.Amount.Add(&amount) // withdraw
 	sender.UpdatedTime = ts
-	// if err = bb.PutBalance(sender); err != nil {
-	// 	return nil, err
-	// }
+	if err = bb.PutBalance(sender); err != nil {
+		return nil, err
+	}
 	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
