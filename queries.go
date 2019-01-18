@@ -106,8 +106,8 @@ func CreateQueryPendingBalancesByAddress(addr, sort string) string {
 	return fmt.Sprintf(QueryPendingBalancesByAddress, addr, _sort)
 }
 
-// QueryPayChunks _
-const QueryPayChunks = `{
+// QueryChunks _
+const QueryChunks = `{
 	"selector":{
 		"@chunk":{
 			"$exists": true
@@ -131,7 +131,25 @@ const QueryPayChunks = `{
 	]
 }`
 
-// CreateQueryPayChunks _
-func CreateQueryPayChunks(id string, stime, etime *txtime.Time) string {
-	return fmt.Sprintf(QueryPayChunks, id, stime, etime)
+// CreateQueryChunks _
+func CreateQueryChunks(id string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryChunks, id, stime, etime)
+}
+
+// QueryMergeResultByStartDate _
+const QueryMergeResultByStartDate = `{
+	"selector":{
+		"@chunk":{
+			"$exists": true
+		},
+		"account": "%s",
+		"end_time":{
+			"$lt": "%s"
+		}
+	}
+}`
+
+// CreateQueryMergeResultByStartDate _
+func CreateQueryMergeResultByStartDate(id string, stime *txtime.Time) string {
+	return fmt.Sprintf(QueryMergeResultByStartDate, id, stime)
 }

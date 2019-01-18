@@ -4,7 +4,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -136,106 +135,11 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// params[0] : tokencode | target address (empty string = personal account)
-// params[1] : start timestamp
-// params[2] : end timestamp
-// params[3] : bookmark ?
-// func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-// 	if len(params) < 3 {
-// 		return shim.Error("incorrect number of parameters. expecting 3")
-// 	}
-// 	// authentication. get KID of current user.
-// 	kid, err := kid.GetID(stub, true)
-// 	if err != nil {
-// 		return shim.Error(err.Error())
-// 	}
-// 	var addr *Address
-// 	code, err := ValidateTokenCode(params[0])
-// 	if nil == err { // by token code
-// 		addr = NewAddress(code, AccountTypePersonal, kid)
-// 	} else { // by address
-// 		addr, err = ParseAddress(params[0])
-// 		if err != nil {
-// 			return responseError(err, "failed to get the account")
-// 		}
-// 	}
-// 	ab := NewAccountStub(stub, addr.Code)
-// 	account, err := ab.GetAccount(addr)
-// 	if err != nil {
-// 		return responseError(err, "failed to get the account")
-// 	}
-// 	account.GetID()
-
-// 	//get the start time for pruning
-// 	seconds, err := strconv.ParseInt(params[1], 10, 64)
-// 	if nil != err {
-// 		return shim.Error(err.Error())
-// 	}
-// 	stime := txtime.Unix(seconds, 0)
-
-// 	//get the end time for pruning
-// 	seconds, err = strconv.ParseInt(params[2], 10, 64)
-// 	if nil != err {
-// 		return shim.Error(err.Error())
-// 	}
-// 	etime := txtime.Unix(seconds, 0)
-
-// 	ub := NewUtxoStub(stub)
-// 	bookmark := ""
-// 	buf := bytes.NewBufferString("")
-// 	var res *QueryResult
-// 	ub.GetAllUtxoChunks(account.GetID(), stime, etime)
-// 	ub.GetQueryUtxoChunks(account.GetID(), "", stime, etime)
-// 	for res, err = ub.GetQueryUtxoChunks(account.GetID(), bookmark, stime, etime); res.Meta.FetchedRecordsCount >= 2; {
-// 		fmt.Println(res.Meta.Bookmark)
-// 		if nil != err {
-// 			return shim.Error(err.Error())
-// 		}
-// 		_, err = buf.Write(res.Records)
-// 		if nil != err {
-// 			return shim.Error(err.Error())
-// 		}
-// 		bookmark = res.Meta.Bookmark
-
-// 	}
-// 	b, _ := res.MarshalJSON()
-
-// 	fmt.Println(b)
-// 	query := CreateQueryPayChunks(account.GetID(), stime, etime)
-// 	var sum int64
-// 	iter, _, err := stub.GetQueryResultWithPagination(query, 1000, "")
-// 	if nil != err {
-// 		return shim.Error(err.Error())
-// 	}
-// 	defer iter.Close()
-// 	for iter.HasNext() {
-// 		type temp struct {
-// 			Amount string `json:"amount"`
-// 		}
-// 		tmp := temp{}
-// 		kv, _ := iter.Next()
-// 		err = json.Unmarshal(kv.Value, &tmp)
-// 		fmt.Println(tmp.Amount)
-// 		val, err := strconv.ParseInt(tmp.Amount, 10, 64)
-// 		if nil != err {
-// 			return shim.Error(err.Error())
-// 		}
-// 		sum += val
-
-// 	}
-// 	fmt.Println(sum)
-// 	// the number of chunck is more than 1000
-// 	for 1000 > meta.FetchedRecordsCount {
-// 		iter, meta, err = stub.GetQueryResultWithPagination(query, 1000, meta.Bookmark)
-// 		if nil != err {
-// 			return shim.Error(err.Error())
-// 		}
-// 	}
-// 	return shim.Success([]byte(""))
-// }
-
 // prune _
-// params[0] : optional. address/kid to prune. If there is no parameter or empty string, then current user's account will be pruned.
+// params[0] : token | owned address. address/kid to prune. If there is no parameter or empty string, then current user's account will be pruned.
+// params[1] : start date in seconds form
+// params[2] : end date in seconds form
+// params[3] : [optional] merge result key
 // Description ////////////////////
 // 1. It merges UTXO chunks from the last merged datetime until current time or until it reaches 500th chunk.
 // 2. If it has more than 500 records, then it only merges the first 500 chunks.
@@ -245,165 +149,97 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // Question 1 - do we need to merge the already merged chunk, too or leave it as it is?
 // Question 2 - how do we transfer from merchant to mother account? - Create new transfer function for UTXO -> Account/Balance?
 
-func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-
-	var addr *Address
-	var err error
-
-	//no params or empty string params[0]
-	if len(params) == 0 || params[0] == "" {
-		//get kid of current user
-		kid, err := kid.GetID(stub, true)
-		if err != nil {
-			return shim.Error(err.Error())
-		}
-		//create Address from kid
-		addr = NewAddress("", AccountTypePersonal, kid)
-	} else {
-		addr, err = ParseAddress(params[0])
-		if err != nil {
-			return responseError(err, "the address is invalid")
-		}
+func merge(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) < 3 {
+		return shim.Error("incorrect number of parameters. expecting 3+")
+	}
+	// authentication
+	kid, err := kid.GetID(stub, false)
+	if err != nil {
+		return shim.Error(err.Error())
 	}
 
-	//get Account from the address
+	var account AccountInterface
+
+	var addr *Address
+	code, err := ValidateTokenCode(params[0])
+	if nil == err { // by token code
+		addr = NewAddress(code, AccountTypePersonal, kid)
+	} else { // by address
+		addr, err = ParseAddress(params[0])
+		if err != nil {
+			return responseError(err, "failed to get the account")
+		}
+	}
 	ab := NewAccountStub(stub, addr.Code)
-	account, err := ab.GetAccount(addr)
+	account, err = ab.GetAccount(addr)
 	if err != nil {
 		return responseError(err, "failed to get the account")
 	}
 
-	//Account balance
-	bb := NewBalanceStub(stub)
-	aBal, err := bb.GetBalance(account.GetID())
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the receiver's balance")
-	}
+	ub := NewUtxoStub(stub)
 
-	//TODO: get start time from MergeHistory. If the Log doesnt exist, then search from 1546300800 or 2019-01-01 12:00:00.
-	stimeStamp := "1546300800" //default start time. This should be overried by the time from MergeHistory.
-
-	//TODO: Get MergeHistory then override sTime.
-	sec, err := strconv.ParseInt(stimeStamp, 10, 64)
-	if err != nil {
-		return responseError(err, "failed to parse the start time")
-	}
-	stime := txtime.Unix(sec, 0)
-
-	fmt.Println("############ Merge search start time: ", stime)
-
-	//get end time is the current time
-	etime, _ := txtime.GetTime(stub)
-
-	fmt.Println("############ Merge search end time: ", etime)
-
-	//ub := NewUtxoStub(stub)
-	//bookmark := ""
-	//buf := bytes.NewBufferString("")
-	//var qResult *QueryResult
-
-	// bookmark := ""
-	// query := CreateQueryPayChunks(account.GetID(), params[1], params[2])
-	// var pageSize int32
-	// var sum int64
-	// var totalRecords int32
-	// pageSize = 2
-
-	// for {
-	// 	iter, meta, err := stub.GetQueryResultWithPagination(query, pageSize, bookmark)
-	// 	if err != nil {
-	// 		return shim.Error(err.Error())
-	// 	}
-	// 	defer iter.Close()
-	// 	for iter.HasNext() {
-	// 		type temp struct {
-	// 			Amount string `json:"amount`
-	// 		}
-	// 		tmp := temp{}
-	// 		kv, _ := iter.Next()
-	// 		err = json.Unmarshal(kv.Value, &tmp)
-	// 		fmt.Println("######### tmp.Amount : ", tmp.Amount)
-	// 		val, err := strconv.ParseInt(tmp.Amount, 10, 64)
-	// 		if err != nil {
-	// 			return shim.Error(err.Error())
-	// 		}
-	// 		sum += val
-	// 	}
-
-	// 	totalRecords = totalRecords + meta.FetchedRecordsCount
-	// 	if meta.FetchedRecordsCount == 0 {
-	// 		break
-	// 	}
-
-	// 	bookmark = meta.Bookmark
-	// }
-
-	//fmt.Println("page size: ", pageSize)
-	//fmt.Println("total # records:", totalRecords)
-	//fmt.Println("total amount:", sum)
-	// ########### end of query with pagination test. if query with pagination is used, fabric doesnt allow to perform PUTSTATE. Thus instead of GetQueryResultWithPagination, we must use GetQueryResult ###########
-
-	//TODO: must get the stime from the MergeHistory document instead of the parameter. Thus prune function will not have any parameters.
-	var sum int64
-	query := CreateQueryPayChunks(account.GetID(), stime, etime)
-	iter, err := stub.GetQueryResult(query)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	defer iter.Close()
-	recCounter := 0
-	const numMergeLimit = 500
-
-	for iter.HasNext() {
-		recCounter++
-
-		//TODO: need to get the address and create time, too
-		type temp struct {
-			Amount string `json:"amount`
-		}
-		tmp := temp{}
-		kv, _ := iter.Next()
-		err = json.Unmarshal(kv.Value, &tmp)
-		fmt.Println("######### tmp.Amount : ", tmp.Amount)
-		val, err := strconv.ParseInt(tmp.Amount, 10, 64)
-		if err != nil {
+	var stime *txtime.Time
+	if len(params) > 3 && len(params[3]) != 0 {
+		mergeResult, err := ub.GetMergeResultChunk(params[3])
+		if nil != err {
 			return shim.Error(err.Error())
 		}
-		sum += val
-		if recCounter == numMergeLimit {
-			break
+		s, err := ub.GetChunk(mergeResult.Start)
+		if nil != err {
+			return shim.Error(err.Error())
 		}
+		stime = s.CreatedTime
+	} else {
+		seconds, err := strconv.ParseInt(params[1], 10, 64)
+		if nil != err {
+			return shim.Error("invalid start time: need seconds since 1970")
+		}
+		stime = txtime.Unix(seconds, 0)
 	}
 
-	fmt.Println("total amount:", sum)
-	// amount
-	amount, err := NewAmount(strconv.FormatInt(int64(sum), 10))
-	if err != nil {
+	seconds, err := strconv.ParseInt(params[2], 10, 64)
+	if nil != err {
+		return shim.Error("invalid start time: need seconds since 1970")
+	}
+	etime := txtime.Unix(seconds, 0)
+
+	if stime.Cmp(etime) >= 0 {
+		return shim.Error("invalid merge range")
+	}
+	// Already Merged or not check
+	// from_date < star
+	valid, err := ub.MergeRangeValidator(account.GetID(), stime)
+	if !valid {
+		return shim.Error("invalid merge range")
+	}
+
+	sum, start, end, err := ub.GetSumOfUtxoChunksByRange(account.GetID(), stime, etime)
+	if nil != err {
 		return shim.Error(err.Error())
 	}
-	if amount.Sign() <= 0 {
-		return shim.Error("invalid amount. amount must be larger than 0")
-	}
-
-	//TODO: we should get the create time from the last merged chunk so that the next prune() can start from this newly merged chunk.
 
 	ts, err := txtime.GetTime(stub)
 	if nil != err {
 		return shim.Error(err.Error())
 	}
 
-	chunk := NewPayChunkType(bb.stub.GetTxID(), aBal, *amount, ts)
-	if err = bb.PutChunk(chunk); nil != err {
+	mKey := ""
+	mergedChunk := NewChunkType(ub.CreateKey(stub.GetTxID()), account, nil, *sum, ts)
+	if mKey, err = ub.PutChunk(mergedChunk); nil != err {
 		return shim.Error(err.Error())
 	}
 
-	//TODO: delete existing chunks
+	mrKey := ub.CreateMergeResultKey(account.GetID(), mKey)
+	mergeResult := NewMergeResultType(mrKey, mKey, start, end, ts)
 
-	//TODO: create the prune log
-
-	//ub.GetAllUtxoChunks(account.GetID(), params[1], params[2])
-	//ub.GetQueryUtxoChunks(account.GetID(), "", params[1], params[2])
+	data, err := json.Marshal(mergeResult)
+	if nil != err {
+		return shim.Error(err.Error())
+	}
+	if err := stub.PutState(mrKey, data); nil != err {
+		return shim.Error(err.Error())
+	}
 
 	return shim.Success([]byte(""))
 

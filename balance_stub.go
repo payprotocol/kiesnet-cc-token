@@ -136,11 +136,6 @@ func (bb *BalanceStub) CreatePendingKey(id string) string {
 	return "PBLC_" + id
 }
 
-// CreateChunkKey _
-func (bb *BalanceStub) CreateChunkKey(id string) string {
-	return "CHNK_" + id
-}
-
 // GetPendingBalance _
 func (bb *BalanceStub) GetPendingBalance(id string) (*PendingBalance, error) {
 	data, err := bb.stub.GetState(bb.CreatePendingKey(id))
@@ -256,8 +251,9 @@ func (bb *BalanceStub) Pay(sender, receiver *Balance, amount Amount, memo string
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 	// 리시버 청크에 붙여주기
-	chunk := NewPayChunkType(bb.stub.GetTxID(), receiver, amount, ts)
-	if err = bb.PutChunk(chunk); nil != err {
+	ub := NewUtxoStub(bb.stub)
+	chunk := NewChunkType(ub.stub.GetTxID(), receiver, sender, amount, ts)
+	if _, err = ub.PutChunk(chunk); nil != err {
 		return nil, err
 	}
 
@@ -281,18 +277,6 @@ func (bb *BalanceStub) Pay(sender, receiver *Balance, amount Amount, memo string
 	*/
 
 	return sbl, nil
-}
-
-// PutChunk _
-func (bb *BalanceStub) PutChunk(chunk *PayChunk) error {
-	data, err := json.Marshal(chunk)
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal the balance")
-	}
-	if err = bb.stub.PutState(bb.CreateChunkKey(chunk.DOCTYPEID), data); err != nil {
-		return errors.Wrap(err, "failed to put the balance state")
-	}
-	return nil
 }
 
 // TransferPendingBalance _
