@@ -235,7 +235,10 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // }
 
 // prune _
-// params[0] : optional. address/kid to prune. If there is no parameter or empty string, then current user's account will be pruned.
+// params[0] : Token Code or Address to prune.
+// params[1] : Prune start time.
+// params[2] : Prune end time. It is not guaranteed that the prune merge all chunks into one in this given period time. If it reached the threshhold of 500, then it finished the current action expeting the next call from the client.
+// params[3] : Optional. Next Chunk Key.
 // Description ////////////////////
 // 1. It merges UTXO chunks from the last merged datetime until current time or until it reaches 500th chunk.
 // 2. If it has more than 500 records, then it only merges the first 500 chunks.
@@ -247,22 +250,26 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
-	var addr *Address
-	var err error
+	//var addr *Address
+	//var err error
 
-	//no params or empty string params[0]
-	if len(params) == 0 || params[0] == "" {
-		//get kid of current user
-		kid, err := kid.GetID(stub, true)
-		if err != nil {
-			return shim.Error(err.Error())
-		}
-		//create Address from kid
-		addr = NewAddress("", AccountTypePersonal, kid)
-	} else {
+	if len(params) < 3 {
+		return shim.Error("incorrect number of parameters. expecting at least 3 parameters")
+	}
+	// authentication. get KID of current user.
+	kid, err := kid.GetID(stub, true)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	var addr *Address
+	code, err := ValidateTokenCode(params[0])
+	if nil == err { // by token code
+		addr = NewAddress(code, AccountTypePersonal, kid)
+	} else { // by address
 		addr, err = ParseAddress(params[0])
 		if err != nil {
-			return responseError(err, "the address is invalid")
+			return responseError(err, "failed to get the account")
 		}
 	}
 
@@ -281,110 +288,66 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("failed to get the receiver's balance")
 	}
 
-	//TODO: get start time from MergeHistory. If the Log doesnt exist, then search from 1546300800 or 2019-01-01 12:00:00.
-	stimeStamp := "1546300800" //default start time. This should be overried by the time from MergeHistory.
+	//merge start time.
+	//if MergeHistory key presents, then the start time is retrieved from MergeHistory -> ToAddress -> CreateTime.
 
-	//TODO: Get MergeHistory then override sTime.
-	sec, err := strconv.ParseInt(stimeStamp, 10, 64)
-	if err != nil {
-		return responseError(err, "failed to parse the start time")
+	var stime *txtime.Time
+
+	//if the next chunk key presents, get the create time and set it as the new start time
+	if len(params) > 3 {
+		nChunk, err := bb.GetChunk(params[3])
+		if err != nil {
+			shim.Error("failed to get the next start chunk")
+		}
+		stime = nChunk.CreatedTime
+	} else {
+		sec, err := strconv.ParseInt(params[1], 10, 64)
+		if err != nil {
+			return responseError(err, "failed to parse the start time")
+		}
+		stime = txtime.Unix(sec, 0)
 	}
-	stime := txtime.Unix(sec, 0)
 
 	fmt.Println("############ Merge search start time: ", stime)
 
-	//get end time is the current time
-	etime, _ := txtime.GetTime(stub)
+	//merge end time
+	sec, err := strconv.ParseInt(params[2], 10, 64)
+	if err != nil {
+		return responseError(err, "failed to parse the start time")
+	}
+	etime := txtime.Unix(sec, 0)
 
 	fmt.Println("############ Merge search end time: ", etime)
 
-	//ub := NewUtxoStub(stub)
-	//bookmark := ""
-	//buf := bytes.NewBufferString("")
-	//var qResult *QueryResult
-
-	// bookmark := ""
-	// query := CreateQueryPayChunks(account.GetID(), params[1], params[2])
-	// var pageSize int32
-	// var sum int64
-	// var totalRecords int32
-	// pageSize = 2
-
-	// for {
-	// 	iter, meta, err := stub.GetQueryResultWithPagination(query, pageSize, bookmark)
-	// 	if err != nil {
-	// 		return shim.Error(err.Error())
-	// 	}
-	// 	defer iter.Close()
-	// 	for iter.HasNext() {
-	// 		type temp struct {
-	// 			Amount string `json:"amount`
-	// 		}
-	// 		tmp := temp{}
-	// 		kv, _ := iter.Next()
-	// 		err = json.Unmarshal(kv.Value, &tmp)
-	// 		fmt.Println("######### tmp.Amount : ", tmp.Amount)
-	// 		val, err := strconv.ParseInt(tmp.Amount, 10, 64)
-	// 		if err != nil {
-	// 			return shim.Error(err.Error())
-	// 		}
-	// 		sum += val
-	// 	}
-
-	// 	totalRecords = totalRecords + meta.FetchedRecordsCount
-	// 	if meta.FetchedRecordsCount == 0 {
-	// 		break
-	// 	}
-
-	// 	bookmark = meta.Bookmark
-	// }
-
-	//fmt.Println("page size: ", pageSize)
-	//fmt.Println("total # records:", totalRecords)
-	//fmt.Println("total amount:", sum)
-	// ########### end of query with pagination test. if query with pagination is used, fabric doesnt allow to perform PUTSTATE. Thus instead of GetQueryResultWithPagination, we must use GetQueryResult ###########
-
 	//TODO: must get the stime from the MergeHistory document instead of the parameter. Thus prune function will not have any parameters.
-	var sum int64
-	query := CreateQueryPayChunks(account.GetID(), stime, etime)
-	iter, err := stub.GetQueryResult(query)
+
+	ub := NewUtxoStub(stub)
+	gqResult, err := ub.GetQueryUtxoChunk(account.GetID(), stime, etime)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	defer iter.Close()
-	recCounter := 0
-	const numMergeLimit = 500
-
-	for iter.HasNext() {
-		recCounter++
-
-		//TODO: need to get the address and create time, too
-		type temp struct {
-			Amount string `json:"amount`
-		}
-		tmp := temp{}
-		kv, _ := iter.Next()
-		err = json.Unmarshal(kv.Value, &tmp)
-		fmt.Println("######### tmp.Amount : ", tmp.Amount)
-		val, err := strconv.ParseInt(tmp.Amount, 10, 64)
-		if err != nil {
-			return shim.Error(err.Error())
-		}
-		sum += val
-		if recCounter == numMergeLimit {
-			break
-		}
+	if gqResult.MergeCount == 0 {
+		return shim.Error("no chunk found to prune in the given time period")
+	}
+	if gqResult.MergeCount == 1 {
+		return shim.Error("only one chunk found to prune. prune aborted.")
 	}
 
-	fmt.Println("total amount:", sum)
-	// amount
-	amount, err := NewAmount(strconv.FormatInt(int64(sum), 10))
+	fmt.Println("############ GetQueryUtxoChunk Result. From Address : ", gqResult.FromKey)
+	fmt.Println("############ GetQueryUtxoChunk Result. To Address : ", gqResult.ToKey)
+	fmt.Println("############ GetQueryUtxoChunk Result. Sum: ", gqResult.Sum)
+	fmt.Println("############ GetQueryUtxoChunk Result. Merge Count : ", gqResult.MergeCount-1)
+	fmt.Println("############ GetQueryUtxoChunk Result. Next Chunk Key : ", gqResult.NextChunkKey)
+
+	amount, err := NewAmount(strconv.FormatInt(int64(gqResult.Sum), 10))
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	if amount.Sign() <= 0 {
-		return shim.Error("invalid amount. amount must be larger than 0")
-	}
+
+	// Negative amount should be allowed, too?
+	// if amount.Sign() <= 0 {
+	// 	return shim.Error("invalid amount. amount must be larger than 0")
+	// }
 
 	//TODO: we should get the create time from the last merged chunk so that the next prune() can start from this newly merged chunk.
 
@@ -398,13 +361,15 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 
-	//TODO: delete existing chunks
+	//TODO: create the merge history log
+	mhl := NewMergeHistory(account.GetID(), gqResult.FromKey, gqResult.ToKey, bb.CreateChunkKey(chunk.DOCTYPEID), bb.CreateChunkKey(gqResult.NextChunkKey), gqResult.Sum)
+	mhl.CreatedTime = ts
+	if err = bb.PutMergeHistory(mhl); err != nil {
+		return shim.Error(err.Error())
+	}
 
-	//TODO: create the prune log
+	data, err := json.Marshal(mhl)
 
-	//ub.GetAllUtxoChunks(account.GetID(), params[1], params[2])
-	//ub.GetQueryUtxoChunks(account.GetID(), "", params[1], params[2])
-
-	return shim.Success([]byte(""))
+	return shim.Success(data)
 
 }

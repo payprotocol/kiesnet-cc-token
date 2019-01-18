@@ -2,18 +2,27 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
 // UtxoChunksFetchSize _
-const UtxoChunksFetchSize = 1000
+const UtxoChunksFetchSize = 5
 
 // UtxoStub _
 type UtxoStub struct {
 	stub shim.ChaincodeStubInterface
+}
+
+// ChunkQueryResult _
+type ChunkQueryResult struct {
+	ID          string `json:"@chunk"`
+	Amount      string `json:"amount"`
+	CreatedTime string `json:"created_time"`
 }
 
 // NewUtxoStub _
@@ -61,13 +70,60 @@ func (ub *UtxoStub) GetAllUtxoChunks(id string, stime, etime *txtime.Time) error
 
 }
 
-// GetQueryUtxoChunks _
-func (ub *UtxoStub) GetQueryUtxoChunks(id, bookmark string, stime, etime *txtime.Time) (*QueryResult, error) {
+// GetQueryUtxoChunk _
+func (ub *UtxoStub) GetQueryUtxoChunk(id string, stime, etime *txtime.Time) (*PruneQueryResult, error) {
+	var sum int64
+	var result = PruneQueryResult{}
+	bs := NewBalanceStub(ub.stub)
+	//create query
+
 	query := CreateQueryPayChunks(id, stime, etime)
-	iter, meta, err := ub.stub.GetQueryResultWithPagination(query, int32(UtxoChunksFetchSize), bookmark)
+
+	//fmt.Println("######### query:", query)
+
+	iter, err := ub.stub.GetQueryResult(query)
 	if err != nil {
 		return nil, err
 	}
 	defer iter.Close()
-	return NewQueryResult(meta, iter)
+	recCount := 0 //record counter
+
+	for iter.HasNext() {
+		recCount++
+		cqResult := ChunkQueryResult{}
+		kv, _ := iter.Next()
+
+		err = json.Unmarshal(kv.Value, &cqResult)
+		if err != nil {
+			return nil, err
+		}
+		//fmt.Println("######### kv Value", string(kv.Value))
+		fmt.Println("######### Current Chunk's Amount : ", cqResult.Amount)
+
+		//get the next chunk key ( +1 chunk after the threshhold)
+		if recCount == UtxoChunksFetchSize+1 {
+			result.NextChunkKey = cqResult.ID
+			break
+		}
+
+		if recCount == 1 {
+			result.FromKey = bs.CreateChunkKey(cqResult.ID)
+			//fmt.Println("######### First Chunk's ID : ", result.FromAddress)
+		}
+
+		val, err := strconv.ParseInt(cqResult.Amount, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		sum += val
+		result.ToKey = bs.CreateChunkKey(cqResult.ID)
+
+	}
+
+	result.Sum = sum
+	result.MergeCount = recCount
+
+	return &result, nil
+
 }

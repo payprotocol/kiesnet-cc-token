@@ -22,9 +22,15 @@ type PayChunk struct {
 	CreatedTime *txtime.Time `json:"created_time,omitempty"`
 }
 
-// ChunkAmount _
-type ChunkAmount struct {
-	Amount Amount `json:"amount"`
+// MergeHistory _
+type MergeHistory struct {
+	DOCTYPEID      string       `json:"@merge_history"`
+	FromAddress    string       `json:"from_key"`
+	ToAddress      string       `json:"to_key"`
+	MergedChunkKey string       `json:"merged_chunk_key"`
+	NextChunkKey   string       `json:"next_chunk_key"`
+	Sum            int64        `json:"sum"`
+	CreatedTime    *txtime.Time `json:"created_time,omitempty"`
 }
 
 // NewPayChunkType _
@@ -34,5 +40,17 @@ func NewPayChunkType(id string, owner Identifiable, amount Amount, cTime *txtime
 		Account:     owner.GetID(),
 		Amount:      amount,
 		CreatedTime: cTime,
+	}
+}
+
+// NewMergeHistory _
+func NewMergeHistory(id, fromAddress, toAddress, mergedChunkKey, nextChunkKey string, sum int64) *MergeHistory {
+	return &MergeHistory{
+		DOCTYPEID:      id,
+		FromAddress:    fromAddress,
+		ToAddress:      toAddress,
+		MergedChunkKey: mergedChunkKey,
+		NextChunkKey:   nextChunkKey,
+		Sum:            sum,
 	}
 }

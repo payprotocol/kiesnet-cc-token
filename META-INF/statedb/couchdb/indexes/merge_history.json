@@ -1,0 +1,11 @@
+{
+    "index": {
+        "fields": [
+            { "@merge_history": "desc" },
+            { "created_time": "desc" }
+        ]
+    },
+    "ddoc": "merge",
+    "name": "history",
+    "type": "json"
+}

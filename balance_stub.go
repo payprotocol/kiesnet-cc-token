@@ -138,7 +138,31 @@ func (bb *BalanceStub) CreatePendingKey(id string) string {
 
 // CreateChunkKey _
 func (bb *BalanceStub) CreateChunkKey(id string) string {
+	if id == "" {
+		return ""
+	}
 	return "CHNK_" + id
+}
+
+//CreateMergeHistoryKey _
+func (bb *BalanceStub) CreateMergeHistoryKey(id string, seq int64) string {
+	return fmt.Sprintf("MGHR_%s_%d", id, seq)
+}
+
+//GetChunk _
+func (bb *BalanceStub) GetChunk(id string) (*PayChunk, error) {
+	data, err := bb.stub.GetState(id)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the chunk state")
+	}
+	if data != nil {
+		chunk := &PayChunk{}
+		if err = json.Unmarshal(data, chunk); err != nil {
+			return nil, errors.Wrap(err, "failed to unmarshal the chunk")
+		}
+		return chunk, nil
+	}
+	return nil, errors.New("the chunk doesn't exist")
 }
 
 // GetPendingBalance _
@@ -154,7 +178,7 @@ func (bb *BalanceStub) GetPendingBalance(id string) (*PendingBalance, error) {
 		}
 		return balance, nil
 	}
-	return nil, errors.New("the pending balance is not exists")
+	return nil, errors.New("the pending balance does not exists")
 }
 
 // GetQueryPendingBalances _
@@ -291,6 +315,18 @@ func (bb *BalanceStub) PutChunk(chunk *PayChunk) error {
 	}
 	if err = bb.stub.PutState(bb.CreateChunkKey(chunk.DOCTYPEID), data); err != nil {
 		return errors.Wrap(err, "failed to put the balance state")
+	}
+	return nil
+}
+
+// PutMergeHistory _
+func (bb *BalanceStub) PutMergeHistory(mergeHistory *MergeHistory) error {
+	data, err := json.Marshal(mergeHistory)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal the merge history")
+	}
+	if err = bb.stub.PutState(bb.CreateMergeHistoryKey(mergeHistory.DOCTYPEID, mergeHistory.CreatedTime.UnixNano()), data); err != nil {
+		return errors.Wrap(err, "failed to put the merge history state")
 	}
 	return nil
 }

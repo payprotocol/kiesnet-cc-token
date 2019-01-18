@@ -106,7 +106,7 @@ func CreateQueryPendingBalancesByAddress(addr, sort string) string {
 	return fmt.Sprintf(QueryPendingBalancesByAddress, addr, _sort)
 }
 
-// QueryPayChunks _
+//QueryPayChunks _
 const QueryPayChunks = `{
 	"selector":{
 		"@chunk":{
@@ -127,11 +127,40 @@ const QueryPayChunks = `{
 		] 
 	},
 	"fields":[
-		"amount"
+		"@chunk",
+		"amount",
+		"created_time"
 	]
 }`
+
+//LatestMergeHistory _
+const LatestMergeHistory = `{
+	"selector": {
+	   "@merge_history": {
+		  "$exists": true
+	   }
+	},
+	"sort": [
+	   {
+		  "@merge_history": "desc"
+	   },
+	   {
+		  "created_time": "desc"
+	   }
+	],
+	"use_index": [
+	   "merge",
+	   "history"
+	],
+	"limit": 1
+ }`
 
 // CreateQueryPayChunks _
 func CreateQueryPayChunks(id string, stime, etime *txtime.Time) string {
 	return fmt.Sprintf(QueryPayChunks, id, stime, etime)
+}
+
+// GetLatestMergeHistory _
+func GetLatestMergeHistory() string {
+	return LatestMergeHistory
 }

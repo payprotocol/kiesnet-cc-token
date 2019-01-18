@@ -18,6 +18,14 @@ type QueryResult struct {
 	Records []byte
 }
 
+type PruneQueryResult struct {
+	FromKey      string
+	ToKey        string
+	Sum          int64
+	MergeCount   int
+	NextChunkKey string
+}
+
 // NewQueryResult _
 func NewQueryResult(meta *peer.QueryResponseMetadata, iter shim.StateQueryIteratorInterface) (*QueryResult, error) {
 	result := &QueryResult{}
