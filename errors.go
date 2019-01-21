@@ -87,3 +87,14 @@ func (e NotExistedAccountError) Error() string {
 	}
 	return "the account is not exists"
 }
+
+// ExistUtxcoChunkError _
+type ExistUtxcoChunkError struct {
+	ResponsibleErrorImpl
+	key string
+}
+
+// Error implements error interface
+func (e ExistUtxcoChunkError) Error() string {
+	return fmt.Sprintf("the chunk '%s' is not issued", e.key)
+}

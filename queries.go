@@ -116,7 +116,7 @@ const QueryChunks = `{
 		"$and":[
 			{
 				"created_time":{
-					"$gte": "%s"
+					"$gt": "%s"
 				}
 			},{
 				"created_time":{
@@ -126,9 +126,8 @@ const QueryChunks = `{
 			}
 		] 
 	},
-	"fields":[
-		"amount"
-	]
+	"fields":[ "amount" ],
+	"use_index":["utxo", "utxo_chunk_amount"]
 }`
 
 // CreateQueryChunks _
@@ -136,20 +135,62 @@ func CreateQueryChunks(id string, stime, etime *txtime.Time) string {
 	return fmt.Sprintf(QueryChunks, id, stime, etime)
 }
 
-// QueryMergeResultByStartDate _
-const QueryMergeResultByStartDate = `{
+// QueryMergeResultsByAccount _
+const QueryMergeResultsByAccount = `{
 	"selector":{
-		"@chunk":{
+		"@merge_result":{
+			"$exists": true
+		}, 
+		"account": "%s"
+	},
+	"use_index":[ "utxo", "utxo-merge-history" ],
+	"sort":[
+		{"end.created_time":"desc"}
+	]
+}`
+
+// CreateQueryMergeResultsByAccount _
+func CreateQueryMergeResultsByAccount(id string) string {
+	return fmt.Sprintf(QueryMergeResultsByAccount, id)
+}
+
+// QueryMergeResultByDate _
+const QueryMergeResultByDate = `{
+	"selector":{
+		"@merge_result":{
 			"$exists": true
 		},
 		"account": "%s",
-		"end_time":{
-			"$lt": "%s"
-		}
+		"$and":[
+			"start":{
+				"$and":[
+					{
+						"chunk_key": "%s"
+					},
+					{
+						"chunk_date":{
+							"$gte":"%s"
+						}
+					}					
+				]
+			},
+			"end":{
+				"$and":[
+					{
+						"chunk_key":"%s"
+					},
+					{
+						"chunk_date":{
+							"$lte":"%s"	
+						}
+					}					
+				]
+			}
+		]
 	}
 }`
 
-// CreateQueryMergeResultByStartDate _
-func CreateQueryMergeResultByStartDate(id string, stime *txtime.Time) string {
-	return fmt.Sprintf(QueryMergeResultByStartDate, id, stime)
+// CreateQueryMergeResultByDate _
+func CreateQueryMergeResultByDate(id string, sBookmark, eBookmark *Chunk) string {
+	return fmt.Sprintf(QueryMergeResultByDate, id, sBookmark.DOCTYPEID, sBookmark.CreatedTime, eBookmark.DOCTYPEID, eBookmark.CreatedTime)
 }

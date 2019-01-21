@@ -244,41 +244,6 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 	return sbl, nil
 }
 
-// Pay _
-func (bb *BalanceStub) Pay(sender, receiver *Balance, amount Amount, memo string) (*BalanceLog, error) {
-	ts, err := txtime.GetTime(bb.stub)
-	if nil != err {
-		return nil, errors.Wrap(err, "failed to get the timestamp")
-	}
-	// 리시버 청크에 붙여주기
-	ub := NewUtxoStub(bb.stub)
-	chunk := NewChunkType(ub.stub.GetTxID(), receiver, sender, amount, ts)
-	if _, err = ub.PutChunk(chunk); nil != err {
-		return nil, err
-	}
-
-	// withdraw from the sender's account
-	amount.Neg()
-	sender.Amount.Add(&amount)
-	sender.UpdatedTime = ts
-	if err = bb.PutBalance(sender); err != nil {
-		return nil, err
-	}
-
-	//create the sender's balance log. This sender's balance log is returned as response.
-	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
-	sbl.CreatedTime = ts
-	if err = bb.PutBalanceLog(sbl); err != nil {
-		return nil, err
-	}
-
-	/*
-		//TODO: do we need to create the receiver's utxo/pay log, too??
-	*/
-
-	return sbl, nil
-}
-
 // TransferPendingBalance _
 func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Balance, pendingTime *txtime.Time) error {
 	ts, err := txtime.GetTime(bb.stub)

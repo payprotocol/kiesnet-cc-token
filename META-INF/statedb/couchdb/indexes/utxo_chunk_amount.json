@@ -1,0 +1,13 @@
+{
+    "index": {
+        "partial_filter_selector": {
+            "@chunk": {
+                "$exists": true
+            }
+        },
+        "fields": [ "created_time" ]
+    },
+    "ddoc": "utxo",
+    "name": "utxo_chunk_amount",
+    "type": "json"
+}

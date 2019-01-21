@@ -16,7 +16,7 @@ const (
 
 // Chunk _
 type Chunk struct {
-	DOCTYPEID   string       `json:"@chunk"`  // id
+	DOCTYPEID   string       `json:"@chunk"`  // id - CHK_Nano
 	Account     string       `json:"account"` // account ID (address)
 	RID         string       `json:"rid"`
 	Amount      Amount       `json:"amount"`
@@ -45,20 +45,24 @@ func NewChunkType(id string, owner Identifiable, rid Identifiable, amount Amount
 
 // MergeResult _
 type MergeResult struct {
-	DOCTYPEID   string       `json:"@merge_result"`
-	Start       string       `json:"start_key"`
-	End         string       `json:"end_key"`
-	Result      string       `json:"result_chunk"`
+	DOCTYPEID   string       `json:"@merge_result"` // id - MERG_VBRacct_End-chunk-id
+	Account     string       `json:"account"`
+	Start       *Chunk       `json:"start"`
+	End         *Chunk       `json:"end"`
+	Amount      Amount       `json:"amount"`
+	RID         string       `json:"toid"`
 	CreatedTime *txtime.Time `json:"created_time,omitempty"`
 }
 
 // NewMergeResultType _
-func NewMergeResultType(id, mergedChunk, start, end string, cTime *txtime.Time) *MergeResult {
+func NewMergeResultType(id, toid string, owner Identifiable, start, end *Chunk, cTime *txtime.Time, amount Amount) *MergeResult {
 	return &MergeResult{
 		DOCTYPEID:   id,
+		Account:     owner.GetID(),
 		Start:       start,
 		End:         end,
-		Result:      mergedChunk,
+		Amount:      amount,
+		RID:         toid,
 		CreatedTime: cTime,
 	}
 }

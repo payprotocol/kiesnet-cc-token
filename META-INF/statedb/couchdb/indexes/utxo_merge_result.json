@@ -1,0 +1,15 @@
+{
+    "index": {
+        "partial_filter_selector": {
+            "@merge_result": {
+                "$exists": true
+            }
+        },
+        "fields": [ 
+            { "end.created_time": "desc" } 
+        ]
+    },
+    "ddoc": "utxo",
+    "name": "utxo-merge-history",
+    "type": "json"
+}
