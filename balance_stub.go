@@ -136,35 +136,6 @@ func (bb *BalanceStub) CreatePendingKey(id string) string {
 	return "PBLC_" + id
 }
 
-// CreateChunkKey _
-func (bb *BalanceStub) CreateChunkKey(id string) string {
-	if id == "" {
-		return ""
-	}
-	return "CHNK_" + id
-}
-
-//CreateMergeHistoryKey _
-func (bb *BalanceStub) CreateMergeHistoryKey(id string, seq int64) string {
-	return fmt.Sprintf("MGHR_%s_%d", id, seq)
-}
-
-//GetChunk _
-func (bb *BalanceStub) GetChunk(id string) (*PayChunk, error) {
-	data, err := bb.stub.GetState(id)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get the chunk state")
-	}
-	if data != nil {
-		chunk := &PayChunk{}
-		if err = json.Unmarshal(data, chunk); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal the chunk")
-		}
-		return chunk, nil
-	}
-	return nil, errors.New("the chunk doesn't exist")
-}
-
 // GetPendingBalance _
 func (bb *BalanceStub) GetPendingBalance(id string) (*PendingBalance, error) {
 	data, err := bb.stub.GetState(bb.CreatePendingKey(id))
@@ -178,7 +149,7 @@ func (bb *BalanceStub) GetPendingBalance(id string) (*PendingBalance, error) {
 		}
 		return balance, nil
 	}
-	return nil, errors.New("the pending balance does not exists")
+	return nil, errors.New("the pending balance is not exists")
 }
 
 // GetQueryPendingBalances _
@@ -271,64 +242,6 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 	}
 
 	return sbl, nil
-}
-
-// Pay _
-func (bb *BalanceStub) Pay(sender, receiver *Balance, amount Amount, memo string) (*BalanceLog, error) {
-	ts, err := txtime.GetTime(bb.stub)
-	if nil != err {
-		return nil, errors.Wrap(err, "failed to get the timestamp")
-	}
-	// 리시버 청크에 붙여주기
-	chunk := NewPayChunkType(bb.stub.GetTxID(), receiver, amount, ts)
-	if err = bb.PutChunk(chunk); nil != err {
-		return nil, err
-	}
-
-	// withdraw from the sender's account
-	amount.Neg()
-	sender.Amount.Add(&amount)
-	sender.UpdatedTime = ts
-	if err = bb.PutBalance(sender); err != nil {
-		return nil, err
-	}
-
-	//create the sender's balance log. This sender's balance log is returned as response.
-	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
-	sbl.CreatedTime = ts
-	if err = bb.PutBalanceLog(sbl); err != nil {
-		return nil, err
-	}
-
-	/*
-		//TODO: do we need to create the receiver's utxo/pay log, too??
-	*/
-
-	return sbl, nil
-}
-
-// PutChunk _
-func (bb *BalanceStub) PutChunk(chunk *PayChunk) error {
-	data, err := json.Marshal(chunk)
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal the balance")
-	}
-	if err = bb.stub.PutState(bb.CreateChunkKey(chunk.DOCTYPEID), data); err != nil {
-		return errors.Wrap(err, "failed to put the balance state")
-	}
-	return nil
-}
-
-// PutMergeHistory _
-func (bb *BalanceStub) PutMergeHistory(mergeHistory *MergeHistory) error {
-	data, err := json.Marshal(mergeHistory)
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal the merge history")
-	}
-	if err = bb.stub.PutState(bb.CreateMergeHistoryKey(mergeHistory.DOCTYPEID, mergeHistory.CreatedTime.UnixNano()), data); err != nil {
-		return errors.Wrap(err, "failed to put the merge history state")
-	}
-	return nil
 }
 
 // TransferPendingBalance _

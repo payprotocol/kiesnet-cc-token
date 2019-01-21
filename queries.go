@@ -106,17 +106,14 @@ func CreateQueryPendingBalancesByAddress(addr, sort string) string {
 	return fmt.Sprintf(QueryPendingBalancesByAddress, addr, _sort)
 }
 
-//QueryPayChunks _
-const QueryPayChunks = `{
-	"selector":{
-		"@chunk":{
-			"$exists": true
-		},
-		"account": "%s",
+//QueryUtxoChunks _
+const QueryUtxoChunks = `{
+	"selector":{		
+		"@chunk": "%s",
 		"$and":[
 			{
 				"created_time":{
-					"$gte": "%s"
+					"$gt": "%s"
 				}
 			},{
 				"created_time":{
@@ -136,14 +133,9 @@ const QueryPayChunks = `{
 //LatestMergeHistory _
 const LatestMergeHistory = `{
 	"selector": {
-	   "@merge_history": {
-		  "$exists": true
-	   }
+	   "@merge_history": "%s"
 	},
 	"sort": [
-	   {
-		  "@merge_history": "desc"
-	   },
 	   {
 		  "created_time": "desc"
 	   }
@@ -155,12 +147,12 @@ const LatestMergeHistory = `{
 	"limit": 1
  }`
 
-// CreateQueryPayChunks _
-func CreateQueryPayChunks(id string, stime, etime *txtime.Time) string {
-	return fmt.Sprintf(QueryPayChunks, id, stime, etime)
+// CreateQueryUtxoChunks _
+func CreateQueryUtxoChunks(id string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryUtxoChunks, id, stime, etime)
 }
 
-// GetLatestMergeHistory _
-func GetLatestMergeHistory() string {
-	return LatestMergeHistory
+// CreateQueryLatestMergeHistory _
+func CreateQueryLatestMergeHistory(id string) string {
+	return fmt.Sprintf(LatestMergeHistory, id)
 }
