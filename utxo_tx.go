@@ -36,11 +36,13 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	if amount.Sign() <= 0 {
-		return shim.Error("invalid amount. amount must be larger than 0")
-	}
 
-	// addresses
+	// TODO: REFUND/CANCEL.
+	// if amount.Sign() <= 0 {
+	// 	return shim.Error("invalid amount. amount must be larger than 0")
+	// }
+
+	// validate sender addresses
 	rAddr, err := ParseAddress(params[1])
 	if err != nil {
 		logger.Debug(err.Error())
@@ -154,35 +156,56 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 
-	var addr *Address
+	var sAddr *Address
 	code, err := ValidateTokenCode(params[0])
 	if nil == err { // by token code
-		addr = NewAddress(code, AccountTypePersonal, kid)
+		sAddr = NewAddress(code, AccountTypePersonal, kid)
 	} else { // by address
-		addr, err = ParseAddress(params[0])
+		sAddr, err = ParseAddress(params[0])
 		if err != nil {
 			return responseError(err, "failed to get the account")
 		}
 	}
 
-	//get Account from the address
-	ab := NewAccountStub(stub, addr.Code)
-	account, err := ab.GetAccount(addr)
+	rAddr, err := ParseAddress(params[1])
 	if err != nil {
-		return responseError(err, "failed to get the account")
+		return shim.Error("failed to parse the receiver's account address")
+	}
+	if sAddr.Code != rAddr.Code {
+		return shim.Error("sender and receiver's token do not match")
+	}
+	if sAddr.Equal(rAddr) {
+		return shim.Error("can't pay to self")
 	}
 
-	//Account balance
-	//bb := NewBalanceStub(stub)
-	//aBal, err := bb.GetBalance(account.GetID())
-	//if err != nil {
-	//	logger.Debug(err.Error())
-	//	return shim.Error("failed to get the receiver's balance")
-	//}
+	ab := NewAccountStub(stub, rAddr.Code)
+	// sender
+	sender, err := ab.GetAccount(sAddr)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the sender account")
+	}
+	if !sender.HasHolder(kid) {
+		return shim.Error("invoker is not holder")
+	}
+	if sender.IsSuspended() {
+		return shim.Error("the sender account is suspended")
+	}
+
+	// receiver
+	receiver, err := ab.GetAccount(rAddr)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the receiver account")
+	}
+	if receiver.IsSuspended() {
+		return shim.Error("the receiver account is suspended")
+	}
 
 	ub := NewUtxoStub(stub)
 
-	stime, err := getPruneStartTime(ub, account.GetID())
+	// start time
+	stime, err := getPruneStartTime(ub, sender.GetID())
 	if err != nil {
 		return shim.Error("failed to get the start time")
 	}
@@ -196,26 +219,24 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	fmt.Println("############ Merge query end time: ", etime)
 
-	//TODO: must get the stime from the MergeHistory document instead of the parameter. Thus prune function will not have any parameters.
-
-	gqResult, err := ub.GetUtxoChunksByTime(account.GetID(), stime, etime)
+	qResult, err := ub.GetUtxoChunksByTime(sender.GetID(), stime, etime)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	if gqResult.MergeCount == 0 {
+	if qResult.MergeCount == 0 {
 		return shim.Error("no chunk found to prune in the given time period")
 	}
-	if gqResult.MergeCount == 1 {
+	if qResult.MergeCount == 1 {
 		return shim.Error("all chunks are already pruned. prune aborted.")
 	}
 
-	fmt.Println("############ GetQueryUtxoChunk Result. From Address : ", gqResult.FromKey)
-	fmt.Println("############ GetQueryUtxoChunk Result. To Address : ", gqResult.ToKey)
-	fmt.Println("############ GetQueryUtxoChunk Result. Sum: ", gqResult.Sum)
-	fmt.Println("############ GetQueryUtxoChunk Result. Merge Count : ", gqResult.MergeCount-1)
-	fmt.Println("############ GetQueryUtxoChunk Result. Next Chunk Key : ", gqResult.NextChunkKey)
+	fmt.Println("############ GetQueryUtxoChunk Result. From Address : ", qResult.FromKey)
+	fmt.Println("############ GetQueryUtxoChunk Result. To Address : ", qResult.ToKey)
+	fmt.Println("############ GetQueryUtxoChunk Result. Sum: ", qResult.Sum)
+	fmt.Println("############ GetQueryUtxoChunk Result. Merge Count : ", qResult.MergeCount-1)
+	fmt.Println("############ GetQueryUtxoChunk Result. Next Chunk Key : ", qResult.NextChunkKey)
 
-	amount, err := NewAmount(strconv.FormatInt(int64(gqResult.Sum), 10))
+	amount, err := NewAmount(strconv.FormatInt(int64(qResult.Sum), 10))
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -236,10 +257,10 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Success([]byte(""))
 	}
 
-	//create the merge history log
-	mhl := NewMergeHistory(account.GetID(), gqResult.FromKey, gqResult.ToKey, gqResult.NextChunkKey, gqResult.Sum)
+	//create the prune log
+	mhl := NewPruneLog(sender.GetID(), qResult.FromKey, qResult.ToKey, receiver.GetID(), qResult.NextChunkKey, qResult.Sum)
 	mhl.CreatedTime = ts
-	if err = ub.PutMergeHistory(mhl); err != nil {
+	if err = ub.PutMergeLog(mhl); err != nil {
 		return shim.Error(err.Error())
 	}
 
@@ -250,23 +271,23 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 }
 
 // getPruneStartTime _
-// Merge start time is always retrieved from MergeHistory regardless of the next chunk key presence.
+// Prune start time is always retrieved from prune log regardless of the next chunk key presence.
 // Next chunk key is used just to indicate there are remaining chunks to merge in the given time period.
 func getPruneStartTime(ub *UtxoStub, id string) (*txtime.Time, error) {
 	dsTime := "2019-01-01T12:00:00.000000000Z"
 	var stime *txtime.Time
-	mh, err := ub.GetLatestMergeHistory(id)
+	mh, err := ub.GetLatestPruneLog(id)
 	if err != nil {
 		return nil, err
-	} else if mh == nil { //There is no merge history yet.
+	} else if mh == nil { //There is no prune log yet.
 		stime, err = txtime.Parse(dsTime)
 		fmt.Println("######getPruneStartTime debug 1")
 		if err != nil {
 			fmt.Println("######getPruneStartTime debug 2")
 			return nil, err
 		}
-	} else { //MergeHistory exists
-		nChunk, err := ub.GetChunk(mh.ToAddress)
+	} else { //PruneLog exists
+		nChunk, err := ub.GetChunk(mh.PruneToAddress)
 		if err != nil {
 			return nil, err
 		}

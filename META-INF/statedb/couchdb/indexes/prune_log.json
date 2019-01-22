@@ -1,11 +1,11 @@
 {
     "index": {
         "fields": [
-            { "@merge_history": "desc" },
+            { "@prune_log": "desc" },
             { "created_time": "desc" }
         ]
     },
-    "ddoc": "merge",
-    "name": "history",
+    "ddoc": "prune",
+    "name": "log",
     "type": "json"
 }

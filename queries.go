@@ -130,10 +130,10 @@ const QueryUtxoChunks = `{
 	]
 }`
 
-//LatestMergeHistory _
-const LatestMergeHistory = `{
+//LatestPruneLog _
+const LatestPruneLog = `{
 	"selector": {
-	   "@merge_history": "%s"
+	   "@prune_log": "%s"
 	},
 	"sort": [
 	   {
@@ -141,8 +141,8 @@ const LatestMergeHistory = `{
 	   }
 	],
 	"use_index": [
-	   "merge",
-	   "history"
+	   "prune",
+	   "log"
 	],
 	"limit": 1
  }`
@@ -152,7 +152,7 @@ func CreateQueryUtxoChunks(id string, stime, etime *txtime.Time) string {
 	return fmt.Sprintf(QueryUtxoChunks, id, stime, etime)
 }
 
-// CreateQueryLatestMergeHistory _
-func CreateQueryLatestMergeHistory(id string) string {
-	return fmt.Sprintf(LatestMergeHistory, id)
+// CreateQueryLatestPruneLog _
+func CreateQueryLatestPruneLog(id string) string {
+	return fmt.Sprintf(LatestPruneLog, id)
 }

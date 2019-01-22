@@ -21,15 +21,15 @@ type PayChunk struct {
 	CreatedTime *txtime.Time `json:"created_time,omitempty"`
 }
 
-// MergeHistory _
-type MergeHistory struct {
-	DOCTYPEID   string `json:"@merge_history"`
-	FromAddress string `json:"from_key"`
-	ToAddress   string `json:"to_key"`
-	//MergedChunkKey string       `json:"merged_chunk_key"`
-	NextChunkKey string       `json:"next_chunk_key"`
-	Sum          int64        `json:"sum"`
-	CreatedTime  *txtime.Time `json:"created_time,omitempty"`
+// PruneLog _
+type PruneLog struct {
+	DOCTYPEID        string       `json:"@prune_log"`
+	PruneFromAddress string       `json:"from_id"`        //prune start chunk
+	PruneToAddress   string       `json:"to_id"`          //prune end chunk
+	ReceiverAddress  string       `json:"r_id"`           //master account
+	NextChunkKey     string       `json:"next_chunk_key"` //the key to indicate the remaining chunks in the given time period
+	Sum              int64        `json:"sum"`            //sum result from the pruning
+	CreatedTime      *txtime.Time `json:"created_time,omitempty"`
 }
 
 // NewPayChunkType _
@@ -41,14 +41,14 @@ func NewPayChunkType(id string, owner Identifiable, amount Amount, cTime *txtime
 	}
 }
 
-// NewMergeHistory _
-func NewMergeHistory(id, fromAddress, toAddress, nextChunkKey string, sum int64) *MergeHistory {
-	return &MergeHistory{
-		DOCTYPEID:   id,
-		FromAddress: fromAddress,
-		ToAddress:   toAddress,
-		//MergedChunkKey: mergedChunkKey,
-		NextChunkKey: nextChunkKey,
-		Sum:          sum,
+// NewPruneLog _
+func NewPruneLog(id, fromAddress, toAddress, receiverAddress, nextChunkKey string, sum int64) *PruneLog {
+	return &PruneLog{
+		DOCTYPEID:        id,
+		PruneFromAddress: fromAddress,
+		PruneToAddress:   toAddress,
+		ReceiverAddress:  receiverAddress,
+		NextChunkKey:     nextChunkKey,
+		Sum:              sum,
 	}
 }

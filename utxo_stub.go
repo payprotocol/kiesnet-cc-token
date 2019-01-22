@@ -47,9 +47,9 @@ func (ub *UtxoStub) CreateChunkKey(id string, seq int64) string {
 	return fmt.Sprintf("CHNK_%s_%d", id, seq)
 }
 
-//CreateMergeHistoryKey _
-func (ub *UtxoStub) CreateMergeHistoryKey(id string, seq int64) string {
-	return fmt.Sprintf("MGHR_%s_%d", id, seq)
+//CreatePruneLogKey _
+func (ub *UtxoStub) CreatePruneLogKey(id string, seq int64) string {
+	return fmt.Sprintf("PLOG_%s_%d", id, seq)
 }
 
 //GetChunk _
@@ -116,14 +116,14 @@ func (ub *UtxoStub) PutChunk(chunk *PayChunk) error {
 	return nil
 }
 
-// PutMergeHistory _
-func (ub *UtxoStub) PutMergeHistory(mergeHistory *MergeHistory) error {
-	data, err := json.Marshal(mergeHistory)
+// PutMergeLog _
+func (ub *UtxoStub) PutMergeLog(pruneLog *PruneLog) error {
+	data, err := json.Marshal(pruneLog)
 	if err != nil {
-		return errors.Wrap(err, "failed to marshal the merge history")
+		return errors.Wrap(err, "failed to marshal the prune log")
 	}
-	if err = ub.stub.PutState(ub.CreateMergeHistoryKey(mergeHistory.DOCTYPEID, mergeHistory.CreatedTime.UnixNano()), data); err != nil {
-		return errors.Wrap(err, "failed to put the merge history state")
+	if err = ub.stub.PutState(ub.CreatePruneLogKey(pruneLog.DOCTYPEID, pruneLog.CreatedTime.UnixNano()), data); err != nil {
+		return errors.Wrap(err, "failed to put the prune log state")
 	}
 	return nil
 }
@@ -185,11 +185,11 @@ func (ub *UtxoStub) GetUtxoChunksByTime(id string, stime, etime *txtime.Time) (*
 
 }
 
-// GetLatestMergeHistory _
-// id : MergeHistory owner's id.
-func (ub *UtxoStub) GetLatestMergeHistory(id string) (*MergeHistory, error) {
+// GetLatestPruneLog _
+// id : prune log  owner's id.
+func (ub *UtxoStub) GetLatestPruneLog(id string) (*PruneLog, error) {
 
-	query := CreateQueryLatestMergeHistory(id)
+	query := CreateQueryLatestPruneLog(id)
 	iter, err := ub.stub.GetQueryResult(query)
 
 	if err != nil {
@@ -197,7 +197,7 @@ func (ub *UtxoStub) GetLatestMergeHistory(id string) (*MergeHistory, error) {
 		return nil, err
 	}
 
-	//result not found by the query. That means there is no merge history under this ID yet.
+	//result not found by the query. That means there is no prune log under this ID yet.
 	if !iter.HasNext() {
 		fmt.Println("##### im here 2")
 		return nil, nil
@@ -206,13 +206,13 @@ func (ub *UtxoStub) GetLatestMergeHistory(id string) (*MergeHistory, error) {
 	defer iter.Close()
 
 	kv, err := iter.Next()
-	mergeHistory := MergeHistory{}
-	err = json.Unmarshal(kv.Value, &mergeHistory)
+	pruneLog := PruneLog{}
+	err = json.Unmarshal(kv.Value, &pruneLog)
 	if err != nil {
 		fmt.Println("##### im here 3")
 		return nil, err
 	}
 
-	return &mergeHistory, nil
+	return &pruneLog, nil
 
 }
