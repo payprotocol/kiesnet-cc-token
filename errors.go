@@ -2,7 +2,11 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/key-inside/kiesnet-ccpkg/txtime"
+)
 
 // ResponsibleError is the interface used to distinguish responsible errors
 type ResponsibleError interface {
@@ -86,4 +90,16 @@ func (e NotExistedAccountError) Error() string {
 		return fmt.Sprintf("the account '%s' is not exists", e.addr)
 	}
 	return "the account is not exists"
+}
+
+// NotExistUtxoChunksError error _
+type NotExistUtxoChunksError struct {
+	ResponsibleErrorImpl
+	stime *txtime.Time
+	etime *txtime.Time
+}
+
+// Error implements error interface
+func (e NotExistUtxoChunksError) Error() string {
+	return fmt.Sprintf("no chunks between %s and %s", e.stime.UTC(), e.etime.UTC())
 }

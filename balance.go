@@ -13,6 +13,7 @@ type Balance struct {
 	Amount      Amount       `json:"amount"`
 	CreatedTime *txtime.Time `json:"created_time,omitempty"`
 	UpdatedTime *txtime.Time `json:"updated_time,omitempty"`
+	LastChunkID string       `json:"last_chunk_id,omitempty"`
 }
 
 // GetID implements Identifiable
@@ -69,20 +70,29 @@ func NewBalanceSupplyLog(bal *Balance, diff Amount) *BalanceLog {
 
 // NewBalanceTransferLog _
 func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, memo string) *BalanceLog {
-	if diff.Sign() < 0 { // sender log
+	if nil != sender {
+		if diff.Sign() < 0 { // sender log
+			return &BalanceLog{
+				DOCTYPEID: sender.DOCTYPEID,
+				Type:      BalanceLogTypeSend,
+				RID:       receiver.DOCTYPEID,
+				Diff:      diff,
+				Amount:    sender.Amount,
+				Memo:      memo,
+			}
+		} // else receiver log
 		return &BalanceLog{
-			DOCTYPEID: sender.DOCTYPEID,
-			Type:      BalanceLogTypeSend,
-			RID:       receiver.DOCTYPEID,
+			DOCTYPEID: receiver.DOCTYPEID,
+			Type:      BalanceLogTypeReceive,
+			RID:       sender.DOCTYPEID,
 			Diff:      diff,
-			Amount:    sender.Amount,
+			Amount:    receiver.Amount,
 			Memo:      memo,
 		}
-	} // else receiver log
+	}
 	return &BalanceLog{
 		DOCTYPEID: receiver.DOCTYPEID,
 		Type:      BalanceLogTypeReceive,
-		RID:       sender.DOCTYPEID,
 		Diff:      diff,
 		Amount:    receiver.Amount,
 		Memo:      memo,
