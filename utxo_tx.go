@@ -75,6 +75,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the sender account")
 	}
+	fmt.Println(kid)
 	if !sender.HasHolder(kid) {
 		return shim.Error("invoker is not holder")
 	}
@@ -185,9 +186,6 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the sender account")
 	}
-	if !sender.HasHolder(kid) {
-		return shim.Error("invoker is not holder")
-	}
 	if sender.IsSuspended() {
 		return shim.Error("the sender account is suspended")
 	}
@@ -241,59 +239,27 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 
-	ts, err := txtime.GetTime(stub)
-	if nil != err {
-		return shim.Error(err.Error())
-	}
-
-	//TODO: Instead of creating the new chunk, we need to add the amount to the receiver's account
+	//TODO: Merged chunk is no mored created. Thus, commented out.
 	//chunk := NewPayChunkType(account.GetID(), aBal, *amount, ts)
 	//if err = ub.PutChunk(chunk); nil != err {
 	//	return shim.Error(err.Error())
 	//}
 
-	//delete this. it's just the placeholder to prevent the not used error message
-	if amount == nil {
-		return shim.Success([]byte(""))
-	}
+	// sender balance
+	bb := NewBalanceStub(stub)
 
-	//create the prune log
-	mhl := NewPruneLog(sender.GetID(), qResult.FromKey, qResult.ToKey, receiver.GetID(), qResult.NextChunkKey, qResult.Sum)
-	mhl.CreatedTime = ts
-	if err = ub.PutMergeLog(mhl); err != nil {
-		return shim.Error(err.Error())
-	}
-
-	data, err := json.Marshal(mhl)
-
-	return shim.Success(data)
-
-}
-
-// getPruneStartTime _
-// Prune start time is always retrieved from prune log regardless of the next chunk key presence.
-// Next chunk key is used just to indicate there are remaining chunks to merge in the given time period.
-func getPruneStartTime(ub *UtxoStub, id string) (*txtime.Time, error) {
-	dsTime := "2019-01-01T12:00:00.000000000Z"
-	var stime *txtime.Time
-	mh, err := ub.GetLatestPruneLog(id)
+	// receiver balance
+	rBal, err := bb.GetBalance(receiver.GetID())
 	if err != nil {
-		return nil, err
-	} else if mh == nil { //There is no prune log yet.
-		stime, err = txtime.Parse(dsTime)
-		fmt.Println("######getPruneStartTime debug 1")
-		if err != nil {
-			fmt.Println("######getPruneStartTime debug 2")
-			return nil, err
-		}
-	} else { //PruneLog exists
-		nChunk, err := ub.GetChunk(mh.PruneToAddress)
-		if err != nil {
-			return nil, err
-		}
-		stime = nChunk.CreatedTime
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the receiver's balance")
+	}
+	pLog, err := ub.Prune(sender.GetID(), rBal, *amount, qResult)
+
+	if err != nil {
+		return shim.Error("failed to prune balance")
 	}
 
-	fmt.Println("############ Merge search start time: ", stime)
-	return stime, nil
+	data, err := json.Marshal(pLog)
+	return shim.Success(data)
 }

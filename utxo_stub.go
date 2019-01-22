@@ -104,6 +104,30 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo string) (
 	return sbl, nil
 }
 
+// Prune _
+func (ub *UtxoStub) Prune(id string, receiver *Balance, amount Amount, qResult *GetUtxoChunksResult) (*PruneLog, error) {
+	ts, err := txtime.GetTime(ub.stub)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the timestamp")
+	}
+
+	bb := NewBalanceStub(ub.stub)
+	receiver.Amount.Add(&amount)
+	receiver.UpdatedTime = ts
+	if err = bb.PutBalance(receiver); err != nil {
+		return nil, err
+	}
+
+	pLog := NewPruneLog(id, qResult.FromKey, qResult.ToKey, receiver.DOCTYPEID, qResult.NextChunkKey, qResult.Sum)
+	pLog.CreatedTime = ts
+
+	if err := ub.PutPruneLog(pLog); err != nil {
+		return nil, err
+	}
+
+	return pLog, nil
+}
+
 // PutChunk _
 func (ub *UtxoStub) PutChunk(chunk *PayChunk) error {
 	data, err := json.Marshal(chunk)
@@ -116,8 +140,8 @@ func (ub *UtxoStub) PutChunk(chunk *PayChunk) error {
 	return nil
 }
 
-// PutMergeLog _
-func (ub *UtxoStub) PutMergeLog(pruneLog *PruneLog) error {
+// PutPruneLog _
+func (ub *UtxoStub) PutPruneLog(pruneLog *PruneLog) error {
 	data, err := json.Marshal(pruneLog)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the prune log")
@@ -215,4 +239,32 @@ func (ub *UtxoStub) GetLatestPruneLog(id string) (*PruneLog, error) {
 
 	return &pruneLog, nil
 
+}
+
+// getPruneStartTime _
+// Prune start time is always retrieved from prune log regardless of the next chunk key presence.
+// Next chunk key is used just to indicate there are remaining chunks to merge in the given time period.
+func getPruneStartTime(ub *UtxoStub, id string) (*txtime.Time, error) {
+	dsTime := "2019-01-01T12:00:00.000000000Z"
+	var stime *txtime.Time
+	mh, err := ub.GetLatestPruneLog(id)
+	if err != nil {
+		return nil, err
+	} else if mh == nil { //There is no prune log yet.
+		stime, err = txtime.Parse(dsTime)
+		fmt.Println("######getPruneStartTime debug 1")
+		if err != nil {
+			fmt.Println("######getPruneStartTime debug 2")
+			return nil, err
+		}
+	} else { //PruneLog exists
+		nChunk, err := ub.GetChunk(mh.PruneToAddress)
+		if err != nil {
+			return nil, err
+		}
+		stime = nChunk.CreatedTime
+	}
+
+	fmt.Println("############ Merge search start time: ", stime)
+	return stime, nil
 }
