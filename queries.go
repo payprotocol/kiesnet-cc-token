@@ -126,7 +126,6 @@ const QueryChunks = `{
 			}
 		] 
 	},
-	"fields":[ "amount" ],
 	"use_index":["utxo", "utxo_chunk_amount"]
 }`
 
@@ -156,41 +155,31 @@ func CreateQueryMergeResultsByAccount(id string) string {
 
 // QueryMergeResultByDate _
 const QueryMergeResultByDate = `{
-	"selector":{
-		"@merge_result":{
-			"$exists": true
-		},
-		"account": "%s",
-		"$and":[
-			"start":{
-				"$and":[
-					{
-						"chunk_key": "%s"
-					},
-					{
-						"chunk_date":{
-							"$gte":"%s"
-						}
-					}					
-				]
-			},
-			"end":{
-				"$and":[
-					{
-						"chunk_key":"%s"
-					},
-					{
-						"chunk_date":{
-							"$lte":"%s"	
-						}
-					}					
-				]
-			}
-		]
-	}
+    "selector": {
+        "@merge_result": {
+            "$exists": true
+        },
+        "account": "%s",
+        "$and": [
+            {
+                "start": {
+                    "created_date":{
+                        "$gt": "%s"
+                    }
+                }
+            },
+            {
+                "end": {
+                    "created_date":{
+                        "$lte": "%s"
+                    }
+                }
+            }
+        ]
+    }
 }`
 
 // CreateQueryMergeResultByDate _
-func CreateQueryMergeResultByDate(id string, sBookmark, eBookmark *Chunk) string {
-	return fmt.Sprintf(QueryMergeResultByDate, id, sBookmark.DOCTYPEID, sBookmark.CreatedTime, eBookmark.DOCTYPEID, eBookmark.CreatedTime)
+func CreateQueryMergeResultByDate(id string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryMergeResultByDate, id, stime, etime)
 }

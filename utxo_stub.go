@@ -25,21 +25,18 @@ func NewUtxoStub(stub shim.ChaincodeStubInterface) *UtxoStub {
 }
 
 // CreateKey _
-func (ub *UtxoStub) CreateKey() (string, error) {
+func (ub *UtxoStub) CreateKey(id string) (string, error) {
 	ts, err := ub.stub.GetTxTimestamp()
 	if nil != err {
 		return "", err
 	}
 	postfix := strconv.FormatInt(ts.GetSeconds(), 10)
-	return "CHNK_" + postfix, nil
+	return fmt.Sprintf("CHNK_%s_%s", id, postfix), nil
 }
 
 // PutChunk _
 func (ub *UtxoStub) PutChunk(chunk *Chunk) (string, error) {
-	key, err := ub.CreateKey()
-	if nil != err {
-		return "", err
-	}
+	key := chunk.DOCTYPEID
 	data, err := json.Marshal(chunk)
 	if nil != err {
 		return "", err
@@ -50,10 +47,14 @@ func (ub *UtxoStub) PutChunk(chunk *Chunk) (string, error) {
 	return key, nil
 }
 
-// CreateMergeResultKey _
-func (ub *UtxoStub) CreateMergeResultKey(owner Identifiable, endkey string) string {
-	//ub.stub.create
-	return fmt.Sprintf("MERG_%s_%s", owner.GetID(), endkey) // id = MERG_VBRacct_End-chunk-id
+// GetMergeResultKey _
+func (ub *UtxoStub) GetMergeResultKey(id, endkey string) string {
+	return fmt.Sprintf("MERG_%s_%s", id, endkey)
+	// key, err := ub.stub.CreateCompositeKey("MERG", []string{id, endkey})
+	// if nil != err {
+	// 	return "", err
+	// }
+	// return key, nil
 }
 
 // PutMergeResult _
@@ -78,7 +79,9 @@ func (ub *UtxoStub) GetSumOfUtxoChunksByRange(owner Identifiable, toID string, s
 		return nil, nil, nil, err
 	}
 	defer iter.Close()
-
+	if !iter.HasNext() {
+		return nil, nil, nil, NotExistUtxoChunksError{stime: stime, etime: etime}
+	}
 	cnt := 1
 	var s int64
 	schnk := &Chunk{}
@@ -114,7 +117,6 @@ func (ub *UtxoStub) GetSumOfUtxoChunksByRange(owner Identifiable, toID string, s
 
 // GetMergeResultChunk _
 func (ub *UtxoStub) GetMergeResultChunk(key string) (*MergeResult, error) {
-	// TODO : key validation
 	data, err := ub.stub.GetState(key)
 	if nil != err {
 		return nil, err
@@ -143,15 +145,15 @@ func (ub *UtxoStub) GetChunk(key string) (*Chunk, error) {
 }
 
 // MergeRangeValidator _
-func (ub *UtxoStub) MergeRangeValidator(id string, startBookmark, endBookmark *Chunk) (bool, error) {
-	query := CreateQueryMergeResultByDate(id, startBookmark, endBookmark)
+func (ub *UtxoStub) MergeRangeValidator(id string, stime, etime *txtime.Time) (bool, error) {
+	query := CreateQueryMergeResultByDate(id, stime, etime)
 	fmt.Println(query)
 	iter, err := ub.stub.GetQueryResult(query)
 	if nil != err {
 		return false, err
 	}
 	defer iter.Close()
-	if !iter.HasNext() {
+	if iter.HasNext() {
 		return false, nil
 	}
 	return true, nil
@@ -193,7 +195,7 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo string) (
 	}
 	// 리시버 청크에 붙여주기
 	bb := NewBalanceStub(ub.stub)
-	key, err := ub.CreateKey()
+	key, err := ub.CreateKey(receiver.GetID())
 	if nil != err {
 		return nil, err
 	}

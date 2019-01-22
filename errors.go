@@ -2,7 +2,11 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/key-inside/kiesnet-ccpkg/txtime"
+)
 
 // ResponsibleError is the interface used to distinguish responsible errors
 type ResponsibleError interface {
@@ -96,5 +100,17 @@ type ExistUtxcoChunkError struct {
 
 // Error implements error interface
 func (e ExistUtxcoChunkError) Error() string {
-	return fmt.Sprintf("the chunk '%s' is not issued", e.key)
+	return fmt.Sprintf("the chunk '%s' is already issued", e.key)
+}
+
+// NotExistUtxoChunksError error _
+type NotExistUtxoChunksError struct {
+	ResponsibleErrorImpl
+	stime *txtime.Time
+	etime *txtime.Time
+}
+
+// Error implements error interface
+func (e NotExistUtxoChunksError) Error() string {
+	return fmt.Sprintf("no chunks between %s and %s", e.stime.UTC(), e.etime.UTC())
 }

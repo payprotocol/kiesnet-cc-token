@@ -141,7 +141,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[0] : token | owned address. address/kid to prune. If there is no parameter or empty string, then current user's account will be pruned.
 // params[1] : to account address
 // params[2] : end date in seconds form
-// params[3] : [optional] merge result key - bookmark
+// params[3] : [optional] merge result key - bookmark(end chunk key)
 // Description ////////////////////
 func merge(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 3 {
@@ -183,11 +183,12 @@ func merge(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	var stime *txtime.Time
 	if len(params) > 3 && len(params[3]) > 0 {
 		// bookmark
-		mr, err := ub.GetMergeResultChunk(params[3])
+		key := ub.GetMergeResultKey(account.GetID(), params[3])
+		mr, err := ub.GetMergeResultChunk(key)
 		if nil != err {
 			return shim.Error(err.Error())
 		}
-		if nil != mr {
+		if nil == mr {
 			return shim.Error("invalid merge result id")
 		}
 		stime = mr.End.CreatedTime
@@ -208,7 +209,13 @@ func merge(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if stime.Cmp(etime) >= 0 {
 		return shim.Error("invalid merge range")
 	}
-	// 2. Already merged range need? - TODO
+	// 2. Already merged range need?
+	if ok, err := ub.MergeRangeValidator(account.GetID(), stime, etime); !ok {
+		if nil != err {
+			return shim.Error(err.Error())
+		}
+		return shim.Error("Already merge range")
+	}
 
 	// 3. Get sum of chunks
 	rAddr, err := ParseAddress(params[1])
@@ -229,7 +236,7 @@ func merge(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if nil != err {
 		return shim.Error(err.Error())
 	}
-	mrKey := ub.CreateMergeResultKey(account, endChunk.DOCTYPEID)
+	mrKey := ub.GetMergeResultKey(account.GetID(), endChunk.DOCTYPEID)
 	mergeResult := NewMergeResultType(mrKey, params[1], account, startChunk, endChunk, ts, *sum)
 	if err := ub.PutMergeResult(mergeResult); nil != err {
 		return shim.Error(err.Error())
