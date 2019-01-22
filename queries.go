@@ -147,6 +147,14 @@ const LatestPruneLog = `{
 	"limit": 1
  }`
 
+//RefundChunks _
+const RefundChunks = `{
+	"selector": {
+	   "@chunk": "%s",
+	   "pkey": "%s"
+	}
+ }`
+
 // CreateQueryUtxoChunks _
 func CreateQueryUtxoChunks(id string, stime, etime *txtime.Time) string {
 	return fmt.Sprintf(QueryUtxoChunks, id, stime, etime)
@@ -155,4 +163,9 @@ func CreateQueryUtxoChunks(id string, stime, etime *txtime.Time) string {
 // CreateQueryLatestPruneLog _
 func CreateQueryLatestPruneLog(id string) string {
 	return fmt.Sprintf(LatestPruneLog, id)
+}
+
+// CreateQueryRefundChunks _
+func CreateQueryRefundChunks(id, pkey string) string {
+	return fmt.Sprintf(RefundChunks, id, pkey)
 }

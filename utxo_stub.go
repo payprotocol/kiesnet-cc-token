@@ -69,13 +69,40 @@ func (ub *UtxoStub) GetChunk(id string) (*PayChunk, error) {
 }
 
 // Pay _
-func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo string) (*BalanceLog, error) {
+func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(ub.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
-	// 리시버 청크에 붙여주기
-	chunk := NewPayChunkType(receiver.GetID(), receiver, amount, ts)
+
+	bb := NewBalanceStub(ub.stub)
+	fmt.Println("#### 1")
+	//if negative amount, then create the new negative chunk to the sender and add balance to the receiver.
+	if amount.Sign() < 0 {
+		fmt.Println("#### 2")
+		chunk := NewPayChunkType(sender.GetID(), amount, receiver.GetID(), pkey, ts)
+		if err = ub.PutChunk(chunk); nil != err {
+			return nil, err
+		}
+		//deposit to the receiver's account
+		amount.Neg()
+		receiver.Amount.Add(&amount)
+		receiver.UpdatedTime = ts
+		if err = bb.PutBalance(receiver); err != nil {
+			return nil, err
+		}
+
+		sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
+		sbl.CreatedTime = ts
+		if err = bb.PutBalanceLog(sbl); err != nil {
+			return nil, err
+		}
+		return sbl, nil
+
+	}
+	fmt.Println("#### 3")
+	//if positive amount, then create the new positive chunk to the receiver and subtract balance to the sender.
+	chunk := NewPayChunkType(receiver.GetID(), amount, sender.GetID(), pkey, ts)
 	if err = ub.PutChunk(chunk); nil != err {
 		return nil, err
 	}
@@ -85,7 +112,6 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo string) (
 	sender.Amount.Add(&amount)
 	sender.UpdatedTime = ts
 
-	bb := NewBalanceStub(ub.stub)
 	if err = bb.PutBalance(sender); err != nil {
 		return nil, err
 	}
@@ -96,10 +122,6 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo string) (
 	if err = bb.PutBalanceLog(sbl); err != nil {
 		return nil, err
 	}
-
-	/*
-		//TODO: do we need to create the receiver's utxo/pay log, too??
-	*/
 
 	return sbl, nil
 }
@@ -209,6 +231,35 @@ func (ub *UtxoStub) GetUtxoChunksByTime(id string, stime, etime *txtime.Time) (*
 
 }
 
+// GetTotalRefundAmount _
+func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
+	query := CreateQueryRefundChunks(id, pkey)
+	iter, err := ub.stub.GetQueryResult(query)
+	if err != nil {
+		return nil, err
+	}
+
+	amount, err := NewAmount("0")
+	if err != nil {
+		return nil, err
+	}
+
+	defer iter.Close()
+
+	for iter.HasNext() {
+		kv, err := iter.Next()
+		chunk := &PayChunk{}
+		err = json.Unmarshal(kv.Value, &chunk)
+		if err != nil {
+			return nil, err
+		}
+
+		amount = amount.Add(chunk.Amount.Neg())
+	}
+
+	return amount, nil
+}
+
 // GetLatestPruneLog _
 // id : prune log  owner's id.
 func (ub *UtxoStub) GetLatestPruneLog(id string) (*PruneLog, error) {
@@ -217,13 +268,11 @@ func (ub *UtxoStub) GetLatestPruneLog(id string) (*PruneLog, error) {
 	iter, err := ub.stub.GetQueryResult(query)
 
 	if err != nil {
-		fmt.Println("##### im here 1")
 		return nil, err
 	}
 
 	//result not found by the query. That means there is no prune log under this ID yet.
 	if !iter.HasNext() {
-		fmt.Println("##### im here 2")
 		return nil, nil
 	}
 
@@ -233,7 +282,6 @@ func (ub *UtxoStub) GetLatestPruneLog(id string) (*PruneLog, error) {
 	pruneLog := PruneLog{}
 	err = json.Unmarshal(kv.Value, &pruneLog)
 	if err != nil {
-		fmt.Println("##### im here 3")
 		return nil, err
 	}
 

@@ -17,7 +17,9 @@ const (
 // PayChunk _
 type PayChunk struct {
 	DOCTYPEID   string       `json:"@chunk"` // id
-	Amount      Amount       `json:"amount"`
+	Amount      Amount       `json:"amount"` //can be positive(pay) or negative(refund)
+	RID         string       `json:"rid"`    //related id. user who pays to the merchant or receives refund from the merchant.
+	PKey        string       `json:"pkey"`   //parent key. this value exists only when the chunk type is refund(negative amount)
 	CreatedTime *txtime.Time `json:"created_time,omitempty"`
 }
 
@@ -33,11 +35,13 @@ type PruneLog struct {
 }
 
 // NewPayChunkType _
-func NewPayChunkType(id string, owner Identifiable, amount Amount, cTime *txtime.Time) *PayChunk {
+func NewPayChunkType(id string, amount Amount, rid, pkey string, ts *txtime.Time) *PayChunk {
 	return &PayChunk{
 		DOCTYPEID:   id,
 		Amount:      amount,
-		CreatedTime: cTime,
+		RID:         rid,
+		PKey:        pkey,
+		CreatedTime: ts,
 	}
 }
 

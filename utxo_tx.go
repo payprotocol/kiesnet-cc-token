@@ -14,12 +14,9 @@ import (
 )
 
 // params[0] : sender address (empty string = personal account)
-// params[1] : receiver address
-// params[2] : amount (big int string)
-// params[3] : memo (max 128 charactors)
-// params[4] : expiry (duration represented by int64 seconds, multi-sig only)
-// params[5:] : extra signers (personal account addresses)
-// TODO: 나노초가 똑같은 트랜젝션이 같은수가 있으므로, 쿼리로 같은 청크가 있는지 체크를 한다음에 같은키의 청크가 있으면 이 트랜잭션을 켄슬/대러 처리 해야한다.
+// params[1] : receiver address. Positive amount: address to receives the amount. Negative amount: Original chunk ID.
+// params[2] : amount (big int string). Positive amount: pay from user to merchant. Negative: full/partial refund from merchant to user.
+// params[3] : optional. memo (max 128 charactors)
 func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 3 {
 		return shim.Error("incorrect number of parameters. expecting 3+")
@@ -31,35 +28,65 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 
+	//address validation
+	var sAddr *Address
+	sAddr, err = ParseAddress(params[0])
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to parse the sender's account address")
+	}
+
 	// amount
 	amount, err := NewAmount(params[2])
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	// TODO: REFUND/CANCEL.
-	// if amount.Sign() <= 0 {
-	// 	return shim.Error("invalid amount. amount must be larger than 0")
-	// }
+	if amount.Sign() == 0 {
+		return shim.Error("invalid amount. amount shouldn't be 0")
+	}
 
-	// validate sender addresses
-	rAddr, err := ParseAddress(params[1])
+	ub := NewUtxoStub(stub)
+	rid := params[1]
+	pkey := ""
+
+	//validate the refund amount. The refund amound can't exceed the original amount
+	if amount.Sign() < 0 {
+
+		ck, err := ub.GetChunk(params[1]) //this case params[1] is the original chunk key
+		if err != nil {
+			return shim.Error("valid chunk id is required for proper refund process")
+		}
+
+		rid = ck.RID     //getting the user's id from the original chunk
+		pkey = params[1] //save parent key if this is refund for the later-created negatived chunk
+
+		//if the refund amount is greater than the original amount
+		amountCmp := amount.Copy()
+		if ck.Amount.Cmp(amountCmp.Neg()) < 0 {
+			return shim.Error("refund amount can't be greater than the original amount")
+		}
+
+		totalRefundAmount, err := ub.GetTotalRefundAmount(params[0], pkey)
+
+		if err != nil {
+			return shim.Error("failed to get the total refund amount")
+		}
+
+		if ck.Amount.Cmp(totalRefundAmount.Add(amountCmp)) < 0 {
+			return shim.Error("can't exceed the sum of past refund amounts")
+		}
+	}
+
+	// validate sender/receiver addresses
+	rAddr, err := ParseAddress(rid)
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to parse the receiver's account address")
 	}
-	var sAddr *Address
-	if len(params[0]) > 0 {
-		sAddr, err = ParseAddress(params[0])
-		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to parse the sender's account address")
-		}
-		if rAddr.Code != sAddr.Code { // not same token
-			return shim.Error("different token accounts")
-		}
-	} else {
-		sAddr = NewAddress(rAddr.Code, AccountTypePersonal, kid)
+
+	if rAddr.Code != sAddr.Code { // not same token
+		return shim.Error("different token accounts")
 	}
 
 	// IMPORTANT: assert(sender != receiver)
@@ -75,7 +102,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the sender account")
 	}
-	fmt.Println(kid)
+
 	if !sender.HasHolder(kid) {
 		return shim.Error("invoker is not holder")
 	}
@@ -125,8 +152,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	var log *BalanceLog // log for response
 
-	ub := NewUtxoStub(stub)
-	log, err = ub.Pay(sBal, rBal, *amount, memo)
+	log, err = ub.Pay(sBal, rBal, *amount, memo, pkey)
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to transfer")
@@ -146,7 +172,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[0] : Token Code or Address to prune.
 // params[1] : Address of receiver / Master Account.
 // params[2] : Prune end time. It is not guaranteed that the prune merge all chunks into one in this given period time. If it reaches the threshhold of 500, then it finishes the current action expecting the next call from the client.
-// params[3] : Optional. Next Chunk Key. If the key exists, this method should be called recursively until the empty string is returned on the response.
+// params[3] : Optional. Next Chunk Key. If the key exists, this method should be called recursively until the empty string is returned on the response. //TODO: next chunk 대신 마지막 청크의 크리에잇 타임으로 할것인가?
 func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 3 {
 		return shim.Error("incorrect number of parameters. expecting at least 3 parameters")
@@ -213,7 +239,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if err != nil {
 		return responseError(err, "failed to parse the end time")
 	}
-	etime := txtime.Unix(sec, 0)
+	etime := txtime.Unix(sec, 0) //
 
 	fmt.Println("############ Merge query end time: ", etime)
 
@@ -224,7 +250,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if qResult.MergeCount == 0 {
 		return shim.Error("no chunk found to prune in the given time period")
 	}
-	if qResult.MergeCount == 1 {
+	if qResult.MergeCount == 1 { //1개가 있을떄도 프룬을 해줘야 한다.
 		return shim.Error("all chunks are already pruned. prune aborted.")
 	}
 
