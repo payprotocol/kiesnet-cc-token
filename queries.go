@@ -131,6 +131,11 @@ const QueryUtxoChunks = `{
 	]
 }`
 
+// CreateQueryUtxoChunks _
+func CreateQueryUtxoChunks(id string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryUtxoChunks, id, stime, etime)
+}
+
 //RefundChunks _
 const RefundChunks = `{
 	"selector": {
@@ -138,11 +143,6 @@ const RefundChunks = `{
 	   "pkey": "%s"
 	}
  }`
-
-// CreateQueryUtxoChunks _
-func CreateQueryUtxoChunks(id string, stime, etime *txtime.Time) string {
-	return fmt.Sprintf(QueryUtxoChunks, id, stime, etime)
-}
 
 // CreateQueryRefundChunks _
 func CreateQueryRefundChunks(id, pkey string) string {
