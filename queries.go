@@ -123,6 +123,7 @@ const QueryUtxoChunks = `{
 			}
 		] 
 	},
+	"use_index":["utxo","utxo-chunk-list"],
 	"fields":[
 		"@chunk",
 		"amount",
@@ -130,29 +131,7 @@ const QueryUtxoChunks = `{
 	]
 }`
 
-//LatestPruneLog _
-const LatestPruneLog = `{
-	"selector": {
-	   "@prune_log": "%s"
-	},
-	"sort": [
-	   {
-		  "created_time": "desc"
-	   }
-	],
-	"use_index": [
-	   "prune",
-	   "log"
-	],
-	"limit": 1
- }`
-
 // CreateQueryUtxoChunks _
 func CreateQueryUtxoChunks(id string, stime, etime *txtime.Time) string {
 	return fmt.Sprintf(QueryUtxoChunks, id, stime, etime)
-}
-
-// CreateQueryLatestPruneLog _
-func CreateQueryLatestPruneLog(id string) string {
-	return fmt.Sprintf(LatestPruneLog, id)
 }

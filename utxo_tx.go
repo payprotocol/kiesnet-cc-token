@@ -27,13 +27,13 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// authentication
 	kid, err := kid.GetID(stub, true)
-	if err != nil {
+	if nil != err {
 		return shim.Error(err.Error())
 	}
 
 	// amount
 	amount, err := NewAmount(params[2])
-	if err != nil {
+	if nil != err {
 		return shim.Error(err.Error())
 	}
 
@@ -44,14 +44,14 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// validate sender addresses
 	rAddr, err := ParseAddress(params[1])
-	if err != nil {
+	if nil != err {
 		logger.Debug(err.Error())
 		return shim.Error("failed to parse the receiver's account address")
 	}
 	var sAddr *Address
 	if len(params[0]) > 0 {
 		sAddr, err = ParseAddress(params[0])
-		if err != nil {
+		if nil != err {
 			logger.Debug(err.Error())
 			return shim.Error("failed to parse the sender's account address")
 		}
@@ -71,7 +71,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// sender
 	sender, err := ab.GetAccount(sAddr)
-	if err != nil {
+	if nil != err {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the sender account")
 	}
@@ -85,7 +85,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// receiver
 	receiver, err := ab.GetAccount(rAddr)
-	if err != nil {
+	if nil != err {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the receiver account")
 	}
@@ -96,7 +96,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// sender balance
 	bb := NewBalanceStub(stub)
 	sBal, err := bb.GetBalance(sender.GetID())
-	if err != nil {
+	if nil != err {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the sender's balance")
 	}
@@ -106,7 +106,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// receiver balance
 	rBal, err := bb.GetBalance(receiver.GetID())
-	if err != nil {
+	if nil != err {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the receiver's balance")
 	}
@@ -127,14 +127,14 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	ub := NewUtxoStub(stub)
 	log, err = ub.Pay(sBal, rBal, *amount, memo)
-	if err != nil {
+	if nil != err {
 		logger.Debug(err.Error())
 		return shim.Error("failed to transfer")
 	}
 
 	// log is not nil
 	data, err := json.Marshal(log)
-	if err != nil {
+	if nil != err {
 		logger.Debug(err.Error())
 		return shim.Error("failed to marshal the log")
 	}
@@ -144,122 +144,92 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 // prune _
 // params[0] : Token Code or Address to prune.
-// params[1] : Address of receiver / Master Account.
-// params[2] : Prune end time. It is not guaranteed that the prune merge all chunks into one in this given period time. If it reaches the threshhold of 500, then it finishes the current action expecting the next call from the client.
-// params[3] : Optional. Next Chunk Key. If the key exists, this method should be called recursively until the empty string is returned on the response.
+// params[1] : Prune end time. It is not guaranteed that the prune merge all chunks into one in this given period time. If it reaches the threshhold of 500, then it finishes the current action expecting the next call from the client.
 func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if len(params) < 3 {
-		return shim.Error("incorrect number of parameters. expecting at least 3 parameters")
+	if len(params) < 2 {
+		return shim.Error("incorrect number of parameters. expecting 2 parameters")
 	}
 	// authentication. get KID of current user.
 	kid, err := kid.GetID(stub, true)
-	if err != nil {
+	if nil != err {
 		return shim.Error(err.Error())
 	}
 
-	var sAddr *Address
+	var addr *Address
 	code, err := ValidateTokenCode(params[0])
 	if nil == err { // by token code
-		sAddr = NewAddress(code, AccountTypePersonal, kid)
+		addr = NewAddress(code, AccountTypePersonal, kid)
 	} else { // by address
-		sAddr, err = ParseAddress(params[0])
-		if err != nil {
+		addr, err = ParseAddress(params[0])
+		if nil != err {
 			return responseError(err, "failed to get the account")
 		}
 	}
 
-	rAddr, err := ParseAddress(params[1])
-	if err != nil {
-		return shim.Error("failed to parse the receiver's account address")
-	}
-	if sAddr.Code != rAddr.Code {
-		return shim.Error("sender and receiver's token do not match")
-	}
-	if sAddr.Equal(rAddr) {
-		return shim.Error("can't pay to self")
-	}
-
-	ab := NewAccountStub(stub, rAddr.Code)
-	// sender
-	sender, err := ab.GetAccount(sAddr)
-	if err != nil {
+	ab := NewAccountStub(stub, addr.Code)
+	// account
+	account, err := ab.GetAccount(addr)
+	if nil != err {
 		logger.Debug(err.Error())
-		return shim.Error("failed to get the sender account")
+		return shim.Error("failed to get the account")
 	}
-	if sender.IsSuspended() {
-		return shim.Error("the sender account is suspended")
-	}
-
-	// receiver
-	receiver, err := ab.GetAccount(rAddr)
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the receiver account")
-	}
-	if receiver.IsSuspended() {
-		return shim.Error("the receiver account is suspended")
+	if account.IsSuspended() {
+		return shim.Error("the account is suspended")
 	}
 
+	bb := NewBalanceStub(stub)
+	balance, err := bb.GetBalance(account.GetID())
+	if nil != err {
+		return shim.Error(err.Error())
+	}
 	ub := NewUtxoStub(stub)
 
 	// start time
-	stime, err := getPruneStartTime(ub, sender.GetID())
-	if err != nil {
-		return shim.Error("failed to get the start time")
+	stime := txtime.Unix(0, 0)
+	if 0 < len(balance.LastChunkID) {
+		lastChunk, err := ub.GetChunk(balance.LastChunkID)
+		if nil != err {
+			return shim.Error(err.Error())
+		}
+		stime = lastChunk.CreatedTime
 	}
-
-	//merge end time
-	sec, err := strconv.ParseInt(params[2], 10, 64)
-	if err != nil {
+	// end time
+	seconds, err := strconv.ParseInt(params[1], 10, 64)
+	if nil != err {
 		return responseError(err, "failed to parse the end time")
 	}
-	etime := txtime.Unix(sec, 0)
+	etime := txtime.Unix(seconds, 0)
 
-	fmt.Println("############ Merge query end time: ", etime)
-
-	qResult, err := ub.GetUtxoChunksByTime(sender.GetID(), stime, etime)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	if qResult.MergeCount == 0 {
-		return shim.Error("no chunk found to prune in the given time period")
-	}
-	if qResult.MergeCount == 1 {
-		return shim.Error("all chunks are already pruned. prune aborted.")
-	}
-
-	fmt.Println("############ GetQueryUtxoChunk Result. From Address : ", qResult.FromKey)
-	fmt.Println("############ GetQueryUtxoChunk Result. To Address : ", qResult.ToKey)
-	fmt.Println("############ GetQueryUtxoChunk Result. Sum: ", qResult.Sum)
-	fmt.Println("############ GetQueryUtxoChunk Result. Merge Count : ", qResult.MergeCount-1)
-	fmt.Println("############ GetQueryUtxoChunk Result. Next Chunk Key : ", qResult.NextChunkKey)
-
-	amount, err := NewAmount(strconv.FormatInt(int64(qResult.Sum), 10))
-	if err != nil {
+	chunkSum, err := ub.GetChunkSumByTime(account.GetID(), stime, etime)
+	if nil != err {
 		return shim.Error(err.Error())
 	}
 
-	//TODO: Merged chunk is no mored created. Thus, commented out.
-	//chunk := NewPayChunkType(account.GetID(), aBal, *amount, ts)
-	//if err = ub.PutChunk(chunk); nil != err {
-	//	return shim.Error(err.Error())
-	//}
-
-	// sender balance
-	bb := NewBalanceStub(stub)
-
-	// receiver balance
-	rBal, err := bb.GetBalance(receiver.GetID())
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the receiver's balance")
+	ts, err := txtime.GetTime(stub)
+	if nil != err {
+		return shim.Error(err.Error())
 	}
-	pLog, err := ub.Prune(sender.GetID(), rBal, *amount, qResult)
-
-	if err != nil {
-		return shim.Error("failed to prune balance")
+	// Add balance
+	balance.Amount.Add(chunkSum.Sum)
+	balance.UpdatedTime = ts
+	if 0 != len(chunkSum.End) {
+		balance.LastChunkID = chunkSum.End
 	}
 
-	data, err := json.Marshal(pLog)
+	if err := bb.PutBalance(balance); nil != err {
+		return shim.Error(err.Error())
+	}
+
+	// balance log
+	rbl := NewBalanceTransferLog(nil, balance, *chunkSum.Sum, "")
+	rbl.CreatedTime = ts
+	if err = bb.PutBalanceLog(rbl); err != nil {
+		return shim.Error(err.Error())
+	}
+
+	data, err := json.Marshal(chunkSum)
+	if nil != err {
+		return shim.Error(err.Error())
+	}
 	return shim.Success(data)
 }
