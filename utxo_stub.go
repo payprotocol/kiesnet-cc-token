@@ -219,3 +219,33 @@ func (ub *UtxoStub) GetUtxoChunksByTime(id, bookmark string, stime, etime *txtim
 
 	return NewQueryResult(meta, iter)
 }
+
+// PayPendingBalance _
+func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, receiver *Balance, pendingTime *txtime.Time, pkey string) error {
+	ts, err := txtime.GetTime(ub.stub)
+	if err != nil {
+		return errors.Wrap(err, "failed to get the timestamp")
+	}
+
+	sender := &Balance{DOCTYPEID: pb.Account} // proxy
+	bb := NewBalanceStub(ub.stub)
+	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
+		pb := NewPendingBalance(ub.stub.GetTxID(), receiver, sender, pb.Amount, pb.Memo, pendingTime)
+		pb.CreatedTime = ts
+		if err = bb.PutPendingBalance(pb); err != nil {
+			return err
+		}
+	} else {
+		if _, err := ub.Pay(sender, receiver, pb.Amount, pb.Memo, pkey); nil != err {
+			return err
+		}
+	}
+
+	// remove pending balance
+	if err = bb.stub.DelState(bb.CreatePendingKey(pb.DOCTYPEID)); err != nil {
+		return errors.Wrap(err, "failed to delete the pending balance")
+	}
+
+	return nil
+
+}
