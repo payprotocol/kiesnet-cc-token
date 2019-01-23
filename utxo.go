@@ -16,10 +16,10 @@ const (
 
 // Chunk _
 type Chunk struct {
-	DOCTYPEID   string       `json:"@chunk"` // id
-	Amount      Amount       `json:"amount"` //can be positive(pay) or negative(refund)
-	RID         string       `json:"rid"`    //related id. user who pays to the merchant or receives refund from the merchant.
-	PKey        string       `json:"pkey"`   //parent key. this value exists only when the chunk type is refund(negative amount)
+	DOCTYPEID   string       `json:"@chunk"`         // id
+	Amount      Amount       `json:"amount"`         //can be positive(pay) or negative(refund)
+	RID         string       `json:"rid"`            //related id. user who pays to the merchant or receives refund from the merchant.
+	PKey        string       `json:"pkey,omitempty"` //parent key. this value exists only when the chunk type is refund(negative amount)
 	CreatedTime *txtime.Time `json:"created_time,omitempty"`
 }
 

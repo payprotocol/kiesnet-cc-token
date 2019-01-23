@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -165,7 +166,6 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// prune _
 // params[0] : Token Code or Address to prune.
 // params[1] : Prune end time. It is not guaranteed that the prune merge all chunks into one in this given period time. If it reaches the threshhold of 500, then it finishes the current action expecting the next call from the client.
 func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
@@ -243,8 +243,11 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 
+	//get last pruend chunk's time
+	lastPrunedChunk, err := ub.GetChunk(chunkSum.End)
+
 	// balance log
-	rbl := NewBalanceTransferLog(nil, balance, *chunkSum.Sum, "")
+	rbl := NewBalanceTransferLog(nil, balance, *chunkSum.Sum, fmt.Sprintf("prune result from %s to %s ", stime.Time.UTC(), lastPrunedChunk.CreatedTime))
 	rbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(rbl); err != nil {
 		return shim.Error(err.Error())
