@@ -141,7 +141,8 @@ const RefundChunks = `{
 	"selector": {
 	   "@chunk": "%s",
 	   "pkey": "%s"
-	}
+	},
+	"use_index":[ "utxo", "utxo-chunk-refund" ]
  }`
 
 // CreateQueryRefundChunks _

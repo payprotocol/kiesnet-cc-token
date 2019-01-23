@@ -1,0 +1,16 @@
+{
+    "index": {
+        "partial_filter_selector": {
+            "@chunk": {
+                "$exists": true
+            },
+            "pkey":{
+                "$exists": true
+            }
+        },
+        "fields": [ "@chunk", "pkey" ]
+    },
+    "ddoc": "utxo",
+    "name": "utxo-chunk-refund",
+    "type": "json"
+}

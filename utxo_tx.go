@@ -16,11 +16,11 @@ import (
 )
 
 // params[0] : sender's address
-// params[1] : positive amount: receiver's address who gets paid. negative amount: Original chunk key.
+// params[1] : positive amount: receiver's address who gets paid.
+//             negative amount: Original chunk key.
 // params[2] : amount. can be either positive(pay) or negative(refund) amount.
 // params[3] : optional. memo (max 128 charactors)
-// params[4] : pending time (time represented by int64 seconds)
-// params[5] : expiry (duration represented by int64 seconds, multi-sig only)
+// params[4] : optional. expiry (duration represented by int64 seconds, multi-sig only)
 func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	if len(params) < 3 {
@@ -51,32 +51,27 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	ub := NewUtxoStub(stub)
-	rid := params[1] //receiver's id
-	pkey := ""       //parent key(original chunk key). this field is used for tracking the original/parent chunk from the refund chunk
 
-	// refund validation
+	rid := params[1] // receiver's id
+	pkey := ""       // parent key(original chunk key). this field is used for tracking the original/parent chunk from the refund chunk
 	if amount.Sign() < 0 {
-		ck, err := ub.GetChunk(params[1]) //if negative amount, param[1] must be the original chunk key
+		ck, err := ub.GetChunk(params[1])
 		if err != nil {
 			return shim.Error("invalid chunk key was provided.")
 		}
-
 		rid = ck.RID     //getting the user's id from the original chunk
 		pkey = params[1] //this parent key is written on the refund chunk created later.
 
-		amountCmp := amount.Copy()
-		amountCmp.Neg()
-		if ck.Amount.Cmp(amountCmp) < 0 {
+		if ck.Amount.Cmp(amount.Copy().Neg()) < 0 {
 			return shim.Error("refund amount can't be greater than the pay amount")
 		}
 
-		totalRefundAmount, err := ub.GetTotalRefundAmount(params[0], pkey)
-
-		if err != nil {
-			return shim.Error("failed to get the total refund amount")
+		totalRefund, err := ub.GetTotalRefundAmount(params[0], pkey)
+		if nil != err {
+			logger.Debug(err.Error())
+			return shim.Error(err.Error())
 		}
-
-		if ck.Amount.Cmp(totalRefundAmount.Add(amountCmp)) < 0 {
+		if ck.Amount.Cmp(totalRefund.Add(&ck.Amount)) < 0 {
 			return shim.Error("can't exceed the sum of past refund amounts")
 		}
 	}
@@ -155,25 +150,12 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		} else {
 			memo = params[3]
 		}
-		// pending time
-		if len(params) > 4 {
-			seconds, err := strconv.ParseInt(params[4], 10, 64)
+		// expiry time
+		if len(params) > 4 && len(params[5]) > 0 {
+			expiry, err = strconv.ParseInt(params[5], 10, 64)
 			if err != nil {
-				return shim.Error("invalid pending time: need seconds since 1970")
-			}
-			ts, err := stub.GetTxTimestamp()
-			if err != nil {
-				return shim.Error("failed to get the timestamp")
-			}
-			if ts.GetSeconds() < seconds { // meaning pending time
-				pendingTime = txtime.Unix(seconds, 0)
-			}
-			// expiry
-			if len(params) > 5 && len(params[5]) > 0 {
-				expiry, err = strconv.ParseInt(params[5], 10, 64)
-				if err != nil {
-					return shim.Error("invalid expiry: need seconds")
-				}
+				logger.Debug(err.Error())
+				return shim.Error("invalid expiry: need seconds")
 			}
 		}
 	}
