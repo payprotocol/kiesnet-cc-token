@@ -66,16 +66,15 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 	}
 
 	bb := NewBalanceStub(ub.stub)
-
 	usr := sender
 	merchant := receiver
-
 	if amount.Sign() < 0 {
 		usr = receiver
 		merchant = sender
 	}
 
-	if ub.CheckDuplicatedChunk(ub.CreateChunkKey(usr.GetID(), ts.UnixNano())) {
+	//check for the duplicated chunk key
+	if ub.CheckDuplicatedChunk(ub.CreateChunkKey(merchant.GetID(), ts.UnixNano())) {
 		return nil, errors.New("duplicated chunk found")
 	}
 
@@ -94,7 +93,7 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 	}
 
 	//create the balance log on the user
-	sbl := NewBalanceTransferLog(usr, merchant, amount, memo)
+	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
 		return nil, err
