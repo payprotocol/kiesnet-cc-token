@@ -231,10 +231,8 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return responseError(err, "failed to get the account")
 		}
 	}
-
-	ab := NewAccountStub(stub, addr.Code)
 	// account
-	account, err := ab.GetAccount(addr)
+	account, err := NewAccountStub(stub, addr.Code).GetAccount(addr)
 	if nil != err {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the account")
@@ -246,6 +244,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	bb := NewBalanceStub(stub)
 	balance, err := bb.GetBalance(account.GetID())
 	if nil != err {
+		logger.Debug(err.Error())
 		return shim.Error(err.Error())
 	}
 	ub := NewUtxoStub(stub)
@@ -255,7 +254,8 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if 0 < len(balance.LastChunkID) {
 		lastChunk, err := ub.GetChunk(balance.LastChunkID)
 		if nil != err {
-			return shim.Error(err.Error())
+			logger.Debug(err.Error())
+			return shim.Error("failed to get the last chunk")
 		}
 		stime = lastChunk.CreatedTime
 	}
@@ -268,12 +268,13 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	chunkSum, err := ub.GetChunkSumByTime(account.GetID(), stime, etime)
 	if nil != err {
-		return shim.Error(err.Error())
+		logger.Debug(err.Error())
+		return shim.Error("failed to prune chunks")
 	}
 
 	ts, err := txtime.GetTime(stub)
 	if nil != err {
-		return shim.Error(err.Error())
+		return responseError(err, "failed to get the timestamp")
 	}
 	// Add balance
 	balance.Amount.Add(chunkSum.Sum)
@@ -283,14 +284,12 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	if err := bb.PutBalance(balance); nil != err {
-		return shim.Error(err.Error())
+		logger.Debug(err.Error())
+		return shim.Error("failed to update balance")
 	}
 
-	//get last pruend chunk's time
-	lastPrunedChunk, err := ub.GetChunk(chunkSum.End)
-
 	// balance log
-	rbl := NewBalanceTransferLog(nil, balance, *chunkSum.Sum, fmt.Sprintf("prune result from %s to %s ", stime.Time.UTC(), lastPrunedChunk.CreatedTime))
+	rbl := NewBalanceTransferLog(nil, balance, *chunkSum.Sum, fmt.Sprintf("prune result from %s to %s ", stime.Time.UTC(), etime.Time.UTC()))
 	rbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(rbl); err != nil {
 		return shim.Error(err.Error())
@@ -381,7 +380,6 @@ func uxtoList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	return shim.Success(data)
-
 }
 
 // contract callbacks

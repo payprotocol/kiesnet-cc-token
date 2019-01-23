@@ -112,7 +112,7 @@ func (ub *UtxoStub) GetChunkSumByTime(id string, stime, etime *txtime.Time) (*Ch
 	c := &Chunk{}
 	cnt := 0 //record counter
 	if !iter.HasNext() {
-		return nil, NotExistUtxoChunksError{stime: stime, etime: etime}
+		return nil, errors.New(fmt.Sprintf("No chunks between %s and %s", stime, etime))
 	}
 
 	for iter.HasNext() {
