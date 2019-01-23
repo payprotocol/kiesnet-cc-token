@@ -12,13 +12,14 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
-// params[0] : sender address (empty string = personal account)
-// params[1] : receiver address. Positive amount: address to receives the amount. Negative amount: Original chunk ID.
-// params[2] : amount (big int string). Positive amount: pay from user to merchant. Negative: full/partial refund from merchant to user.
+// params[0] : sender's address
+// params[1] : positive amount: receiver's address who gets paid. negative amount: Original chunk key.
+// params[2] : amount. can be either positive(pay) or negative(refund) amount.
 // params[3] : optional. memo (max 128 charactors)
 func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+
 	if len(params) < 3 {
-		return shim.Error("incorrect number of parameters. expecting 3+")
+		return shim.Error("incorrect number of parameters. expecting at least 3")
 	}
 
 	// authentication
@@ -27,7 +28,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 
-	//address validation
+	//sender address validation
 	var sAddr *Address
 	sAddr, err = ParseAddress(params[0])
 	if err != nil {
@@ -40,30 +41,28 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if nil != err {
 		return shim.Error(err.Error())
 	}
-
 	if amount.Sign() == 0 {
 		return shim.Error("invalid amount. amount shouldn't be 0")
 	}
 
 	ub := NewUtxoStub(stub)
-	rid := params[1]
-	pkey := ""
+	rid := params[1] //receiver's id
+	pkey := ""       //parent key(original chunk key). this field is used for tracking the original/parent chunk from the refund chunk
 
-	//validate the refund amount. The refund amound can't exceed the original amount
+	// refund validation
 	if amount.Sign() < 0 {
-
-		ck, err := ub.GetChunk(params[1]) //this case params[1] is the original chunk key
+		ck, err := ub.GetChunk(params[1]) //if negative amount, param[1] must be the original chunk key
 		if err != nil {
-			return shim.Error("valid chunk id is required for proper refund process")
+			return shim.Error("invalid chunk key was provided.")
 		}
 
 		rid = ck.RID     //getting the user's id from the original chunk
-		pkey = params[1] //save parent key if this is refund for the later-created negatived chunk
+		pkey = params[1] //this parent key is written on the refund chunk created later.
 
-		//if the refund amount is greater than the original amount
 		amountCmp := amount.Copy()
-		if ck.Amount.Cmp(amountCmp.Neg()) < 0 {
-			return shim.Error("refund amount can't be greater than the original amount")
+		amountCmp.Neg()
+		if ck.Amount.Cmp(amountCmp) < 0 {
+			return shim.Error("refund amount can't be greater than the pay amount")
 		}
 
 		totalRefundAmount, err := ub.GetTotalRefundAmount(params[0], pkey)
@@ -77,7 +76,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 	}
 
-	// validate sender/receiver addresses
+	// receiver address validation
 	rAddr, err := ParseAddress(rid)
 	if err != nil {
 		logger.Debug(err.Error())
@@ -90,18 +89,17 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// IMPORTANT: assert(sender != receiver)
 	if sAddr.Equal(rAddr) {
-		return shim.Error("can't transfer to self")
+		return shim.Error("can't pay to self")
 	}
 
 	ab := NewAccountStub(stub, rAddr.Code)
 
-	// sender
+	// sender account validation
 	sender, err := ab.GetAccount(sAddr)
 	if nil != err {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the sender account")
 	}
-
 	if !sender.HasHolder(kid) {
 		return shim.Error("invoker is not holder")
 	}
@@ -109,7 +107,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("the sender account is suspended")
 	}
 
-	// receiver
+	// receiver account validation
 	receiver, err := ab.GetAccount(rAddr)
 	if nil != err {
 		logger.Debug(err.Error())
@@ -154,7 +152,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	log, err = ub.Pay(sBal, rBal, *amount, memo, pkey)
 	if err != nil {
 		logger.Debug(err.Error())
-		return shim.Error("failed to transfer")
+		return shim.Error("failed to pay")
 	}
 
 	// log is not nil

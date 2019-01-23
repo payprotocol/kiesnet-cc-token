@@ -38,11 +38,6 @@ func (ub *UtxoStub) CreateChunkKey(id string, seq int64) string {
 	return fmt.Sprintf("CHNK_%s_%d", id, seq)
 }
 
-//CreatePruneLogKey _
-func (ub *UtxoStub) CreatePruneLogKey(id string, seq int64) string {
-	return fmt.Sprintf("PLOG_%s_%d", id, seq)
-}
-
 //GetChunk _
 func (ub *UtxoStub) GetChunk(id string) (*Chunk, error) {
 	data, err := ub.stub.GetState(id)
@@ -61,13 +56,15 @@ func (ub *UtxoStub) GetChunk(id string) (*Chunk, error) {
 
 // Pay _
 func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLog, error) {
+
 	ts, err := txtime.GetTime(ub.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	bb := NewBalanceStub(ub.stub)
-	//if negative amount, then create the new negative chunk to the sender and add balance to the receiver.
+
+	//if negative amount, then create the new negative chunk to the sender(merchant) and add balance to the receiver(user).
 	if amount.Sign() < 0 {
 		chunk := NewChunkType(sender.GetID(), amount, receiver.GetID(), pkey, ts)
 		if err = ub.PutChunk(chunk); nil != err {
@@ -81,7 +78,7 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 			return nil, err
 		}
 
-		sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
+		sbl := NewBalanceTransferLog(receiver, sender, amount, memo) //create the balance log for the receiver(user) in the refund case.
 		sbl.CreatedTime = ts
 		if err = bb.PutBalanceLog(sbl); err != nil {
 			return nil, err
@@ -89,7 +86,8 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 		return sbl, nil
 
 	}
-	//if positive amount, then create the new positive chunk to the receiver and subtract balance to the sender.
+
+	//if positive amount, then create the new positive chunk to the receiver and withdraw balance to the sender.
 	chunk := NewChunkType(receiver.GetID(), amount, sender.GetID(), pkey, ts)
 	if err = ub.PutChunk(chunk); nil != err {
 		return nil, err
@@ -171,6 +169,7 @@ func (ub *UtxoStub) GetChunkSumByTime(id string, stime, etime *txtime.Time) (*Ch
 }
 
 // GetTotalRefundAmount _
+// Returns sum of past refund amounts in positive amount
 func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
 	query := CreateQueryRefundChunks(id, pkey)
 	iter, err := ub.stub.GetQueryResult(query)
