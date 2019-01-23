@@ -106,8 +106,8 @@ func CreateQueryPendingBalancesByAddress(addr, sort string) string {
 	return fmt.Sprintf(QueryPendingBalancesByAddress, addr, _sort)
 }
 
-//QueryUtxoChunks _
-const QueryUtxoChunks = `{
+//QueryUtxoPruneChunks _
+const QueryUtxoPruneChunks = `{
 	"selector":{		
 		"@chunk": "%s",
 		"$and":[
@@ -131,9 +131,9 @@ const QueryUtxoChunks = `{
 	]
 }`
 
-// CreateQueryUtxoChunks _
-func CreateQueryUtxoChunks(id string, stime, etime *txtime.Time) string {
-	return fmt.Sprintf(QueryUtxoChunks, id, stime, etime)
+// CreateQueryUtxoPruneChunks _
+func CreateQueryUtxoPruneChunks(id string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryUtxoPruneChunks, id, stime, etime)
 }
 
 //RefundChunks _
@@ -147,4 +147,44 @@ const RefundChunks = `{
 // CreateQueryRefundChunks _
 func CreateQueryRefundChunks(id, pkey string) string {
 	return fmt.Sprintf(RefundChunks, id, pkey)
+}
+
+// QueryUtxoChunksByIDAndTime _
+const QueryUtxoChunksByIDAndTime = `{
+	"selector":{
+		"@chunk":"%s",
+		"$and":[
+			{
+				"created_time":{
+					"$gte": "%s"
+				}
+			},
+			{
+				"created_time":{
+					"$lte": "%s"
+				}
+			}
+		]
+	},
+	"use_index":["utxo","utxo-chunk-list"],
+	"sort":[{"created_time":"desc"}]
+}`
+
+// CreateQueryUtxoChunksByIDAndTime _
+func CreateQueryUtxoChunksByIDAndTime(id string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryUtxoChunksByIDAndTime, id, stime, etime)
+}
+
+// QueryUtxoChunksByID _
+const QueryUtxoChunksByID = `{
+	"selector":{
+		"@chunk":"%s"
+	},
+	"use_index":["utxo","utxo-chunk-list-by-id"],
+	"sort":[{"@chunk":"desc"},{"created_time":"desc"}]
+}`
+
+// CreateQueryUtxoChunksByID _
+func CreateQueryUtxoChunksByID(id string) string {
+	return fmt.Sprintf(QueryUtxoChunksByID, id)
 }

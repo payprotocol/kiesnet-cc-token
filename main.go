@@ -52,6 +52,7 @@ var routes = map[string]TxFunc{
 	"transfer":                 transfer,
 	"utxo/pay":                 pay,
 	"utxo/prune":               prune,
+	"utxo/list":                uxtoList,
 	"ver":                      ver,
 	// ISSUE: need functions below ?
 	// "account/logs":

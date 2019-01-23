@@ -259,3 +259,84 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 	return shim.Success(data)
 }
+
+// uxtoList _
+// params[0] : token code | account address
+// params[1] : bookmark
+// params[2] : fetch size (if < 1 => default size, max 200)
+// params[3] : start time (time represented by int64 seconds)
+// params[4] : end time (time represented by int64 seconds)
+func uxtoList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) < 1 {
+		return shim.Error("incorrect number of parameters. expecting 1+")
+	}
+
+	// authentication
+	kid, err := kid.GetID(stub, false)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	bookmark := ""
+	fetchSize := 0
+	var stime, etime *txtime.Time
+	// bookmark
+	if len(params) > 1 {
+		bookmark = params[1]
+		// fetch size
+		if len(params) > 2 {
+			fetchSize, err = strconv.Atoi(params[2])
+			if err != nil {
+				return shim.Error("invalid fetch size")
+			}
+			// start time
+			if len(params) > 3 {
+				if len(params[3]) > 0 {
+					seconds, err := strconv.ParseInt(params[3], 10, 64)
+					if err != nil {
+						return shim.Error("invalid start time: need seconds since 1970")
+					}
+					stime = txtime.Unix(seconds, 0)
+				}
+				// end time
+				if len(params) > 4 {
+					if len(params[4]) > 0 {
+						seconds, err := strconv.ParseInt(params[4], 10, 64)
+						if err != nil {
+							return shim.Error("invalid end time: need seconds since 1970")
+						}
+						etime = txtime.Unix(seconds, 0)
+						if stime != nil && stime.Cmp(etime) >= 0 {
+							return shim.Error("invalid time parameters")
+						}
+					}
+				}
+			}
+		}
+	}
+
+	var addr *Address
+	code, err := ValidateTokenCode(params[0])
+	if nil == err { // by token code
+		addr = NewAddress(code, AccountTypePersonal, kid)
+	} else { // by address
+		addr, err = ParseAddress(params[0])
+		if err != nil {
+			return responseError(err, "failed to parse the account address")
+		}
+	}
+
+	ub := NewUtxoStub(stub)
+	res, err := ub.GetUtxoChunksByTime(addr.String(), bookmark, stime, etime, fetchSize)
+	if nil != err {
+		return responseError(err, "failed to get chunks log")
+	}
+
+	data, err := json.Marshal(res)
+	if err != nil {
+		return responseError(err, "failed to marshal chunks logs")
+	}
+
+	return shim.Success(data)
+
+}

@@ -10,8 +10,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+// UtxoChunksPruneSize _
+const UtxoChunksPruneSize = 500
+
 // UtxoChunksFetchSize _
-const UtxoChunksFetchSize = 500
+const UtxoChunksFetchSize = 200
 
 // UtxoStub _
 type UtxoStub struct {
@@ -114,7 +117,7 @@ func (ub *UtxoStub) PutChunk(chunk *Chunk) error {
 
 // GetChunkSumByTime _{end sum next}
 func (ub *UtxoStub) GetChunkSumByTime(id string, stime, etime *txtime.Time) (*ChunkSum, error) {
-	query := CreateQueryUtxoChunks(id, stime, etime)
+	query := CreateQueryUtxoPruneChunks(id, stime, etime)
 	iter, err := ub.stub.GetQueryResult(query)
 	if err != nil {
 		return nil, err
@@ -141,7 +144,7 @@ func (ub *UtxoStub) GetChunkSumByTime(id string, stime, etime *txtime.Time) (*Ch
 			return nil, err
 		}
 		//get the next chunk key ( +1 chunk after the threshhold)
-		if cnt == UtxoChunksFetchSize+1 {
+		if cnt == UtxoChunksPruneSize+1 {
 			cs.Next = kv.GetKey()
 			break
 		}
@@ -193,4 +196,27 @@ func (ub *UtxoStub) CheckDuplicatedChunk(key string) bool {
 		return true
 	}
 	return false
+}
+
+// GetUtxoChunksByTime _
+func (ub *UtxoStub) GetUtxoChunksByTime(id, bookmark string, stime, etime *txtime.Time, fetchSize int) (*QueryResult, error) {
+	if fetchSize < 1 {
+		fetchSize = UtxoChunksFetchSize
+	}
+	if fetchSize > UtxoChunksFetchSize {
+		fetchSize = UtxoChunksFetchSize
+	}
+	query := ""
+	if stime != nil || etime != nil {
+		query = CreateQueryUtxoChunksByIDAndTime(id, stime, etime)
+	} else {
+		query = CreateQueryUtxoChunksByID(id)
+	}
+	iter, meta, err := ub.stub.GetQueryResultWithPagination(query, int32(fetchSize), bookmark)
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close()
+
+	return NewQueryResult(meta, iter)
 }
