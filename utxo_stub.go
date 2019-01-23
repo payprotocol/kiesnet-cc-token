@@ -64,46 +64,34 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 
 	bb := NewBalanceStub(ub.stub)
 
-	//if negative amount, then create the new negative chunk to the sender(merchant) and add balance to the receiver(user).
+	usr := sender
+	merchant := receiver
+
 	if amount.Sign() < 0 {
-		chunk := NewChunkType(sender.GetID(), amount, receiver.GetID(), pkey, ts)
-		if err = ub.PutChunk(chunk); nil != err {
-			return nil, err
-		}
-		//deposit to the receiver's account
-		amount.Neg()
-		receiver.Amount.Add(&amount)
-		receiver.UpdatedTime = ts
-		if err = bb.PutBalance(receiver); err != nil {
-			return nil, err
-		}
-
-		sbl := NewBalanceTransferLog(receiver, sender, amount, memo) //create the balance log for the receiver(user) in the refund case.
-		sbl.CreatedTime = ts
-		if err = bb.PutBalanceLog(sbl); err != nil {
-			return nil, err
-		}
-		return sbl, nil
-
+		usr = receiver
+		merchant = sender
 	}
 
-	//if positive amount, then create the new positive chunk to the receiver and withdraw balance to the sender.
-	chunk := NewChunkType(receiver.GetID(), amount, sender.GetID(), pkey, ts)
+	if ub.CheckDuplicatedChunk(ub.CreateChunkKey(usr.GetID(), ts.UnixNano())) {
+		return nil, errors.New("duplicated chunk found")
+	}
+
+	chunk := NewChunkType(merchant.GetID(), amount, usr.GetID(), pkey, ts)
 	if err = ub.PutChunk(chunk); nil != err {
 		return nil, err
 	}
 
-	// withdraw from the sender's account
+	// add or refund on the user account
 	amount.Neg()
-	sender.Amount.Add(&amount)
-	sender.UpdatedTime = ts
+	usr.Amount.Add(&amount)
+	usr.UpdatedTime = ts
 
-	if err = bb.PutBalance(sender); err != nil {
+	if err = bb.PutBalance(usr); err != nil {
 		return nil, err
 	}
 
-	//create the sender's balance log. This sender's balance log is returned as response.
-	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
+	//create the balance log on the user
+	sbl := NewBalanceTransferLog(usr, merchant, amount, memo)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
 		return nil, err
@@ -196,4 +184,13 @@ func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
 	}
 
 	return amount, nil
+}
+
+// CheckDuplicatedChunk _
+func (ub *UtxoStub) CheckDuplicatedChunk(key string) bool {
+	chunk, err := ub.GetChunk(key)
+	if err == nil && chunk != nil {
+		return true
+	}
+	return false
 }
