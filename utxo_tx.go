@@ -9,7 +9,9 @@ import (
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
+	"github.com/key-inside/kiesnet-ccpkg/contract"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
+	"github.com/key-inside/kiesnet-ccpkg/stringset"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
@@ -17,6 +19,8 @@ import (
 // params[1] : positive amount: receiver's address who gets paid. negative amount: Original chunk key.
 // params[2] : amount. can be either positive(pay) or negative(refund) amount.
 // params[3] : optional. memo (max 128 charactors)
+// params[4] : pending time (time represented by int64 seconds)
+// params[5] : expiry (duration represented by int64 seconds, multi-sig only)
 func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	if len(params) < 3 {
@@ -138,7 +142,12 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// options
 	memo := ""
-
+	var pendingTime *txtime.Time
+	var expiry int64
+	signers := stringset.New(kid)
+	if a, ok := sender.(*JointAccount); ok {
+		signers.AppendSet(a.Holders)
+	}
 	// memo
 	if len(params) > 3 {
 		if len(params[3]) > 128 { // 128 charactors limit
@@ -146,14 +155,66 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		} else {
 			memo = params[3]
 		}
+		// pending time
+		if len(params) > 4 {
+			seconds, err := strconv.ParseInt(params[4], 10, 64)
+			if err != nil {
+				return shim.Error("invalid pending time: need seconds since 1970")
+			}
+			ts, err := stub.GetTxTimestamp()
+			if err != nil {
+				return shim.Error("failed to get the timestamp")
+			}
+			if ts.GetSeconds() < seconds { // meaning pending time
+				pendingTime = txtime.Unix(seconds, 0)
+			}
+			// expiry
+			if len(params) > 5 && len(params[5]) > 0 {
+				expiry, err = strconv.ParseInt(params[5], 10, 64)
+				if err != nil {
+					return shim.Error("invalid expiry: need seconds")
+				}
+			}
+		}
 	}
 
 	var log *BalanceLog // log for response
 
-	log, err = ub.Pay(sBal, rBal, *amount, memo, pkey)
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to pay")
+	if signers.Size() > 1 {
+		if signers.Size() > 128 {
+			return shim.Error("too many signers")
+		}
+		// pending balance id
+		pbID := stub.GetTxID()
+		// contract
+		ptStr := "0"
+		if pendingTime != nil {
+			ptStr = params[4]
+		}
+		doc := []string{"utxo/pay", pbID, sender.GetID(), receiver.GetID(), amount.String(), memo, ptStr}
+		docb, err := json.Marshal(doc)
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to create a contract")
+		}
+		con, err := contract.CreateContract(stub, docb, expiry, signers)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+		// pending balance
+		log, err = bb.Deposit(pbID, sBal, con, *amount, memo)
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to create a pending balance")
+		}
+
+	} else {
+		log, err = ub.Pay(sBal, rBal, *amount, memo, pkey)
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to pay")
+		}
+
 	}
 
 	// log is not nil
