@@ -51,31 +51,30 @@ func (ub *UtxoStub) GetChunk(id string) (*Chunk, error) {
 }
 
 // Pay _
-func (ub *UtxoStub) Pay(sender, merchant *Balance, amount Amount, memo, pkey string) (*BalanceLog, error) {
+func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(ub.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	//check for the duplicated chunk.
-	key := ub.CreateChunkKey(merchant.GetID(), ts.UnixNano())
+	key := ub.CreateChunkKey(receiver.GetID(), ts.UnixNano())
 	if c, _ := ub.GetChunk(key); c != nil {
 		return nil, errors.New("duplicated chunk found")
 	}
 
-	chunk := NewChunkType(merchant.GetID(), amount, sender.GetID(), pkey, ts)
+	chunk := NewChunkType(receiver.GetID(), amount, sender.GetID(), pkey, ts)
 	if err = ub.PutChunk(chunk); nil != err {
 		return nil, errors.Wrap(err, "failed to put new chunk")
 	}
 
 	amount.Neg()
-
 	sender.Amount.Add(&amount)
 	sender.UpdatedTime = ts
 	if err = NewBalanceStub(ub.stub).PutBalance(sender); nil != err {
 		return nil, errors.Wrap(err, "failed to update sender balance")
 	}
-	sbl := NewBalanceTransferLog(sender, merchant, amount, memo)
+	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
 	sbl.CreatedTime = ts
 	if err = NewBalanceStub(ub.stub).PutBalanceLog(sbl); err != nil {
 		return nil, errors.Wrap(err, "failed to update sender balance log")
@@ -165,7 +164,6 @@ func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
 			return nil, errors.Wrap(err, "failed to parse json to struct")
 		}
 		amount = amount.Add(chunk.Amount.Neg())
-		fmt.Println(amount)
 	}
 
 	return amount, nil

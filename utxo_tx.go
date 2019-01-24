@@ -22,7 +22,6 @@ import (
 // params[3] : optional. memo (max 128 charactors)
 // params[4] : optional. expiry (duration represented by int64 seconds, multi-sig only)
 func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-
 	if len(params) < 3 {
 		return shim.Error("incorrect number of parameters. expecting at least 3")
 	}
@@ -37,8 +36,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	var sAddr *Address
 	sAddr, err = ParseAddress(params[0])
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to parse the sender's account address")
+		return responseError(err, "failed to parse the sender's account address")
 	}
 
 	// amount
@@ -68,20 +66,18 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 		totalRefund, err := ub.GetTotalRefundAmount(params[0], pkey)
 		if nil != err {
-			logger.Debug(err.Error())
-			return shim.Error(err.Error())
+			return responseError(err, "failed to get total refund amount")
 		}
 
 		if ck.Amount.Cmp(totalRefund.Add(amount.Copy().Neg())) < 0 {
-			return shim.Error("can't exceed the sum of past refund amounts")
+			return shim.Error("can't exceed the original amount")
 		}
 	}
 
 	// receiver address validation
 	rAddr, err := ParseAddress(rid)
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to parse the receiver's account address")
+		return responseError(err, "failed to parse the receiver's account address")
 	}
 
 	if rAddr.Code != sAddr.Code { // not same token
@@ -98,8 +94,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// sender account validation
 	sender, err := ab.GetAccount(sAddr)
 	if nil != err {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the sender account")
+		return responseError(err, "failed to get the sender account")
 	}
 	if !sender.HasHolder(kid) {
 		return shim.Error("invoker is not holder")
@@ -111,8 +106,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// receiver account validation
 	receiver, err := ab.GetAccount(rAddr)
 	if nil != err {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the receiver account")
+		return responseError(err, "failed to get the receiver account")
 	}
 	if receiver.IsSuspended() {
 		return shim.Error("the receiver account is suspended")
@@ -122,18 +116,20 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	bb := NewBalanceStub(stub)
 	sBal, err := bb.GetBalance(sender.GetID())
 	if nil != err {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the sender's balance")
+		return responseError(err, "failed to get the sender's balance")
 	}
-	if sBal.Amount.Cmp(amount) < 0 {
-		return shim.Error("not enough balance")
+
+	// refund - Merchant's  balance might be smaller than 0 because it can be before pruning
+	if amount.Sign() > 0 {
+		if sBal.Amount.Cmp(amount) < 0 {
+			return shim.Error("not enough balance")
+		}
 	}
 
 	// receiver balance
 	rBal, err := bb.GetBalance(receiver.GetID())
 	if nil != err {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the receiver's balance")
+		return responseError(err, "failed to get the receiver's balance")
 	}
 
 	// options
@@ -154,8 +150,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		if len(params) > 4 && len(params[5]) > 0 {
 			expiry, err = strconv.ParseInt(params[5], 10, 64)
 			if err != nil {
-				logger.Debug(err.Error())
-				return shim.Error("invalid expiry: need seconds")
+				responseError(err, "invalid expiry: need seconds")
 			}
 		}
 	}
@@ -169,21 +164,19 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		// pending balance id
 		pbID := stub.GetTxID()
 		// contract
-		doc := []string{"utxo/pay", pbID, sender.GetID(), receiver.GetID(), amount.String(), memo}
+		doc := []string{"pay", pbID, sender.GetID(), receiver.GetID(), amount.String(), memo}
 		docb, err := json.Marshal(doc)
 		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to create a contract")
+			return responseError(err, "failed to marshal contract do")
 		}
 		con, err := contract.CreateContract(stub, docb, expiry, signers)
 		if err != nil {
-			return shim.Error(err.Error())
+			return responseError(err, "failed to create the contract")
 		}
 		// pending balance
 		log, err = bb.Deposit(pbID, sBal, con, *amount, memo)
 		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error("failed to create a pending balance")
+			return responseError(err, "failed to create a pending balance")
 		}
 
 	} else {
@@ -192,10 +185,8 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		} else {
 			log, err = ub.Pay(rBal, sBal, *amount, memo, pkey)
 		}
-
 		if err != nil {
-			logger.Debug(err.Error())
-			return shim.Error(err.Error())
+			return responseError(err, "failed to pay")
 		}
 
 	}
@@ -203,8 +194,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// log is not nil
 	data, err := json.Marshal(log)
 	if nil != err {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal the log")
+		return responseError(err, "failed to marshal the log")
 	}
 
 	return shim.Success(data)
@@ -235,8 +225,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// account
 	account, err := NewAccountStub(stub, addr.Code).GetAccount(addr)
 	if nil != err {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the account")
+		return responseError(err, "failed to get the account")
 	}
 	if account.IsSuspended() {
 		return shim.Error("the account is suspended")
@@ -245,8 +234,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	bb := NewBalanceStub(stub)
 	balance, err := bb.GetBalance(account.GetID())
 	if nil != err {
-		logger.Debug(err.Error())
-		return shim.Error(err.Error())
+		return responseError(err, "failed to get the balance")
 	}
 	ub := NewUtxoStub(stub)
 
@@ -255,8 +243,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if 0 < len(balance.LastChunkID) {
 		lastChunk, err := ub.GetChunk(balance.LastChunkID)
 		if nil != err {
-			logger.Debug(err.Error())
-			return shim.Error("failed to get the last chunk")
+			return responseError(err, "failed to get the last chunk")
 		}
 		stime = lastChunk.CreatedTime
 	}
@@ -269,8 +256,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	chunkSum, err := ub.GetChunkSumByTime(account.GetID(), stime, etime)
 	if nil != err {
-		logger.Debug(err.Error())
-		return shim.Error("failed to prune chunks")
+		return responseError(err, "failed to prune chunks")
 	}
 
 	ts, err := txtime.GetTime(stub)
@@ -285,8 +271,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	if err := bb.PutBalance(balance); nil != err {
-		logger.Debug(err.Error())
-		return shim.Error("failed to update balance")
+		return responseError(err, "failed to update balance")
 	}
 
 	// balance log
@@ -303,13 +288,13 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// uxtoList _
+// payLogs _
 // params[0] : token code | account address
 // params[1] : bookmark
 // params[2] : fetch size (if < 1 => default size, max 200)
 // params[3] : start time (time represented by int64 seconds)
 // params[4] : end time (time represented by int64 seconds)
-func uxtoList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+func payLogs(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 1 {
 		return shim.Error("incorrect number of parameters. expecting 1+")
 	}
@@ -330,7 +315,7 @@ func uxtoList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		if len(params) > 2 {
 			fetchSize, err = strconv.Atoi(params[2])
 			if err != nil {
-				return shim.Error("invalid fetch size")
+				return responseError(err, "invalid fetch size")
 			}
 			// start time
 			if len(params) > 3 {
@@ -369,8 +354,7 @@ func uxtoList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 	}
 
-	ub := NewUtxoStub(stub)
-	res, err := ub.GetUtxoChunksByTime(addr.String(), bookmark, stime, etime, fetchSize)
+	res, err := NewUtxoStub(stub).GetUtxoChunksByTime(addr.String(), bookmark, stime, etime, fetchSize)
 	if nil != err {
 		return responseError(err, "failed to get chunks log")
 	}
@@ -385,7 +369,7 @@ func uxtoList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 // contract callbacks
 
-// doc: ["utxo/pay", pending-balance-ID, sender-ID, receiver-ID, amount, memo]
+// doc: ["pay", pending-balance-ID, sender-ID, receiver-ID, amount, memo]
 func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	if len(doc) < 5 {
 		return shim.Error("invalid contract document")
@@ -395,28 +379,23 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 	bb := NewBalanceStub(stub)
 	pb, err := bb.GetPendingBalance(doc[1].(string))
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the pending balance")
+		return responseError(err, "failed to get the pending balance")
 	}
 	// validate
 	if pb.Type != PendingBalanceTypeContract || pb.RID != cid {
 		return shim.Error("invalid pending balance")
 	}
 
-	// ISSUE: check accounts ? (suspended)
-
+	// ISSUE: check accounts ? (suspended) Business...
 	// receiver balance
 	rBal, err := bb.GetBalance(doc[3].(string))
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the receiver's balance")
+		return responseError(err, "failed to get the receiver's balance")
 	}
 
 	// pay
-	ub := NewUtxoStub(stub)
-	if err = ub.PayPendingBalance(pb, rBal); err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to pay a pending balance")
+	if err = NewUtxoStub(stub).PayPendingBalance(pb, rBal); err != nil {
+		return responseError(err, "failed to pay a pending balance")
 	}
 
 	return shim.Success(nil)
