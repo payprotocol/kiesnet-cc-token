@@ -173,6 +173,12 @@ const QueryUtxoChunksByIDAndTime = `{
 
 // CreateQueryUtxoChunksByIDAndTime _
 func CreateQueryUtxoChunksByIDAndTime(id string, stime, etime *txtime.Time) string {
+	if nil == stime {
+		stime = txtime.Unix(0, 0)
+	}
+	if nil == etime {
+		etime = txtime.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
+	}
 	return fmt.Sprintf(QueryUtxoChunksByIDAndTime, id, stime, etime)
 }
 

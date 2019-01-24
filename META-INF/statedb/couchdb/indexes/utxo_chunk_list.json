@@ -5,7 +5,7 @@
                 "$exists": true
             }
         },
-        "fields": [ "created_time" ]
+        "fields": [ "@chunk","created_time"  ]
     },
     "ddoc": "utxo",
     "name": "utxo-chunk-list",

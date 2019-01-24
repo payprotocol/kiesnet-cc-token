@@ -34,9 +34,14 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	//sender address validation
 	var sAddr *Address
-	sAddr, err = ParseAddress(params[0])
-	if err != nil {
-		return responseError(err, "failed to parse the sender's account address")
+	code, err := ValidateTokenCode(params[0])
+	if nil == err { // by token code
+		sAddr = NewAddress(code, AccountTypePersonal, kid)
+	} else { // by address
+		sAddr, err = ParseAddress(params[0])
+		if err != nil {
+			return responseError(err, "failed to get the account")
+		}
 	}
 
 	// amount
