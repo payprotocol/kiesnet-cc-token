@@ -98,7 +98,6 @@ func (ub *UtxoStub) PutChunk(chunk *Chunk) error {
 // GetChunkSumByTime _{end sum next}
 func (ub *UtxoStub) GetChunkSumByTime(id string, stime, etime *txtime.Time) (*ChunkSum, error) {
 	query := CreateQueryUtxoPruneChunks(id, stime, etime)
-	fmt.Println(query)
 	iter, err := ub.stub.GetQueryResult(query)
 	if err != nil {
 		return nil, err
@@ -144,7 +143,6 @@ func (ub *UtxoStub) GetChunkSumByTime(id string, stime, etime *txtime.Time) (*Ch
 // Returns sum of past refund amounts in positive amount
 func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
 	query := CreateQueryRefundChunks(id, pkey)
-	fmt.Println(query)
 	iter, err := ub.stub.GetQueryResult(query)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get query results")
@@ -184,7 +182,7 @@ func (ub *UtxoStub) GetUtxoChunksByTime(id, bookmark string, stime, etime *txtim
 	} else {
 		query = CreateQueryUtxoChunksByID(id)
 	}
-	fmt.Println(query)
+
 	iter, meta, err := ub.stub.GetQueryResultWithPagination(query, int32(fetchSize), bookmark)
 	if err != nil {
 		return nil, err
