@@ -138,7 +138,6 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// options
 	memo := ""
-	var pendingTime *txtime.Time
 	var expiry int64
 	signers := stringset.New(kid)
 	if a, ok := sender.(*JointAccount); ok {
@@ -170,11 +169,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		// pending balance id
 		pbID := stub.GetTxID()
 		// contract
-		ptStr := "0"
-		if pendingTime != nil {
-			ptStr = params[4]
-		}
-		doc := []string{"utxo/pay", pbID, sender.GetID(), receiver.GetID(), amount.String(), memo, ptStr, pkey}
+		doc := []string{"utxo/pay", pbID, sender.GetID(), receiver.GetID(), amount.String(), memo}
 		docb, err := json.Marshal(doc)
 		if err != nil {
 			logger.Debug(err.Error())
@@ -390,9 +385,9 @@ func uxtoList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 // contract callbacks
 
-// doc: ["utxo/pay", pending-balance-ID, sender-ID, receiver-ID, amount, memo, pending-time, pkey]
+// doc: ["utxo/pay", pending-balance-ID, sender-ID, receiver-ID, amount, memo]
 func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
-	if len(doc) < 7 {
+	if len(doc) < 5 {
 		return shim.Error("invalid contract document")
 	}
 
@@ -417,20 +412,9 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 		return shim.Error("failed to get the receiver's balance")
 	}
 
-	// pending time
-	ptStr := doc[6].(string)
-	var pendingTime *txtime.Time
-	if ptStr != "" && ptStr != "0" {
-		seconds, err := strconv.ParseInt(ptStr, 10, 64)
-		if err != nil {
-			return shim.Error("invalid pending time")
-		}
-		pendingTime = txtime.Unix(seconds, 0)
-	}
-
-	// transfer
+	// pay
 	ub := NewUtxoStub(stub)
-	if err = ub.PayPendingBalance(pb, rBal, pendingTime, doc[7].(string)); err != nil {
+	if err = ub.PayPendingBalance(pb, rBal); err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to pay a pending balance")
 	}
