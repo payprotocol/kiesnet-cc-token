@@ -56,11 +56,10 @@ func (ub *UtxoStub) Pay(sender, merchant *Balance, amount Amount, memo, pkey str
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
+
+	//check for the duplicated chunk.
 	key := ub.CreateChunkKey(merchant.GetID(), ts.UnixNano())
-	if c, err := ub.GetChunk(key); c != nil || err != nil {
-		if nil != err {
-			return nil, errors.Wrap(err, "failed to validate new chunk")
-		}
+	if c, _ := ub.GetChunk(key); c != nil {
 		return nil, errors.New("duplicated chunk found")
 	}
 
@@ -69,9 +68,8 @@ func (ub *UtxoStub) Pay(sender, merchant *Balance, amount Amount, memo, pkey str
 		return nil, errors.Wrap(err, "failed to put new chunk")
 	}
 
-	if amount.Sign() < 0 {
-		amount.Neg()
-	}
+	amount.Neg()
+
 	sender.Amount.Add(&amount)
 	sender.UpdatedTime = ts
 	if err = NewBalanceStub(ub.stub).PutBalance(sender); nil != err {
@@ -146,6 +144,7 @@ func (ub *UtxoStub) GetChunkSumByTime(id string, stime, etime *txtime.Time) (*Ch
 // Returns sum of past refund amounts in positive amount
 func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
 	query := CreateQueryRefundChunks(id, pkey)
+	fmt.Println(query)
 	iter, err := ub.stub.GetQueryResult(query)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get query results")
@@ -158,6 +157,7 @@ func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
 	defer iter.Close()
 
 	for iter.HasNext() {
+
 		kv, err := iter.Next()
 		chunk := &Chunk{}
 		err = json.Unmarshal(kv.Value, &chunk)
@@ -165,18 +165,10 @@ func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
 			return nil, errors.Wrap(err, "failed to parse json to struct")
 		}
 		amount = amount.Add(chunk.Amount.Neg())
+		fmt.Println(amount)
 	}
 
 	return amount, nil
-}
-
-// CheckDuplicatedChunk _
-func (ub *UtxoStub) CheckDuplicatedChunk(key string) bool {
-	chunk, err := ub.GetChunk(key)
-	if err == nil && chunk != nil {
-		return true
-	}
-	return false
 }
 
 // GetUtxoChunksByTime _

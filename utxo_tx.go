@@ -71,7 +71,8 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			logger.Debug(err.Error())
 			return shim.Error(err.Error())
 		}
-		if ck.Amount.Cmp(totalRefund.Add(&ck.Amount)) < 0 {
+
+		if ck.Amount.Cmp(totalRefund.Add(amount.Copy().Neg())) < 0 {
 			return shim.Error("can't exceed the sum of past refund amounts")
 		}
 	}
@@ -191,10 +192,15 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 
 	} else {
-		log, err = ub.Pay(sBal, rBal, *amount, memo, pkey)
+		if amount.Sign() > 0 {
+			log, err = ub.Pay(sBal, rBal, *amount, memo, pkey)
+		} else {
+			log, err = ub.Pay(rBal, sBal, *amount, memo, pkey)
+		}
+
 		if err != nil {
 			logger.Debug(err.Error())
-			return shim.Error("failed to pay")
+			return shim.Error(err.Error())
 		}
 
 	}
