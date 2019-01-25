@@ -74,7 +74,15 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 	if err = NewBalanceStub(ub.stub).PutBalance(sender); nil != err {
 		return nil, errors.Wrap(err, "failed to update sender balance")
 	}
-	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
+
+	//leave the balance log only to the user
+	var sbl *BalanceLog
+	if amount.Sign() > 0 {
+		sbl = NewBalanceTransferLog(receiver, sender, amount, memo)
+	} else {
+		sbl = NewBalanceTransferLog(sender, receiver, amount, memo)
+	}
+
 	sbl.CreatedTime = ts
 	if err = NewBalanceStub(ub.stub).PutBalanceLog(sbl); err != nil {
 		return nil, errors.Wrap(err, "failed to update sender balance log")
