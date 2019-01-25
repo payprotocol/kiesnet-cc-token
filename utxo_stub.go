@@ -35,8 +35,8 @@ func (ub *UtxoStub) CreateChunkKey(id string, nanosecond int64) string {
 }
 
 //GetChunk _
-func (ub *UtxoStub) GetChunk(id string) (*Chunk, error) {
-	data, err := ub.stub.GetState(id)
+func (ub *UtxoStub) GetChunk(key string) (*Chunk, error) {
+	data, err := ub.stub.GetState(key)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the chunk state")
 	}
@@ -48,6 +48,18 @@ func (ub *UtxoStub) GetChunk(id string) (*Chunk, error) {
 		return chunk, nil
 	}
 	return nil, errors.New("the chunk doesn't exist")
+}
+
+// PutChunk _
+func (ub *UtxoStub) PutChunk(chunk *Chunk) error {
+	data, err := json.Marshal(chunk)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal the balance")
+	}
+	if err = ub.stub.PutState(chunk.DOCTYPEID, data); err != nil {
+		return errors.Wrap(err, "failed to put the balance state")
+	}
+	return nil
 }
 
 // Pay _
@@ -63,7 +75,7 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 		return nil, errors.New("duplicated chunk found")
 	}
 
-	chunk := NewChunkType(receiver.GetID(), amount, sender.GetID(), pkey, ts)
+	chunk := NewChunkType(key, receiver.GetID(), amount, sender.GetID(), pkey, ts)
 	if err = ub.PutChunk(chunk); nil != err {
 		return nil, errors.Wrap(err, "failed to put new chunk")
 	}
@@ -89,18 +101,6 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 	}
 
 	return sbl, nil
-}
-
-// PutChunk _
-func (ub *UtxoStub) PutChunk(chunk *Chunk) error {
-	data, err := json.Marshal(chunk)
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal the balance")
-	}
-	if err = ub.stub.PutState(ub.CreateChunkKey(chunk.DOCTYPEID, chunk.CreatedTime.UnixNano()), data); err != nil {
-		return errors.Wrap(err, "failed to put the balance state")
-	}
-	return nil
 }
 
 // GetChunkSumByTime _{end sum next}
@@ -133,11 +133,11 @@ func (ub *UtxoStub) GetChunkSumByTime(id string, stime, etime *txtime.Time) (*Ch
 		}
 		//get the next chunk key ( +1 chunk after the threshhold)
 		if cnt == UtxoChunksPruneSize+1 {
-			cs.Next = kv.GetKey()
+			cs.Next = c.DOCTYPEID
 			break
 		}
 		s += c.Amount.Int64()
-		cs.End = kv.GetKey()
+		cs.End = c.DOCTYPEID
 	}
 
 	sum, err := NewAmount(strconv.FormatInt(s, 10))
@@ -190,7 +190,6 @@ func (ub *UtxoStub) GetUtxoChunksByTime(id, bookmark string, stime, etime *txtim
 	} else {
 		query = CreateQueryUtxoChunksByID(id)
 	}
-
 	iter, meta, err := ub.stub.GetQueryResultWithPagination(query, int32(fetchSize), bookmark)
 	if err != nil {
 		return nil, err
@@ -214,7 +213,7 @@ func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant *Balance) err
 		return errors.New("duplicated chunk found")
 	}
 	// Put chunk
-	chunk := NewChunkType(merchant.GetID(), pb.Amount, sender.GetID(), "", ts)
+	chunk := NewChunkType(key, merchant.GetID(), pb.Amount, sender.GetID(), "", ts)
 	if err = ub.PutChunk(chunk); nil != err {
 		return errors.Wrap(err, "failed to put new chunk")
 	}

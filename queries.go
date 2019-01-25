@@ -109,7 +109,7 @@ func CreateQueryPendingBalancesByAddress(addr, sort string) string {
 //QueryUtxoPruneChunks _
 const QueryUtxoPruneChunks = `{
 	"selector":{		
-		"@chunk": "%s",
+		"owner": "%s",
 		"$and":[
 			{
 				"created_time":{
@@ -123,12 +123,7 @@ const QueryUtxoPruneChunks = `{
 			}
 		] 
 	},
-	"use_index":["utxo","utxo-chunk-list"],
-	"fields":[
-		"@chunk",
-		"amount",
-		"created_time"
-	]
+	"use_index":["utxo","utxo-chunk-list"]
 }`
 
 // CreateQueryUtxoPruneChunks _
@@ -139,7 +134,7 @@ func CreateQueryUtxoPruneChunks(id string, stime, etime *txtime.Time) string {
 //RefundChunks _
 const RefundChunks = `{
 	"selector": {
-	   "@chunk": "%s",
+	   "owner": "%s",
 	   "pkey": "%s"
 	},
 	"use_index":[ "utxo", "utxo-chunk-refund" ]
@@ -153,7 +148,7 @@ func CreateQueryRefundChunks(id, pkey string) string {
 // QueryUtxoChunksByIDAndTime _
 const QueryUtxoChunksByIDAndTime = `{
 	"selector":{
-		"@chunk":"%s",
+		"owner":"%s",
 		"$and":[
 			{
 				"created_time":{
@@ -185,10 +180,10 @@ func CreateQueryUtxoChunksByIDAndTime(id string, stime, etime *txtime.Time) stri
 // QueryUtxoChunksByID _
 const QueryUtxoChunksByID = `{
 	"selector":{
-		"@chunk":"%s"
+		"owner":"%s"
 	},
 	"use_index":["utxo","utxo-chunk-list-by-id"],
-	"sort":[{"@chunk":"desc"},{"created_time":"desc"}]
+	"sort":[{"owner":"desc"},{"created_time":"desc"}]
 }`
 
 // CreateQueryUtxoChunksByID _

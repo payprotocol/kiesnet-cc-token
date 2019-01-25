@@ -3,7 +3,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
@@ -58,7 +57,6 @@ func (a *Account) GetType() AccountType {
 
 // HasHolder implements AccountInterface
 func (a *Account) HasHolder(kid string) bool {
-	fmt.Println("####", a.Holder(), "####", kid)
 	return a.Holder() == kid
 }
 

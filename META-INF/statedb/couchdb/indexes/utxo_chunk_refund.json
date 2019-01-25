@@ -8,7 +8,7 @@
                 "$exists": true
             }
         },
-        "fields": [ "@chunk", "pkey" ]
+        "fields": [ "owner", "pkey" ]
     },
     "ddoc": "utxo",
     "name": "utxo-chunk-refund",
