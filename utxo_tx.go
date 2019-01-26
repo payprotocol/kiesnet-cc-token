@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
@@ -206,8 +207,10 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 }
 
 // params[0] : Token Code or Address to prune.
-// params[1] : Prune end time. It is not guaranteed that the prune merge all chunks into one in this given period time. If it reaches the threshhold of 500, then it finishes the current action expecting the next call from the client.
+// params[1] : Prune end timestamp(in UTC)
+// It returns "next_key" if the prune is not completed within the given time period expecting recursive calls from the client.
 func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	//클라이언트가 실수로 2번째 파라미터를 입력하지 않을것을 막기위해 endtime을 입력하게 한다.
 	if len(params) < 2 {
 		return shim.Error("incorrect number of parameters. expecting 2 parameters")
 	}
@@ -257,7 +260,13 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if nil != err {
 		return responseError(err, "failed to parse the end time")
 	}
+
 	etime := txtime.Unix(seconds, 0)
+
+	//add 10 minutes to the end time and compare with the UTC current time. if etime+10minutes is greater than current time, set the end time to 10 minuest before current time.
+	if txtime.New(etime.Add(6e+11)).Cmp(txtime.New(time.Now())) > 0 {
+		etime = txtime.New(time.Now().Add(-6e+11))
+	}
 
 	chunkSum, err := ub.GetChunkSumByTime(account.GetID(), stime, etime)
 	if nil != err {
