@@ -242,29 +242,25 @@ func (ub *UtxoStub) GetUtxoPaysByTime(id, bookmark string, stime, etime *txtime.
 }
 
 // PayPendingBalance _
-func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant *Balance) error {
+func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant string) error {
 	ts, err := txtime.GetTime(ub.stub)
 	if nil != err {
 		return err
 	}
 
-	// ???: sender가 Balance객체인 이유??
-	sender := &Balance{DOCTYPEID: pb.Account} // proxy
-	bb := NewBalanceStub(ub.stub)
-
-	key := ub.CreatePayKey(merchant.GetID(), ts.UnixNano())
+	key := ub.CreatePayKey(merchant, ts.UnixNano())
 	if c, _ := ub.GetPay(key); c != nil { // ???: error
 		return errors.New("duplicated pay found")
 	}
 	// Put pay
-	pay := NewPay(merchant.GetID(), pb.Amount, sender.GetID(), "", "", ts)
+	pay := NewPay(merchant, pb.Amount, pb.Account, "", "", ts)
 	if err = ub.PutPay(pay); nil != err {
 		return errors.Wrap(err, "failed to put new pay")
 	}
 
 	// remove pending balance
 	// ???: bb.stub -> ub.stub or DeletePendingBalnace
-	if err := bb.stub.DelState(bb.CreatePendingKey(pb.DOCTYPEID)); err != nil {
+	if err := ub.stub.DelState(NewBalanceStub(ub.stub).CreatePendingKey(pb.DOCTYPEID)); err != nil {
 		return errors.Wrap(err, "failed to delete the pending balance")
 	}
 

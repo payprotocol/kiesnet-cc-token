@@ -347,19 +347,15 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	stime := txtime.Unix(0, 0)
 	if 0 < len(balance.LastPrunedPayID) {
 		lastTime := strings.Split(balance.LastPrunedPayID, "_")[2]
-		t, err := strconv.ParseInt(lastTime, 10, 64)
+		s, err := strconv.ParseInt(lastTime[0:10], 10, 64)
 		if nil != err {
 			return responseError(err, "failed to get seconds")
 		}
-		// s, err := strconv.ParseInt(lastTime[0:10], 10, 64)
-		// if nil != err {
-		// 	return responseError(err, "failed to get seconds")
-		// }
-		// n, err := strconv.ParseInt(lastTime[10:], 10, 64)
-		// if nil != err {
-		// 	return responseError(err, "failed to get seconds")
-		// }
-		stime := txtime.Unix(t/NanosecondsDivider, t%NanosecondsDivider)
+		n, err := strconv.ParseInt(lastTime[10:], 10, 64)
+		if nil != err {
+			return responseError(err, "failed to get seconds")
+		}
+		stime := txtime.Unix(s, n)
 	}
 	// end time
 	seconds, err := strconv.ParseInt(params[1], 10, 64)
@@ -510,14 +506,7 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 
 	// ???: GetBalance -> receiver-ID
 	// ISSUE: check accounts ? (suspended) Business...
-	// receiver balance
-	rBal, err := bb.GetBalance(doc[3].(string))
-	if err != nil {
-		return responseError(err, "failed to get the receiver's balance")
-	}
-
-	// pay
-	if err = NewUtxoStub(stub).PayPendingBalance(pb, rBal); err != nil {
+	if err = NewUtxoStub(stub).PayPendingBalance(pb, doc[3].(string)); err != nil {
 		return responseError(err, "failed to pay a pending balance")
 	}
 
