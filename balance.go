@@ -13,7 +13,7 @@ type Balance struct {
 	Amount          Amount       `json:"amount"`
 	CreatedTime     *txtime.Time `json:"created_time,omitempty"`
 	UpdatedTime     *txtime.Time `json:"updated_time,omitempty"`
-	LastPrunedPayID string       `json:"last_pruned_pay_id,omitempty"` // ??? naming
+	LastPrunedPayID string       `json:"last_pruned_pay_id,omitempty"`
 }
 
 // GetID implements Identifiable
