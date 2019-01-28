@@ -166,7 +166,7 @@ func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PayS
 	defer iter.Close()
 
 	var s int64
-	cs := &PaySum{}
+	cs := &PaySum{HasMore: false}
 	c := &Pay{}
 	cnt := 0 //record counter
 	if !iter.HasNext() {
@@ -189,7 +189,7 @@ func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PayS
 		}
 		//get the next pay key ( +1 pay after the threshhold)
 		if cnt == UtxoPaysPruneSize+1 {
-			cs.Next = c.DOCTYPEID
+			cs.HasMore = true
 			break
 		}
 		s += c.Amount.Int64()

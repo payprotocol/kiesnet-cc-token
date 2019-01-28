@@ -30,9 +30,10 @@ func NewPay(id string, amount Amount, rid, pkey, memo string, ts *txtime.Time) *
 }
 
 // PaySum _
+// ???: next_key를 다음 콜에 파라미터를 쓰지 않는다면 has_more, not_complete 같은 이름의 boolean값이 나을 듯
 type PaySum struct {
-	Sum   *Amount `json:"sum"`
-	Start string  `json:"start_key"`
-	End   string  `json:"end_key"`
-	Next  string  `json:"next_key"`
+	Sum     *Amount `json:"sum"`
+	Start   string  `json:"start_key"`
+	End     string  `json:"end_key"`
+	HasMore bool    `json:"has_more"`
 }
