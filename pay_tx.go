@@ -4,9 +4,8 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
-	"time"
+	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
@@ -15,6 +14,9 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
+
+// NanosecondsDivider _
+const NanosecondsDivider = 1000000000
 
 // params[0] : sender's address or Token Code.
 // params[1] : receiver's address
@@ -341,15 +343,23 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 	ub := NewUtxoStub(stub)
 
-	// ???: key or id로 처리 가능한 부분 (RSet 줄이기)
 	// start time
 	stime := txtime.Unix(0, 0)
 	if 0 < len(balance.LastPrunedPayID) {
-		lastPay, err := ub.GetPay(balance.LastPrunedPayID)
+		lastTime := strings.Split(balance.LastPrunedPayID, "_")[2]
+		t, err := strconv.ParseInt(lastTime, 10, 64)
 		if nil != err {
-			return responseError(err, "failed to get the last pay")
+			return responseError(err, "failed to get seconds")
 		}
-		stime = lastPay.CreatedTime
+		// s, err := strconv.ParseInt(lastTime[0:10], 10, 64)
+		// if nil != err {
+		// 	return responseError(err, "failed to get seconds")
+		// }
+		// n, err := strconv.ParseInt(lastTime[10:], 10, 64)
+		// if nil != err {
+		// 	return responseError(err, "failed to get seconds")
+		// }
+		stime := txtime.Unix(t/NanosecondsDivider, t%NanosecondsDivider)
 	}
 	// end time
 	seconds, err := strconv.ParseInt(params[1], 10, 64)
@@ -358,29 +368,21 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	etime := txtime.Unix(seconds, 0)
-
 	//add 10 minutes to the end time and compare with the UTC current time. if etime+10minutes is greater than current time, set the end time to 10 minuest before current time.
 	ts, err := txtime.GetTime(stub)
 	if nil != err {
 		return responseError(err, "failed to get the timestamp")
 	}
-	ts.Add(6e+11)
-	// tx 타임 기준 <-
+
 	safeTime := txtime.New(ts.Add(6e+11)) // 6e+11 = time.Duration(-10)*time.Minute
 	if etime.Cmp(safeTime) > 0 {
 		etime = safeTime
-	}
-
-	txtime.New(ts.Add(6e+11))
-	if txtime.New(etime.Add(6e+11)).Cmp(txtime.New(time.Now())) > 0 {
-		etime = txtime.New(time.Now().Add(-6e+11))
 	}
 
 	paySum, err := ub.GetPaySumByTime(account.GetID(), stime, etime)
 	if nil != err {
 		return responseError(err, "failed to prune pays")
 	}
-
 	// Add balance
 	balance.Amount.Add(paySum.Sum)
 	balance.UpdatedTime = ts
@@ -394,8 +396,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// ???: log type 추가, memo필요시 단순화
 	// balance log
-	//NewBalanceWithPruneLog(balance, &paySum.Sum)
-	rbl := NewBalanceTransferLog(nil, balance, *paySum.Sum, fmt.Sprintf("prune result from %s to %s ", stime.Time.UTC(), etime.Time.UTC()))
+	rbl := NewBalanceWithPruneLog(balance, *paySum.Sum, paySum.Start, paySum.End)
 	rbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(rbl); err != nil {
 		return shim.Error(err.Error())
