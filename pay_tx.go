@@ -219,7 +219,7 @@ func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	totalRefund := parentPay.TotalRefund
 
-	if parentPay.Amount.Cmp(totalRefund.Add(amount)) < 0 {
+	if parentPay.Amount.Cmp(totalRefund.Copy().Add(amount)) < 0 {
 		return shim.Error("can't exceed the original pay amount")
 	}
 

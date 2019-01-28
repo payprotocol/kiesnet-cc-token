@@ -29,12 +29,17 @@ func NewUtxoStub(stub shim.ChaincodeStubInterface) *UtxoStub {
 }
 
 // CreatePayKey _
-// ???: nanosecond ?
 func (ub *UtxoStub) CreatePayKey(id string, unixnano int64) string {
 	if id == "" {
 		return ""
 	}
 	return fmt.Sprintf("PAY_%s_%d", id, unixnano)
+}
+
+// CreatePayKeyByTime _
+func (ub *UtxoStub) CreatePayKeyByTime(id string, ts *txtime.Time) string {
+	unixNano := ts.UnixNano()
+	return ub.CreatePayKey(id, unixNano)
 }
 
 //GetPay _
@@ -104,13 +109,12 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 }
 
 // Refund _
-func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo, parentPay *Pay) (*BalanceLog, error) {
+func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo string, parentPay *Pay) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(ub.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	//TODO: PayKey convention is beging changed by Jason. Update below line.
 	key := ub.CreatePayKey(receiver.GetID(), ts.UnixNano())
 	if c, err := ub.GetPay(key); c != nil {
 		if err != nil {
@@ -119,7 +123,8 @@ func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo, paren
 		return nil, errors.New("duplicated pay found")
 	}
 
-	pay := NewPay(sender.GetID(), amount, receiver.GetID(), CreatePayKeyFromTime(parentPay.CreatedTime), memo, ts)
+	pay := NewPay(sender.GetID(), amount, receiver.GetID(), ub.CreatePayKeyByTime(parentPay.DOCTYPEID, parentPay.CreatedTime), memo, ts)
+
 	if err = ub.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
 	}
@@ -131,8 +136,16 @@ func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo, paren
 		return nil, errors.Wrap(err, "failed to update receiver balance")
 	}
 
+	//update the total refund amount to the parent utxo
+	parentPay.TotalRefund = *parentPay.TotalRefund.Add(amount.Copy().Neg())
+
+	err = ub.PutPay(parentPay)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to update parent pay utxo")
+	}
+
 	var rbl *BalanceLog
-	rbl = NewBalanceWithPayLog(receiver, pay)
+	rbl = NewBalanceWithRefundLog(receiver, pay)
 	rbl.CreatedTime = ts
 
 	if err = NewBalanceStub(ub.stub).PutBalanceLog(rbl); err != nil {
@@ -188,35 +201,6 @@ func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PayS
 	return cs, nil
 
 }
-
-// GetTotalRefundAmount _
-// Returns sum of past refund amounts in positive amount
-// func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
-// 	query := CreateQueryRefundPays(id, pkey)
-// 	iter, err := ub.stub.GetQueryResult(query)
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "failed to get query results")
-// 	}
-// 	amount, err := NewAmount("0")
-// 	if err != nil {
-
-// 		return nil, errors.Wrap(err, "failed to parse to number")
-// 	}
-// 	defer iter.Close()
-
-// 	for iter.HasNext() {
-
-// 		kv, err := iter.Next()
-// 		pay := &Pay{}
-// 		err = json.Unmarshal(kv.Value, &pay)
-// 		if err != nil {
-// 			return nil, errors.Wrap(err, "failed to parse json to struct")
-// 		}
-// 		amount = amount.Add(pay.Amount.Neg())
-// 	}
-
-// 	return amount, nil
-// }
 
 // GetUtxoPaysByTime _
 func (ub *UtxoStub) GetUtxoPaysByTime(id, bookmark string, stime, etime *txtime.Time, fetchSize int) (*QueryResult, error) {
