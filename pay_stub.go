@@ -59,7 +59,7 @@ func (ub *UtxoStub) PutPay(pay *Pay) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the balance")
 	}
-	if err = ub.stub.PutState(pay.DOCTYPEID, data); err != nil {
+	if err = ub.stub.PutState(ub.CreatePayKey(pay.DOCTYPEID, pay.CreatedTime.UnixNano()), data); err != nil {
 		return errors.Wrap(err, "failed to put the balance state")
 	}
 	return nil
@@ -73,13 +73,12 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	//TODO: PayKey convention is beging changed by Jason. Update below line.
 	key := ub.CreatePayKey(receiver.GetID(), ts.UnixNano())
 	if c, _ := ub.GetPay(key); c != nil {
 		return nil, errors.New("duplicated pay found")
 	}
 
-	pay := NewPay(key, receiver.GetID(), amount, sender.GetID(), pkey, ts)
+	pay := NewPay(receiver.GetID(), amount, sender.GetID(), pkey, memo, ts)
 	if err = ub.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
 	}
@@ -114,7 +113,7 @@ func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo, pkey 
 		return nil, errors.New("duplicated pay found")
 	}
 
-	pay := NewPay(key, receiver.GetID(), amount, sender.GetID(), pkey, ts)
+	pay := NewPay(sender.GetID(), amount, receiver.GetID(), pkey, memo, ts)
 	if err = ub.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
 	}
@@ -249,7 +248,7 @@ func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant *Balance) err
 		return errors.New("duplicated pay found")
 	}
 	// Put pay
-	pay := NewPay(key, merchant.GetID(), pb.Amount, sender.GetID(), "", ts)
+	pay := NewPay(merchant.GetID(), pb.Amount, sender.GetID(), "", "", ts)
 	if err = ub.PutPay(pay); nil != err {
 		return errors.Wrap(err, "failed to put new pay")
 	}

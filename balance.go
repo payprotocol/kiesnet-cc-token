@@ -116,7 +116,7 @@ func NewBalanceWithPayLog(bal *Balance, pay *Pay) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypePay,
-		RID:       pay.RID,
+		RID:       pay.DOCTYPEID,
 		Diff:      pay.Amount,
 		Amount:    bal.Amount,
 		Memo:      pay.Memo,
