@@ -60,28 +60,6 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	rid := params[1] // receiver's id
 	pkey := ""       // parent key(original pay key). this field is used for tracking the original/parent pay from the refund pay
-	if amount.Sign() < 0 {
-		ck, err := ub.GetPay(params[1])
-		if err != nil {
-			return shim.Error("invalid pay key was provided.")
-		}
-		rid = ck.RID     //getting the user's id from the original pay
-		pkey = params[1] //this parent key is written on the refund pay created later.
-
-		if ck.Amount.Cmp(amount.Copy().Neg()) < 0 {
-			return shim.Error("refund amount can't be greater than the pay amount")
-		}
-
-		// ???: 매번 iterating하지 말고, origin pay에 caching, 같은 블록타임에 넘칠 수 있음 (물론 받는 쪽에서 컨플릭트)
-		totalRefund, err := ub.GetTotalRefundAmount(params[0], pkey)
-		if nil != err {
-			return responseError(err, "failed to get total refund amount")
-		}
-
-		if ck.Amount.Cmp(totalRefund.Add(amount.Copy().Neg())) < 0 {
-			return shim.Error("can't exceed the original amount")
-		}
-	}
 
 	// receiver address validation
 	rAddr, err := ParseAddress(rid)
@@ -199,6 +177,143 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return responseError(err, "failed to pay")
 		}
 
+	}
+
+	// log is not nil
+	data, err := json.Marshal(log)
+	if nil != err {
+		return responseError(err, "failed to marshal the log")
+	}
+
+	return shim.Success(data)
+}
+
+// params[0] : sender's address
+// params[1] : original PAY key
+// params[2] : refund amount.
+// params[3] : optional. memo (max 128 charactors)
+func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) < 3 {
+		return shim.Error("incorrect number of parameters. expecting at least 3")
+	}
+
+	// authentication
+	kid, err := kid.GetID(stub, true)
+	if nil != err {
+		return shim.Error(err.Error())
+	}
+
+	//sender address validation
+	var sAddr *Address
+	code, err := ValidateTokenCode(params[0])
+	if nil == err { // by token code
+		sAddr = NewAddress(code, AccountTypePersonal, kid)
+	} else { // by address
+		sAddr, err = ParseAddress(params[0])
+		if err != nil {
+			return responseError(err, "failed to get the account")
+		}
+	}
+
+	// amount
+	amount, err := NewAmount(params[2])
+	if nil != err {
+		return shim.Error(err.Error())
+	}
+	if amount.Sign() < 1 {
+		return shim.Error("invalid amount. must be greater than 0")
+	}
+
+	ub := NewUtxoStub(stub)
+
+	rid := params[1] // receiver's id
+	pkey := ""       // parent key(original PYMT key). this field is used for tracking the original/parent PYMT UTXO from the refund PYMT UTXO
+
+	ck, err := ub.GetPay(params[1])
+	if err != nil {
+		return shim.Error("invalid pay key was provided.")
+	}
+	rid = ck.RID     //getting the user's id from the original pay
+	pkey = params[1] //this parent key is written on the refund pay created later.
+
+	parentPay, err := ub.GetPay(pkey)
+	if err != nil {
+		return shim.Error("failed to get the original payment from the key")
+	}
+
+	totalRefund := parentPay.TotalRefund //TODO: check if totalRefund can be nil or ""
+	fmt.Println("######### totalRefund: ", totalRefund)
+
+	if ck.Amount.Cmp(totalRefund.Add(amount)) < 0 {
+		return shim.Error("can't exceed the original pay amount")
+	}
+
+	// receiver address validation
+	rAddr, err := ParseAddress(rid)
+	if err != nil {
+		return responseError(err, "failed to parse the receiver's account address")
+	}
+
+	if rAddr.Code != sAddr.Code { // not same token
+		return shim.Error("different token accounts")
+	}
+
+	if sAddr.Equal(rAddr) {
+		return shim.Error("can't refund to self")
+	}
+
+	ab := NewAccountStub(stub, rAddr.Code)
+
+	// sender account validation
+	sender, err := ab.GetAccount(sAddr)
+	if nil != err {
+		return responseError(err, "failed to get the sender account")
+	}
+	if !sender.HasHolder(kid) {
+		return shim.Error("invoker is not holder")
+	}
+	if sender.IsSuspended() {
+		return shim.Error("the sender account is suspended")
+	}
+
+	// receiver account validation
+	receiver, err := ab.GetAccount(rAddr)
+	if nil != err {
+		return responseError(err, "failed to get the receiver account")
+	}
+	if receiver.IsSuspended() {
+		return shim.Error("the receiver account is suspended")
+	}
+
+	// sender balance
+	bb := NewBalanceStub(stub)
+	sBal, err := bb.GetBalance(sender.GetID())
+	if nil != err {
+		return responseError(err, "failed to get the sender's balance")
+	}
+
+	// receiver balance
+	rBal, err := bb.GetBalance(receiver.GetID())
+	if nil != err {
+		return responseError(err, "failed to get the receiver's balance")
+	}
+
+	// options
+	memo := ""
+	// memo
+	if len(params) > 3 {
+		if len(params[3]) > 128 { // 128 charactors limit
+			memo = params[3][:128]
+		} else {
+			memo = params[3]
+		}
+	}
+
+	var log *BalanceLogTypePay // TODO: change this to BalanceLogTypePay
+	log, err = ub.Refund(sBal, rBal, *amount, memo, pkey)
+
+	if err != nil {
+		return responseError(err, "failed to pay")
 	}
 
 	// log is not nil
