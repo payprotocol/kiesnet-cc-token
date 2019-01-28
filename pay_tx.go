@@ -390,7 +390,6 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to update balance")
 	}
 
-	// ???: log type 추가, memo필요시 단순화
 	// balance log
 	rbl := NewBalanceWithPruneLog(balance, *paySum.Sum, paySum.Start, paySum.End)
 	rbl.CreatedTime = ts
@@ -405,8 +404,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// ???: log와 list 차이
-// payLogs _
+// payList _
 // params[0] : token code | account address
 // params[1] : bookmark
 // params[2] : fetch size (if < 1 => default size, max 200)

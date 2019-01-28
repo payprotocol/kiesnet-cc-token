@@ -71,7 +71,6 @@ func (ub *UtxoStub) PutPay(pay *Pay) error {
 }
 
 // Pay _
-// ???: 분리, 리턴 값
 func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(ub.stub)
 	if nil != err {
@@ -233,8 +232,11 @@ func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant string) error
 	}
 
 	key := ub.CreatePayKey(merchant, ts.UnixNano())
-	if c, _ := ub.GetPay(key); c != nil { // ???: error
-		return errors.New("duplicated pay found")
+	if c, err := ub.GetPay(key); c != nil {
+		if err != nil {
+			return errors.New("duplicated pay found")
+		}
+
 	}
 	// Put pay
 	pay := NewPay(merchant, pb.Amount, pb.Account, "", "", ts)
@@ -243,7 +245,6 @@ func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant string) error
 	}
 
 	// remove pending balance
-	// ???: bb.stub -> ub.stub or DeletePendingBalnace
 	if err := ub.stub.DelState(NewBalanceStub(ub.stub).CreatePendingKey(pb.DOCTYPEID)); err != nil {
 		return errors.Wrap(err, "failed to delete the pending balance")
 	}
