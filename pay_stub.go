@@ -30,11 +30,11 @@ func NewUtxoStub(stub shim.ChaincodeStubInterface) *UtxoStub {
 
 // CreatePayKey _
 // ???: nanosecond ?
-func (ub *UtxoStub) CreatePayKey(id string, nanosecond int64) string {
+func (ub *UtxoStub) CreatePayKey(id string, unixnano int64) string {
 	if id == "" {
 		return ""
 	}
-	return fmt.Sprintf("PAY_%s_%d", id, nanosecond)
+	return fmt.Sprintf("PAY_%s_%d", id, unixnano)
 }
 
 //GetPay _
@@ -73,7 +73,7 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	//check for the duplicated pay.
+	//TODO: PayKey convention is beging changed by Jason. Update below line.
 	key := ub.CreatePayKey(receiver.GetID(), ts.UnixNano())
 	if c, _ := ub.GetPay(key); c != nil {
 		return nil, errors.New("duplicated pay found")
@@ -91,14 +91,8 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 		return nil, errors.Wrap(err, "failed to update sender balance")
 	}
 
-	// ???: log type
 	var sbl *BalanceLog
-	if amount.Sign() > 0 {
-		sbl = NewBalanceTransferLog(receiver, sender, amount, memo)
-	} else {
-		sbl = NewBalanceTransferLog(sender, receiver, amount, memo)
-	}
-
+	sbl = NewBalanceWithPayLog(sender, pay)
 	sbl.CreatedTime = ts
 	if err = NewBalanceStub(ub.stub).PutBalanceLog(sbl); err != nil {
 		return nil, errors.Wrap(err, "failed to update sender balance log")

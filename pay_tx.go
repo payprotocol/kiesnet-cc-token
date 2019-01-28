@@ -156,14 +156,10 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 
 	} else {
-
-		if amount.Sign() > 0 {
-			log, err = NewUtxoStub(stub).Pay(sBal, rBal, *amount, memo, "")
-		}
+		log, err = NewUtxoStub(stub).Pay(sBal, rBal, *amount, memo, "")
 		if err != nil {
 			return responseError(err, "failed to pay")
 		}
-
 	}
 
 	// log is not nil
@@ -176,7 +172,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 }
 
 // params[0] : sender's address
-// params[1] : original PAY key
+// params[1] : original pay key
 // params[2] : refund amount.
 // params[3] : optional. memo (max 128 charactors)
 func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
@@ -408,7 +404,7 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// ???: log type 추가, memo필요시 단순화
 	// balance log
-	NewBalanceWithPruneLog(balance, &paySum.Sum)
+	//NewBalanceWithPruneLog(balance, &paySum.Sum)
 	rbl := NewBalanceTransferLog(nil, balance, *paySum.Sum, fmt.Sprintf("prune result from %s to %s ", stime.Time.UTC(), etime.Time.UTC()))
 	rbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(rbl); err != nil {
