@@ -92,7 +92,6 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 	}
 
 	// ???: log type
-	//leave the balance log only to the user
 	var sbl *BalanceLog
 	if amount.Sign() > 0 {
 		sbl = NewBalanceTransferLog(receiver, sender, amount, memo)
@@ -109,7 +108,7 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 }
 
 // Refund _
-func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLogTypePay, error) {
+func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(ub.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
@@ -133,12 +132,12 @@ func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo, pkey 
 		return nil, errors.Wrap(err, "failed to update receiver balance")
 	}
 
-	var rbl *BalanceLogTypePay
-	rbl = BalanceLogTypePay(sender, receiver, amount, memo)
+	var rbl *BalanceLog
+	rbl = NewBalanceWithPayLog(receiver, pay)
 	rbl.CreatedTime = ts
 
-	if err = NewBalanceStub(ub.stub).PutBalanceLogTypePay(sbl); err != nil {
-		return nil, errors.Wrap(err, "failed to update sender balance log")
+	if err = NewBalanceStub(ub.stub).PutBalanceLog(rbl); err != nil {
+		return nil, errors.Wrap(err, "failed to update receiver's balance log")
 	}
 
 	return rbl, nil
@@ -256,7 +255,7 @@ func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant *Balance) err
 		return errors.New("duplicated pay found")
 	}
 	// Put pay
-	pay := NewPayType(key, merchant.GetID(), pb.Amount, sender.GetID(), "", ts)
+	pay := NewPay(key, merchant.GetID(), pb.Amount, sender.GetID(), "", ts)
 	if err = ub.PutPay(pay); nil != err {
 		return errors.Wrap(err, "failed to put new pay")
 	}

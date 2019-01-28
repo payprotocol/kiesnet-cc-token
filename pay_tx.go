@@ -16,12 +16,9 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
-// ???: refund 분리 , 용어 정리
-
-// params[0] : sender's address
-// params[1] : positive amount: receiver's address who gets paid.
-//             negative amount: Original pay key.
-// params[2] : amount. can be either positive(pay) or negative(refund) amount.
+// params[0] : sender's address or Token Code.
+// params[1] : receiver's address
+// params[2] : amount
 // params[3] : optional. memo (max 128 charactors)
 // params[4] : optional. expiry (duration represented by int64 seconds, multi-sig only)
 func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
@@ -52,17 +49,12 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if nil != err {
 		return shim.Error(err.Error())
 	}
-	if amount.Sign() == 0 {
-		return shim.Error("invalid amount. amount shouldn't be 0")
+	if amount.Sign() < 1 {
+		return shim.Error("invalid amount.  must be greater than 0")
 	}
 
-	ub := NewUtxoStub(stub)
-
-	rid := params[1] // receiver's id
-	pkey := ""       // parent key(original pay key). this field is used for tracking the original/parent pay from the refund pay
-
 	// receiver address validation
-	rAddr, err := ParseAddress(rid)
+	rAddr, err := ParseAddress(params[1])
 	if err != nil {
 		return responseError(err, "failed to parse the receiver's account address")
 	}
@@ -71,8 +63,8 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("different token accounts")
 	}
 
-	// IMPORTANT: assert(sender != receiver)
-	if sAddr.Equal(rAddr) { // ???: 필요한가...
+	// prevent from paying to self
+	if sAddr.Equal(rAddr) {
 		return shim.Error("can't pay to self")
 	}
 
@@ -106,11 +98,8 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to get the sender's balance")
 	}
 
-	// refund - Merchant's  balance might be smaller than 0 because it can be before pruning
-	if amount.Sign() > 0 {
-		if sBal.Amount.Cmp(amount) < 0 {
-			return shim.Error("not enough balance")
-		}
+	if sBal.Amount.Cmp(amount) < 0 {
+		return shim.Error("not enough balance")
 	}
 
 	// receiver balance
@@ -167,11 +156,9 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 
 	} else {
-		// ???: refund를 pay로 함?
+
 		if amount.Sign() > 0 {
-			log, err = ub.Pay(sBal, rBal, *amount, memo, pkey)
-		} else {
-			log, err = ub.Pay(rBal, sBal, *amount, memo, pkey)
+			log, err = NewUtxoStub(stub).Pay(sBal, rBal, *amount, memo, "")
 		}
 		if err != nil {
 			return responseError(err, "failed to pay")
@@ -225,16 +212,14 @@ func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	ub := NewUtxoStub(stub)
+	pkey := params[1]
 
-	rid := params[1] // receiver's id
-	pkey := ""       // parent key(original PYMT key). this field is used for tracking the original/parent PYMT UTXO from the refund PYMT UTXO
-
-	ck, err := ub.GetPay(params[1])
+	ck, err := ub.GetPay(pkey)
 	if err != nil {
 		return shim.Error("invalid pay key was provided.")
 	}
-	rid = ck.RID     //getting the user's id from the original pay
-	pkey = params[1] //this parent key is written on the refund pay created later.
+	rid := ck.RID //getting the receiver's id from the original pay
+	//this parent key is written on the refund pay created later.
 
 	parentPay, err := ub.GetPay(pkey)
 	if err != nil {
@@ -309,7 +294,7 @@ func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 	}
 
-	var log *BalanceLogTypePay // TODO: change this to BalanceLogTypePay
+	var log *BalanceLog
 	log, err = ub.Refund(sBal, rBal, *amount, memo, pkey)
 
 	if err != nil {
@@ -370,8 +355,8 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// ???: key or id로 처리 가능한 부분 (RSet 줄이기)
 	// start time
 	stime := txtime.Unix(0, 0)
-	if 0 < len(balance.LastPayID) {
-		lastPay, err := ub.GetPay(balance.LastPayID)
+	if 0 < len(balance.LastPrunedPayID) {
+		lastPay, err := ub.GetPay(balance.LastPrunedPayID)
 		if nil != err {
 			return responseError(err, "failed to get the last pay")
 		}
@@ -414,7 +399,7 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	balance.Amount.Add(paySum.Sum)
 	balance.UpdatedTime = ts
 	if 0 != len(paySum.End) {
-		balance.LastPayID = paySum.End
+		balance.LastPrunedPayID = paySum.End
 	}
 
 	if err := bb.PutBalance(balance); nil != err {
