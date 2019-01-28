@@ -79,7 +79,7 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 		return nil, errors.New("duplicated pay found")
 	}
 
-	pay := NewPayType(key, receiver.GetID(), amount, sender.GetID(), pkey, ts)
+	pay := NewPay(key, receiver.GetID(), amount, sender.GetID(), pkey, ts)
 	if err = ub.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
 	}

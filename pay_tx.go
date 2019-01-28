@@ -308,6 +308,7 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// ???: log type 추가, memo필요시 단순화
 	// balance log
+	NewBalanceWithPruneLog(balance, &paySum.Sum)
 	rbl := NewBalanceTransferLog(nil, balance, *paySum.Sum, fmt.Sprintf("prune result from %s to %s ", stime.Time.UTC(), etime.Time.UTC()))
 	rbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(rbl); err != nil {
