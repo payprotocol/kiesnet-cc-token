@@ -355,7 +355,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		if nil != err {
 			return responseError(err, "failed to get seconds")
 		}
-		stime := txtime.Unix(s, n)
+		stime = txtime.Unix(s, n)
 	}
 	// end time
 	seconds, err := strconv.ParseInt(params[1], 10, 64)
