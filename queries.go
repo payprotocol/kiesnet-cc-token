@@ -109,7 +109,7 @@ func CreateQueryPendingBalancesByAddress(addr, sort string) string {
 //QueryUtxoPrunePays _
 const QueryUtxoPrunePays = `{
 	"selector":{		
-		"owner": "%s",
+		"@pay": "%s",
 		"$and":[
 			{
 				"created_time":{
@@ -134,7 +134,7 @@ func CreateQueryUtxoPrunePays(id string, stime, etime *txtime.Time) string {
 //RefundPays _
 const RefundPays = `{
 	"selector": {
-	   "owner": "%s",
+	   "@pay": "%s",
 	   "pkey": "%s"
 	},
 	"use_index":[ "utxo", "utxo-pay-refund" ]
@@ -148,7 +148,7 @@ func CreateQueryRefundPays(id, pkey string) string {
 // QueryUtxoPaysByIDAndTime _
 const QueryUtxoPaysByIDAndTime = `{
 	"selector":{
-		"owner":"%s",
+		"@pay":"%s",
 		"$and":[
 			{
 				"created_time":{
@@ -180,10 +180,10 @@ func CreateQueryUtxoPaysByIDAndTime(id string, stime, etime *txtime.Time) string
 // QueryUtxoPaysByID _
 const QueryUtxoPaysByID = `{
 	"selector":{
-		"owner":"%s"
+		"@pay":"%s"
 	},
 	"use_index":["utxo","utxo-pay-list-by-id"],
-	"sort":[{"owner":"desc"},{"created_time":"desc"}]
+	"sort":[{"@pay":"desc"},{"created_time":"desc"}]
 }`
 
 // CreateQueryUtxoPaysByID _

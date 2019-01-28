@@ -5,7 +5,7 @@
                 "$exists": true
             }
         },
-        "fields": [ "owner", "created_time" ]
+        "fields": [ "@pay", "created_time" ]
     },
     "ddoc": "utxo",
     "name": "utxo-pay-list",
