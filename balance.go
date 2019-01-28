@@ -138,11 +138,11 @@ func NewBalanceWithRefundLog(bal *Balance, pay *Pay) *BalanceLog {
 }
 
 // NewBalanceWithPruneLog No need RID
-func NewBalanceWithPruneLog(bal *Balance, amount *Amount, Start, End string) *BalanceLog {
+func NewBalanceWithPruneLog(bal *Balance, amount Amount, Start, End string) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID:     bal.DOCTYPEID,
 		Type:          BalanceLogTypePrune,
-		Diff:          *amount,
+		Diff:          amount,
 		Amount:        bal.Amount,
 		PruneStartKey: Start,
 		PruneEndKey:   End,

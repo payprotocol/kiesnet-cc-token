@@ -176,6 +176,9 @@ func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PayS
 	}
 
 	for iter.HasNext() {
+		if 0 == cnt {
+			cs.Start = c.DOCTYPEID
+		}
 		cnt++
 		kv, err := iter.Next()
 		if nil != err {
