@@ -8,30 +8,30 @@ import (
 
 // ???: 전체적인 naming 문제
 
-// PayChunkType _
-type PayChunkType int8
+// PayPayType _
+type PayPayType int8
 
 // ???: useless
 const (
-	// PayChunkTypeAccount _
-	PayChunkTypeAccount PayChunkType = iota
-	// PayChunkTypeContract _
-	PayChunkTypeContract
+	// PayPayTypeAccount _
+	PayPayTypeAccount PayPayType = iota
+	// PayPayTypeContract _
+	PayPayTypeContract
 )
 
-// Chunk _
-type Chunk struct {
-	DOCTYPEID   string       `json:"@chunk"`         // chunk id
+// Pay _
+type Pay struct {
+	DOCTYPEID   string       `json:"@pay"`           // pay id
 	Owner       string       `json:"owner"`          // owner id
 	Amount      Amount       `json:"amount"`         //can be positive(pay) or negative(refund)
 	RID         string       `json:"rid"`            //related id. user who pays to the merchant or receives refund from the merchant.
-	PKey        string       `json:"pkey,omitempty"` //parent key. this value exists only when the chunk type is refund(negative amount)
+	PKey        string       `json:"pkey,omitempty"` //parent key. this value exists only when the pay type is refund(negative amount)
 	CreatedTime *txtime.Time `json:"created_time,omitempty"`
 }
 
-// NewChunkType _
-func NewChunkType(key, owner string, amount Amount, rid, pkey string, ts *txtime.Time) *Chunk {
-	return &Chunk{
+// NewPayType _
+func NewPayType(key, owner string, amount Amount, rid, pkey string, ts *txtime.Time) *Pay {
+	return &Pay{
 		DOCTYPEID:   key,
 		Owner:       owner,
 		Amount:      amount,
@@ -41,8 +41,8 @@ func NewChunkType(key, owner string, amount Amount, rid, pkey string, ts *txtime
 	}
 }
 
-// ChunkSum _
-type ChunkSum struct {
+// PaySum _
+type PaySum struct {
 	Sum  *Amount `json:"sum"`
 	End  string  `json:"end_key"`
 	Next string  `json:"next_key"`

@@ -12,11 +12,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-// UtxoChunksPruneSize _
-const UtxoChunksPruneSize = 500
+// UtxoPaysPruneSize _
+const UtxoPaysPruneSize = 500
 
-// UtxoChunksFetchSize _
-const UtxoChunksFetchSize = 200 // ???: 20, 아래서  max용으로 사용하고 있음.
+// UtxoPaysFetchSize _
+const UtxoPaysFetchSize = 200 // ???: 20, 아래서  max용으로 사용하고 있음.
 
 // UtxoStub _
 type UtxoStub struct {
@@ -28,38 +28,38 @@ func NewUtxoStub(stub shim.ChaincodeStubInterface) *UtxoStub {
 	return &UtxoStub{stub}
 }
 
-// CreateChunkKey _
+// CreatePayKey _
 // ???: nanosecond ?
-func (ub *UtxoStub) CreateChunkKey(id string, nanosecond int64) string {
+func (ub *UtxoStub) CreatePayKey(id string, nanosecond int64) string {
 	if id == "" {
 		return ""
 	}
-	return fmt.Sprintf("CHNK_%s_%d", id, nanosecond)
+	return fmt.Sprintf("PAY_%s_%d", id, nanosecond)
 }
 
-//GetChunk _
-func (ub *UtxoStub) GetChunk(key string) (*Chunk, error) {
+//GetPay _
+func (ub *UtxoStub) GetPay(key string) (*Pay, error) {
 	data, err := ub.stub.GetState(key)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get the chunk state")
+		return nil, errors.Wrap(err, "failed to get the pay state")
 	}
 	if data != nil {
-		chunk := &Chunk{}
-		if err = json.Unmarshal(data, chunk); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal the chunk")
+		pay := &Pay{}
+		if err = json.Unmarshal(data, pay); err != nil {
+			return nil, errors.Wrap(err, "failed to unmarshal the pay")
 		}
-		return chunk, nil
+		return pay, nil
 	}
-	return nil, errors.New("the chunk doesn't exist")
+	return nil, errors.New("the pay doesn't exist")
 }
 
-// PutChunk _
-func (ub *UtxoStub) PutChunk(chunk *Chunk) error {
-	data, err := json.Marshal(chunk)
+// PutPay _
+func (ub *UtxoStub) PutPay(pay *Pay) error {
+	data, err := json.Marshal(pay)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the balance")
 	}
-	if err = ub.stub.PutState(chunk.DOCTYPEID, data); err != nil {
+	if err = ub.stub.PutState(pay.DOCTYPEID, data); err != nil {
 		return errors.Wrap(err, "failed to put the balance state")
 	}
 	return nil
@@ -73,15 +73,15 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	//check for the duplicated chunk.
-	key := ub.CreateChunkKey(receiver.GetID(), ts.UnixNano())
-	if c, _ := ub.GetChunk(key); c != nil {
-		return nil, errors.New("duplicated chunk found")
+	//check for the duplicated pay.
+	key := ub.CreatePayKey(receiver.GetID(), ts.UnixNano())
+	if c, _ := ub.GetPay(key); c != nil {
+		return nil, errors.New("duplicated pay found")
 	}
 
-	chunk := NewChunkType(key, receiver.GetID(), amount, sender.GetID(), pkey, ts)
-	if err = ub.PutChunk(chunk); nil != err {
-		return nil, errors.Wrap(err, "failed to put new chunk")
+	pay := NewPayType(key, receiver.GetID(), amount, sender.GetID(), pkey, ts)
+	if err = ub.PutPay(pay); nil != err {
+		return nil, errors.Wrap(err, "failed to put new pay")
 	}
 
 	amount.Neg()
@@ -108,9 +108,9 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 	return sbl, nil
 }
 
-// GetChunkSumByTime _{end sum next}
-func (ub *UtxoStub) GetChunkSumByTime(id string, stime, etime *txtime.Time) (*ChunkSum, error) {
-	query := CreateQueryUtxoPruneChunks(id, stime, etime)
+// GetPaySumByTime _{end sum next}
+func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PaySum, error) {
+	query := CreateQueryUtxoPrunePays(id, stime, etime)
 	iter, err := ub.stub.GetQueryResult(query)
 	if err != nil {
 		return nil, err
@@ -118,11 +118,11 @@ func (ub *UtxoStub) GetChunkSumByTime(id string, stime, etime *txtime.Time) (*Ch
 	defer iter.Close()
 
 	var s int64
-	cs := &ChunkSum{}
-	c := &Chunk{}
+	cs := &PaySum{}
+	c := &Pay{}
 	cnt := 0 //record counter
 	if !iter.HasNext() {
-		return nil, errors.New(fmt.Sprintf("No chunks between %s and %s", stime, etime))
+		return nil, errors.New(fmt.Sprintf("No pays between %s and %s", stime, etime))
 	}
 
 	for iter.HasNext() {
@@ -136,8 +136,8 @@ func (ub *UtxoStub) GetChunkSumByTime(id string, stime, etime *txtime.Time) (*Ch
 		if err != nil {
 			return nil, err
 		}
-		//get the next chunk key ( +1 chunk after the threshhold)
-		if cnt == UtxoChunksPruneSize+1 {
+		//get the next pay key ( +1 pay after the threshhold)
+		if cnt == UtxoPaysPruneSize+1 {
 			cs.Next = c.DOCTYPEID
 			break
 		}
@@ -155,7 +155,7 @@ func (ub *UtxoStub) GetChunkSumByTime(id string, stime, etime *txtime.Time) (*Ch
 // GetTotalRefundAmount _
 // Returns sum of past refund amounts in positive amount
 func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
-	query := CreateQueryRefundChunks(id, pkey)
+	query := CreateQueryRefundPays(id, pkey)
 	iter, err := ub.stub.GetQueryResult(query)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get query results")
@@ -170,30 +170,30 @@ func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
 	for iter.HasNext() {
 
 		kv, err := iter.Next()
-		chunk := &Chunk{}
-		err = json.Unmarshal(kv.Value, &chunk)
+		pay := &Pay{}
+		err = json.Unmarshal(kv.Value, &pay)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse json to struct")
 		}
-		amount = amount.Add(chunk.Amount.Neg())
+		amount = amount.Add(pay.Amount.Neg())
 	}
 
 	return amount, nil
 }
 
-// GetUtxoChunksByTime _
-func (ub *UtxoStub) GetUtxoChunksByTime(id, bookmark string, stime, etime *txtime.Time, fetchSize int) (*QueryResult, error) {
+// GetUtxoPaysByTime _
+func (ub *UtxoStub) GetUtxoPaysByTime(id, bookmark string, stime, etime *txtime.Time, fetchSize int) (*QueryResult, error) {
 	if fetchSize < 1 {
-		fetchSize = UtxoChunksFetchSize
+		fetchSize = UtxoPaysFetchSize
 	}
-	if fetchSize > UtxoChunksFetchSize {
-		fetchSize = UtxoChunksFetchSize
+	if fetchSize > UtxoPaysFetchSize {
+		fetchSize = UtxoPaysFetchSize
 	}
 	query := ""
 	if stime != nil || etime != nil {
-		query = CreateQueryUtxoChunksByIDAndTime(id, stime, etime)
+		query = CreateQueryUtxoPaysByIDAndTime(id, stime, etime)
 	} else {
-		query = CreateQueryUtxoChunksByID(id)
+		query = CreateQueryUtxoPaysByID(id)
 	}
 	iter, meta, err := ub.stub.GetQueryResultWithPagination(query, int32(fetchSize), bookmark)
 	if err != nil {
@@ -215,14 +215,14 @@ func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant *Balance) err
 	sender := &Balance{DOCTYPEID: pb.Account} // proxy
 	bb := NewBalanceStub(ub.stub)
 
-	key := ub.CreateChunkKey(merchant.GetID(), ts.UnixNano())
-	if c, _ := ub.GetChunk(key); c != nil { // ???: error
-		return errors.New("duplicated chunk found")
+	key := ub.CreatePayKey(merchant.GetID(), ts.UnixNano())
+	if c, _ := ub.GetPay(key); c != nil { // ???: error
+		return errors.New("duplicated pay found")
 	}
-	// Put chunk
-	chunk := NewChunkType(key, merchant.GetID(), pb.Amount, sender.GetID(), "", ts)
-	if err = ub.PutChunk(chunk); nil != err {
-		return errors.Wrap(err, "failed to put new chunk")
+	// Put pay
+	pay := NewPayType(key, merchant.GetID(), pb.Amount, sender.GetID(), "", ts)
+	if err = ub.PutPay(pay); nil != err {
+		return errors.Wrap(err, "failed to put new pay")
 	}
 
 	// remove pending balance

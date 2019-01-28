@@ -20,7 +20,7 @@ import (
 
 // params[0] : sender's address
 // params[1] : positive amount: receiver's address who gets paid.
-//             negative amount: Original chunk key.
+//             negative amount: Original pay key.
 // params[2] : amount. can be either positive(pay) or negative(refund) amount.
 // params[3] : optional. memo (max 128 charactors)
 // params[4] : optional. expiry (duration represented by int64 seconds, multi-sig only)
@@ -59,20 +59,20 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	ub := NewUtxoStub(stub)
 
 	rid := params[1] // receiver's id
-	pkey := ""       // parent key(original chunk key). this field is used for tracking the original/parent chunk from the refund chunk
+	pkey := ""       // parent key(original pay key). this field is used for tracking the original/parent pay from the refund pay
 	if amount.Sign() < 0 {
-		ck, err := ub.GetChunk(params[1])
+		ck, err := ub.GetPay(params[1])
 		if err != nil {
-			return shim.Error("invalid chunk key was provided.")
+			return shim.Error("invalid pay key was provided.")
 		}
-		rid = ck.RID     //getting the user's id from the original chunk
-		pkey = params[1] //this parent key is written on the refund chunk created later.
+		rid = ck.RID     //getting the user's id from the original pay
+		pkey = params[1] //this parent key is written on the refund pay created later.
 
 		if ck.Amount.Cmp(amount.Copy().Neg()) < 0 {
 			return shim.Error("refund amount can't be greater than the pay amount")
 		}
 
-		// ???: 매번 iterating하지 말고, origin chunk에 caching, 같은 블록타임에 넘칠 수 있음 (물론 받는 쪽에서 컨플릭트)
+		// ???: 매번 iterating하지 말고, origin pay에 caching, 같은 블록타임에 넘칠 수 있음 (물론 받는 쪽에서 컨플릭트)
 		totalRefund, err := ub.GetTotalRefundAmount(params[0], pkey)
 		if nil != err {
 			return responseError(err, "failed to get total refund amount")
@@ -255,12 +255,12 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// ???: key or id로 처리 가능한 부분 (RSet 줄이기)
 	// start time
 	stime := txtime.Unix(0, 0)
-	if 0 < len(balance.LastChunkID) {
-		lastChunk, err := ub.GetChunk(balance.LastChunkID)
+	if 0 < len(balance.LastPayID) {
+		lastPay, err := ub.GetPay(balance.LastPayID)
 		if nil != err {
-			return responseError(err, "failed to get the last chunk")
+			return responseError(err, "failed to get the last pay")
 		}
-		stime = lastChunk.CreatedTime
+		stime = lastPay.CreatedTime
 	}
 	// end time
 	seconds, err := strconv.ParseInt(params[1], 10, 64)
@@ -286,9 +286,9 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// 	etime = safeTime
 	// }
 
-	chunkSum, err := ub.GetChunkSumByTime(account.GetID(), stime, etime)
+	paySum, err := ub.GetPaySumByTime(account.GetID(), stime, etime)
 	if nil != err {
-		return responseError(err, "failed to prune chunks")
+		return responseError(err, "failed to prune pays")
 	}
 
 	ts, err := txtime.GetTime(stub)
@@ -296,10 +296,10 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to get the timestamp")
 	}
 	// Add balance
-	balance.Amount.Add(chunkSum.Sum)
+	balance.Amount.Add(paySum.Sum)
 	balance.UpdatedTime = ts
-	if 0 != len(chunkSum.End) {
-		balance.LastChunkID = chunkSum.End
+	if 0 != len(paySum.End) {
+		balance.LastPayID = paySum.End
 	}
 
 	if err := bb.PutBalance(balance); nil != err {
@@ -308,13 +308,13 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// ???: log type 추가, memo필요시 단순화
 	// balance log
-	rbl := NewBalanceTransferLog(nil, balance, *chunkSum.Sum, fmt.Sprintf("prune result from %s to %s ", stime.Time.UTC(), etime.Time.UTC()))
+	rbl := NewBalanceTransferLog(nil, balance, *paySum.Sum, fmt.Sprintf("prune result from %s to %s ", stime.Time.UTC(), etime.Time.UTC()))
 	rbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(rbl); err != nil {
 		return shim.Error(err.Error())
 	}
 
-	data, err := json.Marshal(chunkSum)
+	data, err := json.Marshal(paySum)
 	if nil != err {
 		return shim.Error(err.Error())
 	}
@@ -388,14 +388,14 @@ func payLogs(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 	}
 
-	res, err := NewUtxoStub(stub).GetUtxoChunksByTime(addr.String(), bookmark, stime, etime, fetchSize)
+	res, err := NewUtxoStub(stub).GetUtxoPaysByTime(addr.String(), bookmark, stime, etime, fetchSize)
 	if nil != err {
-		return responseError(err, "failed to get chunks log")
+		return responseError(err, "failed to get pays log")
 	}
 
 	data, err := json.Marshal(res)
 	if err != nil {
-		return responseError(err, "failed to marshal chunks logs")
+		return responseError(err, "failed to marshal pays logs")
 	}
 
 	return shim.Success(data)

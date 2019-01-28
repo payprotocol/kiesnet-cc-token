@@ -106,8 +106,8 @@ func CreateQueryPendingBalancesByAddress(addr, sort string) string {
 	return fmt.Sprintf(QueryPendingBalancesByAddress, addr, _sort)
 }
 
-//QueryUtxoPruneChunks _
-const QueryUtxoPruneChunks = `{
+//QueryUtxoPrunePays _
+const QueryUtxoPrunePays = `{
 	"selector":{		
 		"owner": "%s",
 		"$and":[
@@ -123,30 +123,30 @@ const QueryUtxoPruneChunks = `{
 			}
 		] 
 	},
-	"use_index":["utxo","utxo-chunk-list"]
+	"use_index":["utxo","utxo-pay-list"]
 }`
 
-// CreateQueryUtxoPruneChunks _
-func CreateQueryUtxoPruneChunks(id string, stime, etime *txtime.Time) string {
-	return fmt.Sprintf(QueryUtxoPruneChunks, id, stime, etime)
+// CreateQueryUtxoPrunePays _
+func CreateQueryUtxoPrunePays(id string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryUtxoPrunePays, id, stime, etime)
 }
 
-//RefundChunks _
-const RefundChunks = `{
+//RefundPays _
+const RefundPays = `{
 	"selector": {
 	   "owner": "%s",
 	   "pkey": "%s"
 	},
-	"use_index":[ "utxo", "utxo-chunk-refund" ]
+	"use_index":[ "utxo", "utxo-pay-refund" ]
  }`
 
-// CreateQueryRefundChunks _
-func CreateQueryRefundChunks(id, pkey string) string {
-	return fmt.Sprintf(RefundChunks, id, pkey)
+// CreateQueryRefundPays _
+func CreateQueryRefundPays(id, pkey string) string {
+	return fmt.Sprintf(RefundPays, id, pkey)
 }
 
-// QueryUtxoChunksByIDAndTime _
-const QueryUtxoChunksByIDAndTime = `{
+// QueryUtxoPaysByIDAndTime _
+const QueryUtxoPaysByIDAndTime = `{
 	"selector":{
 		"owner":"%s",
 		"$and":[
@@ -162,31 +162,31 @@ const QueryUtxoChunksByIDAndTime = `{
 			}
 		]
 	},
-	"use_index":["utxo","utxo-chunk-list"],
+	"use_index":["utxo","utxo-pay-list"],
 	"sort":[{"created_time":"desc"}]
 }`
 
-// CreateQueryUtxoChunksByIDAndTime _
-func CreateQueryUtxoChunksByIDAndTime(id string, stime, etime *txtime.Time) string {
+// CreateQueryUtxoPaysByIDAndTime _
+func CreateQueryUtxoPaysByIDAndTime(id string, stime, etime *txtime.Time) string {
 	if nil == stime {
 		stime = txtime.Unix(0, 0)
 	}
 	if nil == etime {
 		etime = txtime.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
 	}
-	return fmt.Sprintf(QueryUtxoChunksByIDAndTime, id, stime, etime)
+	return fmt.Sprintf(QueryUtxoPaysByIDAndTime, id, stime, etime)
 }
 
-// QueryUtxoChunksByID _
-const QueryUtxoChunksByID = `{
+// QueryUtxoPaysByID _
+const QueryUtxoPaysByID = `{
 	"selector":{
 		"owner":"%s"
 	},
-	"use_index":["utxo","utxo-chunk-list-by-id"],
+	"use_index":["utxo","utxo-pay-list-by-id"],
 	"sort":[{"owner":"desc"},{"created_time":"desc"}]
 }`
 
-// CreateQueryUtxoChunksByID _
-func CreateQueryUtxoChunksByID(id string) string {
-	return fmt.Sprintf(QueryUtxoChunksByID, id)
+// CreateQueryUtxoPaysByID _
+func CreateQueryUtxoPaysByID(id string) string {
+	return fmt.Sprintf(QueryUtxoPaysByID, id)
 }

@@ -1,7 +1,7 @@
 {
     "index": {
         "partial_filter_selector": {
-            "@chunk": {
+            "@pay": {
                 "$exists": true
             },
             "pkey":{
@@ -11,6 +11,6 @@
         "fields": [ "owner", "pkey" ]
     },
     "ddoc": "utxo",
-    "name": "utxo-chunk-refund",
+    "name": "utxo-pay-refund",
     "type": "json"
 }

@@ -1,13 +1,13 @@
 {
     "index": {
         "partial_filter_selector": {
-            "@chunk": {
+            "@pay": {
                 "$exists": true
             }
         },
         "fields": [ "owner", "created_time" ]
     },
     "ddoc": "utxo",
-    "name": "utxo-chunk-list",
+    "name": "utxo-pay-list",
     "type": "json"
 }
