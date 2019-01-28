@@ -108,6 +108,42 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 	return sbl, nil
 }
 
+// Refund _
+func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLogTypePay, error) {
+	ts, err := txtime.GetTime(ub.stub)
+	if nil != err {
+		return nil, errors.Wrap(err, "failed to get the timestamp")
+	}
+
+	//TODO: PayKey convention is beging changed by Jason. Update below line.
+	key := ub.CreatePayKey(receiver.GetID(), ts.UnixNano())
+	if c, _ := ub.GetPay(key); c != nil {
+		return nil, errors.New("duplicated pay found")
+	}
+
+	pay := NewPay(key, receiver.GetID(), amount, sender.GetID(), pkey, ts)
+	if err = ub.PutPay(pay); nil != err {
+		return nil, errors.Wrap(err, "failed to put new pay")
+	}
+
+	receiver.Amount.Add(&amount)
+	receiver.UpdatedTime = ts
+
+	if err = NewBalanceStub(ub.stub).PutBalance(receiver); nil != err {
+		return nil, errors.Wrap(err, "failed to update receiver balance")
+	}
+
+	var rbl *BalanceLogTypePay
+	rbl = BalanceLogTypePay(sender, receiver, amount, memo)
+	rbl.CreatedTime = ts
+
+	if err = NewBalanceStub(ub.stub).PutBalanceLogTypePay(sbl); err != nil {
+		return nil, errors.Wrap(err, "failed to update sender balance log")
+	}
+
+	return rbl, nil
+}
+
 // GetPaySumByTime _{end sum next}
 func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PaySum, error) {
 	query := CreateQueryUtxoPrunePays(id, stime, etime)
@@ -154,32 +190,32 @@ func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PayS
 
 // GetTotalRefundAmount _
 // Returns sum of past refund amounts in positive amount
-func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
-	query := CreateQueryRefundPays(id, pkey)
-	iter, err := ub.stub.GetQueryResult(query)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get query results")
-	}
-	amount, err := NewAmount("0")
-	if err != nil {
+// func (ub *UtxoStub) GetTotalRefundAmount(id, pkey string) (*Amount, error) {
+// 	query := CreateQueryRefundPays(id, pkey)
+// 	iter, err := ub.stub.GetQueryResult(query)
+// 	if err != nil {
+// 		return nil, errors.Wrap(err, "failed to get query results")
+// 	}
+// 	amount, err := NewAmount("0")
+// 	if err != nil {
 
-		return nil, errors.Wrap(err, "failed to parse to number")
-	}
-	defer iter.Close()
+// 		return nil, errors.Wrap(err, "failed to parse to number")
+// 	}
+// 	defer iter.Close()
 
-	for iter.HasNext() {
+// 	for iter.HasNext() {
 
-		kv, err := iter.Next()
-		pay := &Pay{}
-		err = json.Unmarshal(kv.Value, &pay)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse json to struct")
-		}
-		amount = amount.Add(pay.Amount.Neg())
-	}
+// 		kv, err := iter.Next()
+// 		pay := &Pay{}
+// 		err = json.Unmarshal(kv.Value, &pay)
+// 		if err != nil {
+// 			return nil, errors.Wrap(err, "failed to parse json to struct")
+// 		}
+// 		amount = amount.Add(pay.Amount.Neg())
+// 	}
 
-	return amount, nil
-}
+// 	return amount, nil
+// }
 
 // GetUtxoPaysByTime _
 func (ub *UtxoStub) GetUtxoPaysByTime(id, bookmark string, stime, etime *txtime.Time, fetchSize int) (*QueryResult, error) {
