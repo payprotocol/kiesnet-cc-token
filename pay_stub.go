@@ -16,7 +16,7 @@ import (
 const UtxoPaysPruneSize = 500
 
 // UtxoPaysFetchSize _
-const UtxoPaysFetchSize = 200 // ???: 20, 아래서  max용으로 사용하고 있음.
+const UtxoPaysFetchSize = 20 // ???: 20, 아래서  max용으로 사용하고 있음.
 
 // UtxoStub _
 type UtxoStub struct {
@@ -206,7 +206,7 @@ func (ub *UtxoStub) GetUtxoPaysByTime(id, bookmark string, stime, etime *txtime.
 	if fetchSize < 1 {
 		fetchSize = UtxoPaysFetchSize
 	}
-	if fetchSize > UtxoPaysFetchSize {
+	if fetchSize > 200 {
 		fetchSize = UtxoPaysFetchSize
 	}
 	query := ""
@@ -225,21 +225,30 @@ func (ub *UtxoStub) GetUtxoPaysByTime(id, bookmark string, stime, etime *txtime.
 }
 
 // PayPendingBalance _
-func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant string) error {
+func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant, memo string) error {
 	ts, err := txtime.GetTime(ub.stub)
 	if nil != err {
 		return err
 	}
 
 	key := ub.CreatePayKey(merchant, ts.UnixNano())
+<<<<<<< HEAD
 	if c, err := ub.GetPay(key); c != nil {
 		if err != nil {
 			return errors.New("duplicated pay found")
 		}
 
+=======
+	c, err := ub.GetPay(key)
+	if nil != err {
+		return err
+	}
+	if c != nil {
+		return errors.New("duplicated pay found")
+>>>>>>> 22df7c133bfc66de8ae8fc692bbb0b97918e5683
 	}
 	// Put pay
-	pay := NewPay(merchant, pb.Amount, pb.Account, "", "", ts)
+	pay := NewPay(merchant, pb.Amount, pb.Account, "", memo, ts)
 	if err = ub.PutPay(pay); nil != err {
 		return errors.Wrap(err, "failed to put new pay")
 	}
