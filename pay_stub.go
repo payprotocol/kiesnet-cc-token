@@ -74,7 +74,10 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 	}
 
 	key := ub.CreatePayKey(receiver.GetID(), ts.UnixNano())
-	if c, _ := ub.GetPay(key); c != nil {
+	if c, err := ub.GetPay(key); c != nil {
+		if err != nil {
+			return nil, err
+		}
 		return nil, errors.New("duplicated pay found")
 	}
 
@@ -101,7 +104,7 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 }
 
 // Refund _
-func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLog, error) {
+func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo, parentPay *Pay) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(ub.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
@@ -109,16 +112,19 @@ func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo, pkey 
 
 	//TODO: PayKey convention is beging changed by Jason. Update below line.
 	key := ub.CreatePayKey(receiver.GetID(), ts.UnixNano())
-	if c, _ := ub.GetPay(key); c != nil {
+	if c, err := ub.GetPay(key); c != nil {
+		if err != nil {
+			return nil, err
+		}
 		return nil, errors.New("duplicated pay found")
 	}
 
-	pay := NewPay(sender.GetID(), amount, receiver.GetID(), pkey, memo, ts)
+	pay := NewPay(sender.GetID(), amount, receiver.GetID(), CreatePayKeyFromTime(parentPay.CreatedTime), memo, ts)
 	if err = ub.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
 	}
 
-	receiver.Amount.Add(&amount)
+	receiver.Amount.Add(amount.Copy().Neg())
 	receiver.UpdatedTime = ts
 
 	if err = NewBalanceStub(ub.stub).PutBalance(receiver); nil != err {

@@ -39,6 +39,8 @@ const (
 	BalanceLogTypeWithdraw
 	// BalanceLogTypePay pay amount of balance
 	BalanceLogTypePay
+	// BalanceLogTypeRefund refund amount of balance
+	BalanceLogTypeRefund
 	// BalanceLogTypePrune the amount of pruned payments
 	BalanceLogTypePrune
 )
@@ -116,6 +118,18 @@ func NewBalanceWithPayLog(bal *Balance, pay *Pay) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypePay,
+		RID:       pay.DOCTYPEID,
+		Diff:      pay.Amount,
+		Amount:    bal.Amount,
+		Memo:      pay.Memo,
+	}
+}
+
+// NewBalanceWithRefundLog _
+func NewBalanceWithRefundLog(bal *Balance, pay *Pay) *BalanceLog {
+	return &BalanceLog{
+		DOCTYPEID: bal.DOCTYPEID,
+		Type:      BalanceLogTypeRefund,
 		RID:       pay.DOCTYPEID,
 		Diff:      pay.Amount,
 		Amount:    bal.Amount,

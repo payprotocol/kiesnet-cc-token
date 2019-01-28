@@ -210,24 +210,18 @@ func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	ub := NewUtxoStub(stub)
 	pkey := params[1]
 
-	ck, err := ub.GetPay(pkey)
-	if err != nil {
-		return shim.Error("invalid pay key was provided.")
-	}
-	rid := ck.RID //getting the receiver's id from the original pay
-	//this parent key is written on the refund pay created later.
-
 	parentPay, err := ub.GetPay(pkey)
 	if err != nil {
 		return shim.Error("failed to get the original payment from the key")
 	}
 
-	totalRefund := parentPay.TotalRefund //TODO: check if totalRefund can be nil or ""
-	fmt.Println("######### totalRefund: ", totalRefund)
+	totalRefund := parentPay.TotalRefund
 
-	if ck.Amount.Cmp(totalRefund.Add(amount)) < 0 {
+	if parentPay.Amount.Cmp(totalRefund.Add(amount)) < 0 {
 		return shim.Error("can't exceed the original pay amount")
 	}
+
+	rid := parentPay.RID //getting the receiver's id from the original pay
 
 	// receiver address validation
 	rAddr, err := ParseAddress(rid)
@@ -291,7 +285,7 @@ func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	var log *BalanceLog
-	log, err = ub.Refund(sBal, rBal, *amount, memo, pkey)
+	log, err = ub.Refund(sBal, rBal, *amount.Neg(), memo, parentPay)
 
 	if err != nil {
 		return responseError(err, "failed to pay")
@@ -308,9 +302,8 @@ func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 // params[0] : Token Code or Address to prune.
 // params[1] : Prune end timestamp(in UTC)
-// It returns "next_key" if the prune is not completed within the given time period expecting recursive calls from the client.
 // ???: next_key를 다음 콜에 파라미터를 쓰지 않는다면 has_more, not_complete 같은 이름의 boolean값이 나을 듯
-func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	//클라이언트가 실수로 2번째 파라미터를 입력하지 않을것을 막기위해 endtime을 입력하게 한다.
 	// ???:  opional etime
 	if len(params) < 2 {
@@ -422,7 +415,7 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[2] : fetch size (if < 1 => default size, max 200)
 // params[3] : start time (time represented by int64 seconds)
 // params[4] : end time (time represented by int64 seconds)
-func payLogs(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+func payList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 1 {
 		return shim.Error("incorrect number of parameters. expecting 1+")
 	}
