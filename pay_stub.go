@@ -175,15 +175,14 @@ func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PayS
 	}
 
 	for iter.HasNext() {
-		if 0 == cnt {
-			cs.Start = c.DOCTYPEID
-		}
 		cnt++
 		kv, err := iter.Next()
 		if nil != err {
 			return nil, err
 		}
-
+		if 1 == cnt {
+			cs.Start = kv.Key
+		}
 		err = json.Unmarshal(kv.Value, c)
 		if err != nil {
 			return nil, err
@@ -194,7 +193,7 @@ func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PayS
 			break
 		}
 		s += c.Amount.Int64()
-		cs.End = c.DOCTYPEID
+		cs.End = kv.Key
 	}
 
 	sum, err := NewAmount(strconv.FormatInt(s, 10))
