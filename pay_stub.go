@@ -135,13 +135,10 @@ func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo string
 	if err = NewBalanceStub(ub.stub).PutBalance(receiver); nil != err {
 		return nil, errors.Wrap(err, "failed to update receiver balance")
 	}
-	fmt.Println("###############parentPay Total Refund: ", amount.Copy())
-	fmt.Println("###############parentPay Total Refund: ", amount.Copy().Neg())
-	fmt.Println("###############parentPay Total Refund: ", parentPay.TotalRefund)
+
 	//update the total refund amount to the parent utxo
 	parentPay.TotalRefund = *parentPay.TotalRefund.Add(amount.Copy().Neg())
 
-	fmt.Println("###############parentPay Total Refund: ", parentPay.TotalRefund)
 	err = ub.PutPay(parentPay)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to update parent pay utxo")
