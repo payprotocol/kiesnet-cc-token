@@ -182,7 +182,7 @@ const QueryUtxoPaysByID = `{
 	"selector":{
 		"@pay":"%s"
 	},
-	"use_index":["utxo","utxo-pay-list-by-id"],
+	"use_index":["utxo","utxo-pay-list"],
 	"sort":[{"@pay":"desc"},{"created_time":"desc"}]
 }`
 
