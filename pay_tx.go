@@ -372,22 +372,16 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to get the timestamp")
 	}
 	ts.Add(6e+11)
+	// tx 타임 기준 <-
+	safeTime := txtime.New(ts.Add(6e+11)) // 6e+11 = time.Duration(-10)*time.Minute
+	if etime.Cmp(safeTime) > 0 {
+		etime = safeTime
+	}
 
 	txtime.New(ts.Add(6e+11))
 	if txtime.New(etime.Add(6e+11)).Cmp(txtime.New(time.Now())) > 0 {
 		etime = txtime.New(time.Now().Add(-6e+11))
 	}
-	// ???: 아래 코드로...
-	// 시스템 타임 기준
-	// safeTime := time.Now().Add(time.Duration(-10)*time.Minute)
-	// if etime.Cmp(safeTime) > 0 {
-	// 	etime = safeTime
-	// }
-	// tx 타임 기준 <-
-	// safeTime := txtime.New(ts.Add(6e+11))	// 6e+11 = time.Duration(-10)*time.Minute
-	// if etime.Cmp(safeTime) > 0 {
-	// 	etime = safeTime
-	// }
 
 	paySum, err := ub.GetPaySumByTime(account.GetID(), stime, etime)
 	if nil != err {
