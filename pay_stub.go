@@ -55,7 +55,7 @@ func (ub *UtxoStub) GetPay(key string) (*Pay, error) {
 		}
 		return pay, nil
 	}
-	return nil, errors.New("the pay doesn't exist")
+	return nil, NotExistedPayError{key: key}
 }
 
 // PutPay _
@@ -78,14 +78,14 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 	}
 
 	key := ub.CreatePayKey(receiver.GetID(), ts.UnixNano())
-	c, err := ub.GetPay(key)
-	if nil != err {
-		return nil, err
+	if p, err := ub.GetPay(key); nil != err {
+		if _, ok := err.(NotExistedPayError); !ok {
+			return nil, errors.Wrap(err, "failed to get a pay by key")
+		}
+		if nil != p {
+			return nil, errors.New("duplicate pay exists")
+		}
 	}
-	if c != nil {
-		return nil, errors.New("duplicated pay found")
-	}
-
 	pay := NewPay(receiver.GetID(), amount, sender.GetID(), pkey, memo, ts)
 	if err = ub.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
@@ -116,12 +116,13 @@ func (ub *UtxoStub) Refund(sender, receiver *Balance, amount Amount, memo string
 	}
 
 	key := ub.CreatePayKey(receiver.GetID(), ts.UnixNano())
-	c, err := ub.GetPay(key)
-	if nil != err {
-		return nil, err
-	}
-	if c != nil {
-		return nil, errors.New("duplicated pay found")
+	if p, err := ub.GetPay(key); nil != err {
+		if _, ok := err.(NotExistedPayError); !ok {
+			return nil, errors.Wrap(err, "failed to get a pay by key")
+		}
+		if nil != p {
+			return nil, errors.New("duplicate pay exists")
+		}
 	}
 
 	pay := NewPay(sender.GetID(), amount, receiver.GetID(), ub.CreatePayKeyByTime(parentPay.DOCTYPEID, parentPay.CreatedTime), memo, ts)
@@ -234,14 +235,14 @@ func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant, memo string)
 	}
 
 	key := ub.CreatePayKey(merchant, ts.UnixNano())
-	c, err := ub.GetPay(key)
-	if nil != err {
-		return err
+	if p, err := ub.GetPay(key); nil != err {
+		if _, ok := err.(NotExistedPayError); !ok {
+			return errors.Wrap(err, "failed to get a pay by key")
+		}
+		if nil != p {
+			return errors.New("duplicate pay exists")
+		}
 	}
-	if c != nil {
-		return errors.New("duplicated pay found")
-	}
-
 	// Put pay
 	pay := NewPay(merchant, pb.Amount, pb.Account, "", memo, ts)
 	if err = ub.PutPay(pay); nil != err {
@@ -252,7 +253,5 @@ func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant, memo string)
 	if err := ub.stub.DelState(NewBalanceStub(ub.stub).CreatePendingKey(pb.DOCTYPEID)); err != nil {
 		return errors.Wrap(err, "failed to delete the pending balance")
 	}
-
 	return nil
-
 }
