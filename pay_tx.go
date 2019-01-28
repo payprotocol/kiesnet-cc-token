@@ -367,6 +367,13 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	etime := txtime.Unix(seconds, 0)
 
 	//add 10 minutes to the end time and compare with the UTC current time. if etime+10minutes is greater than current time, set the end time to 10 minuest before current time.
+	ts, err := txtime.GetTime(stub)
+	if nil != err {
+		return responseError(err, "failed to get the timestamp")
+	}
+	ts.Add(6e+11)
+
+	txtime.New(ts.Add(6e+11))
 	if txtime.New(etime.Add(6e+11)).Cmp(txtime.New(time.Now())) > 0 {
 		etime = txtime.New(time.Now().Add(-6e+11))
 	}
@@ -387,10 +394,6 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to prune pays")
 	}
 
-	ts, err := txtime.GetTime(stub)
-	if nil != err {
-		return responseError(err, "failed to get the timestamp")
-	}
 	// Add balance
 	balance.Amount.Add(paySum.Sum)
 	balance.UpdatedTime = ts

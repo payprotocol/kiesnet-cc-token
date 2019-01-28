@@ -53,7 +53,7 @@ type BalanceLog struct {
 	Memo          string         `json:"memo"`
 	CreatedTime   *txtime.Time   `json:"created_time,omitempty"`
 	PruneStartKey string         `json:"prune_start_key,omitempty"` // used for pruned balance log
-	PruneEndKey   string         `json:"prune_end_key",omitempty"`  // used for pruned balance log
+	PruneEndKey   string         `json:"prune_end_key,omitempty"`   // used for pruned balance log
 }
 
 // NewBalanceSupplyLog _
