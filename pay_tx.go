@@ -16,6 +16,8 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
+// ???: refund 분리 , 용어 정리
+
 // params[0] : sender's address
 // params[1] : positive amount: receiver's address who gets paid.
 //             negative amount: Original chunk key.
@@ -70,6 +72,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return shim.Error("refund amount can't be greater than the pay amount")
 		}
 
+		// ???: 매번 iterating하지 말고, origin chunk에 caching, 같은 블록타임에 넘칠 수 있음 (물론 받는 쪽에서 컨플릭트)
 		totalRefund, err := ub.GetTotalRefundAmount(params[0], pkey)
 		if nil != err {
 			return responseError(err, "failed to get total refund amount")
@@ -91,7 +94,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	// IMPORTANT: assert(sender != receiver)
-	if sAddr.Equal(rAddr) {
+	if sAddr.Equal(rAddr) { // ???: 필요한가...
 		return shim.Error("can't pay to self")
 	}
 
@@ -186,6 +189,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 
 	} else {
+		// ???: refund를 pay로 함?
 		if amount.Sign() > 0 {
 			log, err = ub.Pay(sBal, rBal, *amount, memo, pkey)
 		} else {
@@ -209,8 +213,10 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[0] : Token Code or Address to prune.
 // params[1] : Prune end timestamp(in UTC)
 // It returns "next_key" if the prune is not completed within the given time period expecting recursive calls from the client.
-func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+// ???: next_key를 다음 콜에 파라미터를 쓰지 않는다면 has_more, not_complete 같은 이름의 boolean값이 나을 듯
+func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	//클라이언트가 실수로 2번째 파라미터를 입력하지 않을것을 막기위해 endtime을 입력하게 한다.
+	// ???:  opional etime
 	if len(params) < 2 {
 		return shim.Error("incorrect number of parameters. expecting 2 parameters")
 	}
@@ -246,6 +252,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 	ub := NewUtxoStub(stub)
 
+	// ???: key or id로 처리 가능한 부분 (RSet 줄이기)
 	// start time
 	stime := txtime.Unix(0, 0)
 	if 0 < len(balance.LastChunkID) {
@@ -267,6 +274,17 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if txtime.New(etime.Add(6e+11)).Cmp(txtime.New(time.Now())) > 0 {
 		etime = txtime.New(time.Now().Add(-6e+11))
 	}
+	// ???: 아래 코드로...
+	// 시스템 타임 기준
+	// safeTime := time.Now().Add(time.Duration(-10)*time.Minute)
+	// if etime.Cmp(safeTime) > 0 {
+	// 	etime = safeTime
+	// }
+	// tx 타임 기준 <-
+	// safeTime := txtime.New(ts.Add(6e+11))	// 6e+11 = time.Duration(-10)*time.Minute
+	// if etime.Cmp(safeTime) > 0 {
+	// 	etime = safeTime
+	// }
 
 	chunkSum, err := ub.GetChunkSumByTime(account.GetID(), stime, etime)
 	if nil != err {
@@ -288,6 +306,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to update balance")
 	}
 
+	// ???: log type 추가, memo필요시 단순화
 	// balance log
 	rbl := NewBalanceTransferLog(nil, balance, *chunkSum.Sum, fmt.Sprintf("prune result from %s to %s ", stime.Time.UTC(), etime.Time.UTC()))
 	rbl.CreatedTime = ts
@@ -302,6 +321,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
+// ???: log와 list 차이
 // payLogs _
 // params[0] : token code | account address
 // params[1] : bookmark
@@ -400,6 +420,7 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 		return shim.Error("invalid pending balance")
 	}
 
+	// ???: GetBalance -> receiver-ID
 	// ISSUE: check accounts ? (suspended) Business...
 	// receiver balance
 	rBal, err := bb.GetBalance(doc[3].(string))

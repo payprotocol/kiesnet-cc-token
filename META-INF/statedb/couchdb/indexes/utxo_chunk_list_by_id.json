@@ -5,9 +5,10 @@
                 "$exists": true
             }
         },
-        "fields": [ "owner","created_time" ]
+        "fields": [ "owner", "created_time" ]
     },
     "ddoc": "utxo",
     "name": "utxo-chunk-list-by-id",
     "type": "json"
 }
+//???: 똑 같은게 있는데 왜 필요?

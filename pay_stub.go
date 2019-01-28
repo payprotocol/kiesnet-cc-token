@@ -1,3 +1,5 @@
+// Copyright Key Inside Co., Ltd. 2018 All Rights Reserved.
+
 package main
 
 import (
@@ -14,7 +16,7 @@ import (
 const UtxoChunksPruneSize = 500
 
 // UtxoChunksFetchSize _
-const UtxoChunksFetchSize = 200
+const UtxoChunksFetchSize = 200 // ???: 20, 아래서  max용으로 사용하고 있음.
 
 // UtxoStub _
 type UtxoStub struct {
@@ -27,6 +29,7 @@ func NewUtxoStub(stub shim.ChaincodeStubInterface) *UtxoStub {
 }
 
 // CreateChunkKey _
+// ???: nanosecond ?
 func (ub *UtxoStub) CreateChunkKey(id string, nanosecond int64) string {
 	if id == "" {
 		return ""
@@ -63,6 +66,7 @@ func (ub *UtxoStub) PutChunk(chunk *Chunk) error {
 }
 
 // Pay _
+// ???: 분리, 리턴 값
 func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(ub.stub)
 	if nil != err {
@@ -87,6 +91,7 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 		return nil, errors.Wrap(err, "failed to update sender balance")
 	}
 
+	// ???: log type
 	//leave the balance log only to the user
 	var sbl *BalanceLog
 	if amount.Sign() > 0 {
@@ -205,11 +210,13 @@ func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant *Balance) err
 	if nil != err {
 		return err
 	}
+
+	// ???: sender가 Balance객체인 이유??
 	sender := &Balance{DOCTYPEID: pb.Account} // proxy
 	bb := NewBalanceStub(ub.stub)
 
 	key := ub.CreateChunkKey(merchant.GetID(), ts.UnixNano())
-	if c, _ := ub.GetChunk(key); c != nil {
+	if c, _ := ub.GetChunk(key); c != nil { // ???: error
 		return errors.New("duplicated chunk found")
 	}
 	// Put chunk
@@ -219,6 +226,7 @@ func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant *Balance) err
 	}
 
 	// remove pending balance
+	// ???: bb.stub -> ub.stub or DeletePendingBalnace
 	if err := bb.stub.DelState(bb.CreatePendingKey(pb.DOCTYPEID)); err != nil {
 		return errors.Wrap(err, "failed to delete the pending balance")
 	}

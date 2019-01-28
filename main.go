@@ -45,14 +45,14 @@ var routes = map[string]TxFunc{
 	"balance/pending/withdraw": balancePendingWithdraw,
 	"contract/execute":         contractExecute,
 	"contract/cancel":          contractCancel,
+	"pay":                      pay,
+	"pay/prune":                payPrune,
+	"pay/logs":                 payLogs,
 	"token/burn":               tokenBurn,
 	"token/create":             tokenCreate,
 	"token/get":                tokenGet,
 	"token/mint":               tokenMint,
 	"transfer":                 transfer,
-	"pay":                      pay,
-	"pay/prune":                prune,
-	"pay/logs":                 payLogs,
 	"ver":                      ver,
 	// ISSUE: need functions below ?
 	// "account/logs":

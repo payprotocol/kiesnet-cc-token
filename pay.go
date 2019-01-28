@@ -1,12 +1,17 @@
+// Copyright Key Inside Co., Ltd. 2018 All Rights Reserved.
+
 package main
 
 import (
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
+// ???: 전체적인 naming 문제
+
 // PayChunkType _
 type PayChunkType int8
 
+// ???: useless
 const (
 	// PayChunkTypeAccount _
 	PayChunkTypeAccount PayChunkType = iota
