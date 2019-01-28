@@ -232,20 +232,12 @@ func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant, memo string)
 	}
 
 	key := ub.CreatePayKey(merchant, ts.UnixNano())
-<<<<<<< HEAD
-	if c, err := ub.GetPay(key); c != nil {
-		if err != nil {
-			return errors.New("duplicated pay found")
-		}
-
-=======
 	c, err := ub.GetPay(key)
 	if nil != err {
 		return err
 	}
 	if c != nil {
 		return errors.New("duplicated pay found")
->>>>>>> 22df7c133bfc66de8ae8fc692bbb0b97918e5683
 	}
 	// Put pay
 	pay := NewPay(merchant, pb.Amount, pb.Account, "", memo, ts)
