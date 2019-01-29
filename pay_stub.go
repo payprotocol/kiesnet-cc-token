@@ -16,7 +16,7 @@ import (
 const UtxoPaysPruneSize = 500
 
 // UtxoPaysFetchSize _
-const UtxoPaysFetchSize = 20 // ???: 20, 아래서  max용으로 사용하고 있음.
+const UtxoPaysFetchSize = 20
 
 // UtxoStub _
 type UtxoStub struct {
@@ -80,7 +80,7 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 	key := ub.CreatePayKey(receiver.GetID(), ts.UnixNano())
 	if p, err := ub.GetPay(key); nil != err {
 		if _, ok := err.(NotExistedPayError); !ok {
-			return nil, errors.Wrap(err, "failed to get a pay by key")
+			return nil, errors.Wrap(err, "failed to get the pay by key")
 		}
 		if nil != p {
 			return nil, errors.New("duplicate pay exists")
@@ -171,7 +171,7 @@ func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PayS
 	c := &Pay{}
 	cnt := 0 //record counter
 	if !iter.HasNext() {
-		return nil, errors.New(fmt.Sprintf("No pays between %s and %s", stime, etime))
+		return nil, errors.New(fmt.Sprintf("no pays between %s and %s", stime, etime))
 	}
 
 	for iter.HasNext() {

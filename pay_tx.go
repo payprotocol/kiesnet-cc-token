@@ -15,9 +15,9 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
-// params[0] : sender's address or Token Code.
+// params[0] : sender's address or token code
 // params[1] : receiver's address
-// params[2] : amount
+// params[2] : amount(>0)
 // params[3] : optional. memo (max 128 charactors)
 // params[4] : optional. expiry (duration represented by int64 seconds, multi-sig only)
 func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
@@ -58,7 +58,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to parse the receiver's account address")
 	}
 
-	if rAddr.Code != sAddr.Code { // not same token
+	if rAddr.Code != sAddr.Code {
 		return shim.Error("different token accounts")
 	}
 
@@ -170,9 +170,9 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// params[0] : sender's address
-// params[1] : original pay key
-// params[2] : refund amount.
+// params[0] : sender's address or token code
+// params[1] : original pay utxo key
+// params[2] : refund amount
 // params[3] : optional. memo (max 128 charactors)
 func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 3 {
@@ -211,7 +211,7 @@ func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	parentPay, err := ub.GetPay(pkey)
 	if err != nil {
-		return shim.Error("failed to get the original payment from the key")
+		return responseError(err, "failed to get the original payment from the key")
 	}
 
 	totalRefund := parentPay.TotalRefund
@@ -220,7 +220,8 @@ func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("can't exceed the original pay amount")
 	}
 
-	rid := parentPay.RID //getting the receiver's id from the original pay
+	// receiver's id from the original pay utxo
+	rid := parentPay.RID
 
 	// receiver address validation
 	rAddr, err := ParseAddress(rid)
@@ -228,7 +229,7 @@ func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to parse the receiver's account address")
 	}
 
-	if rAddr.Code != sAddr.Code { // not same token
+	if rAddr.Code != sAddr.Code {
 		return shim.Error("different token accounts")
 	}
 
@@ -299,16 +300,14 @@ func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// params[0] : Token Code or Address to prune.
-// params[1] : Prune end timestamp(in UTC)
-// ???: next_key를 다음 콜에 파라미터를 쓰지 않는다면 has_more, not_complete 같은 이름의 boolean값이 나을 듯
+// params[0] : address to prune or token code
+// params[1] : end time
 func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	//클라이언트가 실수로 2번째 파라미터를 입력하지 않을것을 막기위해 endtime을 입력하게 한다.
-	// ???:  opional etime
+
 	if len(params) < 2 {
 		return shim.Error("incorrect number of parameters. expecting 2 parameters")
 	}
-	// authentication. get KID of current user.
+	// authentication
 	kid, err := kid.GetID(stub, true)
 	if nil != err {
 		return shim.Error(err.Error())
@@ -324,7 +323,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return responseError(err, "failed to get the account")
 		}
 	}
-	// account
+	// account validation
 	account, err := NewAccountStub(stub, addr.Code).GetAccount(addr)
 	if nil != err {
 		return responseError(err, "failed to get the account")
@@ -334,7 +333,7 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	bb := NewBalanceStub(stub)
-	balance, err := bb.GetBalance(account.GetID())
+	bal, err := bb.GetBalance(account.GetID())
 	if nil != err {
 		return responseError(err, "failed to get the balance")
 	}
@@ -342,53 +341,55 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// start time
 	stime := txtime.Unix(0, 0)
-	if 0 < len(balance.LastPrunedPayID) {
-		lastTime := strings.Split(balance.LastPrunedPayID, "_")[2]
+	if 0 < len(bal.LastPrunedPayID) {
+		lastTime := strings.Split(bal.LastPrunedPayID, "_")[2]
 		s, err := strconv.ParseInt(lastTime[0:10], 10, 64)
 		if nil != err {
-			return responseError(err, "failed to get seconds")
+			return responseError(err, "failed to get seconds from timestamp")
 		}
 		n, err := strconv.ParseInt(lastTime[10:], 10, 64)
 		if nil != err {
-			return responseError(err, "failed to get seconds")
+			return responseError(err, "failed to get nanoseconds from timestamp")
 		}
 		stime = txtime.Unix(s, n)
 	}
+
 	// end time
 	seconds, err := strconv.ParseInt(params[1], 10, 64)
 	if nil != err {
 		return responseError(err, "failed to parse the end time")
 	}
-
 	etime := txtime.Unix(seconds, 0)
-	//add 10 minutes to the end time and compare with the UTC current time. if etime+10minutes is greater than current time, set the end time to 10 minuest before current time.
+
+	// current txtime
 	ts, err := txtime.GetTime(stub)
 	if nil != err {
 		return responseError(err, "failed to get the timestamp")
 	}
 
-	safeTime := txtime.New(ts.Add(6e+11)) // 6e+11 = time.Duration(-10)*time.Minute
+	// safe time is current transaction time minus 10 minutes. this is to prevent missing utxo(s) because of the time differences(+/- 5min) on different servers/devices
+	safeTime := txtime.New(ts.Add(-6e+11))
 	if etime.Cmp(safeTime) > 0 {
 		etime = safeTime
 	}
 
 	paySum, err := ub.GetPaySumByTime(account.GetID(), stime, etime)
 	if nil != err {
-		return responseError(err, "failed to prune pays")
+		return responseError(err, "failed to get pay(s) to prune")
 	}
 	// Add balance
-	balance.Amount.Add(paySum.Sum)
-	balance.UpdatedTime = ts
+	bal.Amount.Add(paySum.Sum)
+	bal.UpdatedTime = ts
 	if 0 != len(paySum.End) {
-		balance.LastPrunedPayID = paySum.End
+		bal.LastPrunedPayID = paySum.End
 	}
 
-	if err := bb.PutBalance(balance); nil != err {
+	if err := bb.PutBalance(bal); nil != err {
 		return responseError(err, "failed to update balance")
 	}
 
 	// balance log
-	rbl := NewBalanceWithPruneLog(balance, *paySum.Sum, paySum.Start, paySum.End)
+	rbl := NewBalanceWithPruneLog(bal, *paySum.Sum, paySum.Start, paySum.End)
 	rbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(rbl); err != nil {
 		return shim.Error(err.Error())
@@ -401,7 +402,6 @@ func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// payList _
 // params[0] : token code | account address
 // params[1] : bookmark
 // params[2] : fetch size (if < 1 => default size, max 200)
