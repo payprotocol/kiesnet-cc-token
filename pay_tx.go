@@ -355,7 +355,6 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	var etime *txtime.Time
-
 	// end time
 	if len(params) > 1 {
 		seconds, err := strconv.ParseInt(params[1], 10, 64)
@@ -363,13 +362,11 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return responseError(err, "failed to parse the end time")
 		}
 		etime = txtime.Unix(seconds, 0)
-	} else {
-		etime = ts
 	}
 
 	// safe time is current transaction time minus 10 minutes. this is to prevent missing pay(s) because of the time differences(+/- 5min) on different servers/devices
 	safeTime := txtime.New(ts.Add(-6e+11))
-	if etime.Cmp(safeTime) > 0 {
+	if nil == etime || etime.Cmp(safeTime) > 0 {
 		etime = safeTime
 	}
 

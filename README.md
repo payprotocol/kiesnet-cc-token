@@ -139,17 +139,17 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 
 > invoke __`pay/refund`__ [original_pay_key, amount(+), _memo_ ] {_"kiesnet-id/pin"_}
 - refund the amount of token the based on original_pay_key 
-- [original_pay_key]: original_pay_key 
+- [original_pay_key] : original_pay_key 
 - [amount]: the amount of token. this value should be lesser than original pay's amount
 - [_memo_]: max 128 charactors
 
 > invoke __`pay/prune`__ [token_code|address, _end_time_] {_"kiesnet-id/pin"_}
-- prune pays from last pay to end_time. if end_time is not provided, prune to 10 mins lesser than current time.
+- prune the pays from last pay time to end_time. if end_time is not provided, prune to 10 mins lesser than current time.
 - [_end_time_]: to time for pruning
 
 > query __`pay/list`__ [token_code|address, _bookmark_, _fetchsize_, _start_time_, _end_time_ ]
 - Get pay list
-- If the 1st parameter is token code, it returns logs of the PAOT.
+- If the 1st parameter is token code, it returns list of the PAOT.
 - [_fetch_size_] : max 200, if it is less than 1, default size will be used (20)
 - [_starttime_] : __time(seconds)__ represented by int64
 - [_endtime_] : __time(seconds)__ represented by int64
