@@ -368,10 +368,10 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	// safe time is current transaction time minus 10 minutes. this is to prevent missing utxo(s) because of the time differences(+/- 5min) on different servers/devices
-	// safeTime := txtime.New(ts.Add(-6e+11))
-	// if etime.Cmp(safeTime) > 0 {
-	// 	etime = safeTime
-	// }
+	safeTime := txtime.New(ts.Add(-6e+11))
+	if etime.Cmp(safeTime) > 0 {
+		etime = safeTime
+	}
 
 	paySum, err := ub.GetPaySumByTime(account.GetID(), stime, etime)
 	if nil != err {
