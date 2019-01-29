@@ -174,7 +174,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[1] : original pay key
 // params[2] : refund amount.
 // params[3] : optional. memo (max 128 charactors)
-func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 3 {
 		return shim.Error("incorrect number of parameters. expecting at least 3")
 	}
@@ -302,7 +302,7 @@ func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[0] : Token Code or Address to prune.
 // params[1] : Prune end timestamp(in UTC)
 // ???: next_key를 다음 콜에 파라미터를 쓰지 않는다면 has_more, not_complete 같은 이름의 boolean값이 나을 듯
-func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	//클라이언트가 실수로 2번째 파라미터를 입력하지 않을것을 막기위해 endtime을 입력하게 한다.
 	// ???:  opional etime
 	if len(params) < 2 {

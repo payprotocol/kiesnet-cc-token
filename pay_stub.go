@@ -223,7 +223,7 @@ func (ub *UtxoStub) GetUtxoPaysByTime(id, bookmark string, stime, etime *txtime.
 	}
 	defer iter.Close()
 
-	return NewQueryResult(meta, iter)
+	return NewPayQueryResult(meta, iter)
 }
 
 // PayPendingBalance _
