@@ -499,7 +499,6 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 		return shim.Error("invalid pending balance")
 	}
 
-	// ???: GetBalance -> receiver-ID
 	// ISSUE: check accounts ? (suspended) Business...
 	if err = NewUtxoStub(stub).PayPendingBalance(pb, doc[3].(string), doc[5].(string)); err != nil {
 		return responseError(err, "failed to pay a pending balance")
