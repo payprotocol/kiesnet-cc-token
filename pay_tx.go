@@ -39,7 +39,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	} else { // by address
 		sAddr, err = ParseAddress(params[0])
 		if err != nil {
-			return responseError(err, "failed to get the account")
+			return responseError(err, "failed to parse the payeur's account address")
 		}
 	}
 
@@ -49,7 +49,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 	if amount.Sign() < 1 {
-		return shim.Error("invalid amount.  must be greater than 0")
+		return shim.Error("invalid amount. must be greater than 0")
 	}
 
 	// receiver address validation
