@@ -135,7 +135,7 @@ func CreateQueryUtxoPrunePays(id string, stime, etime *txtime.Time) string {
 const RefundPays = `{
 	"selector": {
 	   "@pay": "%s",
-	   "pkey": "%s"
+	   "parent_key": "%s"
 	},
 	"use_index":[ "utxo", "utxo-pay-refund" ]
  }`

@@ -4,11 +4,11 @@
             "@pay": {
                 "$exists": true
             },
-            "pkey":{
+            "parent_key":{
                 "$exists": true
             }
         },
-        "fields": [ "@pay", "pkey" ]
+        "fields": [ "@pay", "parent_key" ]
     },
     "ddoc": "utxo",
     "name": "utxo-pay-refund",
