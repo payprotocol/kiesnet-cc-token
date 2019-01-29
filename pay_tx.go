@@ -297,11 +297,11 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 }
 
 // params[0] : address to prune or token code
-// params[1] : end time
+// params[1] : optional. end time
 func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
-	if len(params) < 2 {
-		return shim.Error("incorrect number of parameters. expecting 2 parameters")
+	if len(params) < 1 {
+		return shim.Error("incorrect number of parameters. expecting at least 1 parameter")
 	}
 	// authentication
 	kid, err := kid.GetID(stub, true)
@@ -350,20 +350,25 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		stime = txtime.Unix(s, n)
 	}
 
-	// end time
-	seconds, err := strconv.ParseInt(params[1], 10, 64)
-	if nil != err {
-		return responseError(err, "failed to parse the end time")
-	}
-	etime := txtime.Unix(seconds, 0)
-
-	// current txtime
 	ts, err := txtime.GetTime(stub)
 	if nil != err {
 		return responseError(err, "failed to get the timestamp")
 	}
 
-	// safe time is current transaction time minus 10 minutes. this is to prevent missing utxo(s) because of the time differences(+/- 5min) on different servers/devices
+	var etime *txtime.Time
+
+	// end time
+	if len(params) > 1 {
+		seconds, err := strconv.ParseInt(params[1], 10, 64)
+		if nil != err {
+			return responseError(err, "failed to parse the end time")
+		}
+		etime = txtime.Unix(seconds, 0)
+	} else {
+		etime = ts
+	}
+
+	// safe time is current transaction time minus 10 minutes. this is to prevent missing pay(s) because of the time differences(+/- 5min) on different servers/devices
 	safeTime := txtime.New(ts.Add(-6e+11))
 	if etime.Cmp(safeTime) > 0 {
 		etime = safeTime
