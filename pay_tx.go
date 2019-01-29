@@ -170,13 +170,13 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// params[0] : sender's address or token code
-// params[1] : original pay utxo key
-// params[2] : refund amount
-// params[3] : optional. memo (max 128 charactors)
+// params[0] : original pay utxo key
+// params[1] : refund amount
+// params[2] : optional. memo (max 128 charactors)
+
 func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if len(params) < 3 {
-		return shim.Error("incorrect number of parameters. expecting at least 3")
+	if len(params) < 2 {
+		return shim.Error("incorrect number of parameters. expecting at least 2")
 	}
 
 	// authentication
@@ -185,20 +185,8 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		return shim.Error(err.Error())
 	}
 
-	//sender address validation
-	var sAddr *Address
-	code, err := ValidateTokenCode(params[0])
-	if nil == err { // by token code
-		sAddr = NewAddress(code, AccountTypePersonal, kid)
-	} else { // by address
-		sAddr, err = ParseAddress(params[0])
-		if err != nil {
-			return responseError(err, "failed to get the account")
-		}
-	}
-
 	// amount
-	amount, err := NewAmount(params[2])
+	amount, err := NewAmount(params[1])
 	if nil != err {
 		return shim.Error(err.Error())
 	}
@@ -207,17 +195,18 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	}
 
 	ub := NewUtxoStub(stub)
-	pkey := params[1]
+	pkey := params[0]
 
 	parentPay, err := ub.GetPay(pkey)
 	if err != nil {
 		return responseError(err, "failed to get the original payment from the key")
 	}
 
-	totalRefund := parentPay.TotalRefund
-
-	if parentPay.Amount.Cmp(totalRefund.Copy().Add(amount)) < 0 {
-		return shim.Error("can't exceed the original pay amount")
+	// get sender from original pay
+	var sAddr *Address
+	sAddr, err = ParseAddress(parentPay.DOCTYPEID)
+	if err != nil {
+		return responseError(err, "failed to get the account")
 	}
 
 	// receiver's id from the original pay utxo
@@ -235,6 +224,13 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 
 	if sAddr.Equal(rAddr) {
 		return shim.Error("can't refund to self")
+	}
+
+	// refund amount validation
+	totalRefund := parentPay.TotalRefund
+
+	if parentPay.Amount.Cmp(totalRefund.Copy().Add(amount)) < 0 {
+		return shim.Error("can't exceed the original pay amount")
 	}
 
 	ab := NewAccountStub(stub, rAddr.Code)
@@ -276,11 +272,11 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	// options
 	memo := ""
 	// memo
-	if len(params) > 3 {
-		if len(params[3]) > 128 { // 128 charactors limit
-			memo = params[3][:128]
+	if len(params) > 2 {
+		if len(params[2]) > 128 { // 128 charactors limit
+			memo = params[2][:128]
 		} else {
-			memo = params[3]
+			memo = params[2]
 		}
 	}
 
