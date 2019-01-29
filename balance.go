@@ -9,10 +9,11 @@ import (
 
 // Balance _
 type Balance struct {
-	DOCTYPEID   string       `json:"@balance"` // address
-	Amount      Amount       `json:"amount"`
-	CreatedTime *txtime.Time `json:"created_time,omitempty"`
-	UpdatedTime *txtime.Time `json:"updated_time,omitempty"`
+	DOCTYPEID       string       `json:"@balance"` // address
+	Amount          Amount       `json:"amount"`
+	CreatedTime     *txtime.Time `json:"created_time,omitempty"`
+	UpdatedTime     *txtime.Time `json:"updated_time,omitempty"`
+	LastPrunedPayID string       `json:"last_pruned_pay_id,omitempty"`
 }
 
 // GetID implements Identifiable
@@ -36,17 +37,25 @@ const (
 	BalanceLogTypeDeposit
 	// BalanceLogTypeWithdraw withdraw balance from contract
 	BalanceLogTypeWithdraw
+	// BalanceLogTypePay pay amount of balance
+	BalanceLogTypePay
+	// BalanceLogTypeRefund refund amount of balance
+	BalanceLogTypeRefund
+	// BalanceLogTypePrune the amount of pruned payments
+	BalanceLogTypePrune
 )
 
 // BalanceLog _
 type BalanceLog struct {
-	DOCTYPEID   string         `json:"@balance_log"` // address
-	Type        BalanceLogType `json:"type"`
-	RID         string         `json:"rid"` // relative ID
-	Diff        Amount         `json:"diff"`
-	Amount      Amount         `json:"amount"`
-	Memo        string         `json:"memo"`
-	CreatedTime *txtime.Time   `json:"created_time,omitempty"`
+	DOCTYPEID     string         `json:"@balance_log"` // address
+	Type          BalanceLogType `json:"type"`
+	RID           string         `json:"rid"` // relative ID
+	Diff          Amount         `json:"diff"`
+	Amount        Amount         `json:"amount"`
+	Memo          string         `json:"memo"`
+	CreatedTime   *txtime.Time   `json:"created_time,omitempty"`
+	PruneStartKey string         `json:"prune_start_key,omitempty"` // used for pruned balance log
+	PruneEndKey   string         `json:"prune_end_key,omitempty"`   // used for pruned balance log
 }
 
 // NewBalanceSupplyLog _
@@ -69,16 +78,6 @@ func NewBalanceSupplyLog(bal *Balance, diff Amount) *BalanceLog {
 
 // NewBalanceTransferLog _
 func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, memo string) *BalanceLog {
-	if diff.Sign() < 0 { // sender log
-		return &BalanceLog{
-			DOCTYPEID: sender.DOCTYPEID,
-			Type:      BalanceLogTypeSend,
-			RID:       receiver.DOCTYPEID,
-			Diff:      diff,
-			Amount:    sender.Amount,
-			Memo:      memo,
-		}
-	} // else receiver log
 	return &BalanceLog{
 		DOCTYPEID: receiver.DOCTYPEID,
 		Type:      BalanceLogTypeReceive,
@@ -111,6 +110,42 @@ func NewBalanceWithdrawLog(bal *Balance, pb *PendingBalance) *BalanceLog {
 		Diff:      pb.Amount,
 		Amount:    bal.Amount,
 		Memo:      pb.Memo,
+	}
+}
+
+// NewBalanceWithPayLog _
+func NewBalanceWithPayLog(bal *Balance, pay *Pay) *BalanceLog {
+	return &BalanceLog{
+		DOCTYPEID: bal.DOCTYPEID,
+		Type:      BalanceLogTypePay,
+		RID:       pay.DOCTYPEID,
+		Diff:      pay.Amount,
+		Amount:    bal.Amount,
+		Memo:      pay.Memo,
+	}
+}
+
+// NewBalanceWithRefundLog _
+func NewBalanceWithRefundLog(bal *Balance, pay *Pay) *BalanceLog {
+	return &BalanceLog{
+		DOCTYPEID: bal.DOCTYPEID,
+		Type:      BalanceLogTypeRefund,
+		RID:       pay.DOCTYPEID,
+		Diff:      pay.Amount,
+		Amount:    bal.Amount,
+		Memo:      pay.Memo,
+	}
+}
+
+// NewBalanceWithPruneLog No need RID
+func NewBalanceWithPruneLog(bal *Balance, amount Amount, Start, End string) *BalanceLog {
+	return &BalanceLog{
+		DOCTYPEID:     bal.DOCTYPEID,
+		Type:          BalanceLogTypePrune,
+		Diff:          amount,
+		Amount:        bal.Amount,
+		PruneStartKey: Start,
+		PruneEndKey:   End,
 	}
 }
 

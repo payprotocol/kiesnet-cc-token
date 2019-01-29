@@ -105,3 +105,88 @@ func CreateQueryPendingBalancesByAddress(addr, sort string) string {
 	}
 	return fmt.Sprintf(QueryPendingBalancesByAddress, addr, _sort)
 }
+
+//QueryUtxoPrunePays _
+const QueryUtxoPrunePays = `{
+	"selector":{		
+		"@pay": "%s",
+		"$and":[
+			{
+				"created_time":{
+					"$gt": "%s"
+				}
+			},{
+				"created_time":{
+					"$lte": "%s"
+				}
+
+			}
+		] 
+	},
+	"use_index":["utxo","utxo-pay-list"]
+}`
+
+// CreateQueryUtxoPrunePays _
+func CreateQueryUtxoPrunePays(id string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryUtxoPrunePays, id, stime, etime)
+}
+
+//RefundPays _
+const RefundPays = `{
+	"selector": {
+	   "@pay": "%s",
+	   "pkey": "%s"
+	},
+	"use_index":[ "utxo", "utxo-pay-refund" ]
+ }`
+
+// CreateQueryRefundPays _
+func CreateQueryRefundPays(id, pkey string) string {
+	return fmt.Sprintf(RefundPays, id, pkey)
+}
+
+// QueryUtxoPaysByIDAndTime _
+const QueryUtxoPaysByIDAndTime = `{
+	"selector":{
+		"@pay":"%s",
+		"$and":[
+			{
+				"created_time":{
+					"$gte": "%s"
+				}
+			},
+			{
+				"created_time":{
+					"$lte": "%s"
+				}
+			}
+		]
+	},
+	"use_index":["utxo","utxo-pay-list"],
+	"sort":[{"created_time":"desc"}]
+}`
+
+// CreateQueryUtxoPaysByIDAndTime _
+func CreateQueryUtxoPaysByIDAndTime(id string, stime, etime *txtime.Time) string {
+	if nil == stime {
+		stime = txtime.Unix(0, 0)
+	}
+	if nil == etime {
+		etime = txtime.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
+	}
+	return fmt.Sprintf(QueryUtxoPaysByIDAndTime, id, stime, etime)
+}
+
+// QueryUtxoPaysByID _
+const QueryUtxoPaysByID = `{
+	"selector":{
+		"@pay":"%s"
+	},
+	"use_index":["utxo","utxo-pay-list"],
+	"sort":[{"@pay":"desc"},{"created_time":"desc"}]
+}`
+
+// CreateQueryUtxoPaysByID _
+func CreateQueryUtxoPaysByID(id string) string {
+	return fmt.Sprintf(QueryUtxoPaysByID, id)
+}

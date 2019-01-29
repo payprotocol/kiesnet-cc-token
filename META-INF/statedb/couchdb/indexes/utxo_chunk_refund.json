@@ -1,0 +1,16 @@
+{
+    "index": {
+        "partial_filter_selector": {
+            "@pay": {
+                "$exists": true
+            },
+            "pkey":{
+                "$exists": true
+            }
+        },
+        "fields": [ "@pay", "pkey" ]
+    },
+    "ddoc": "utxo",
+    "name": "utxo-pay-refund",
+    "type": "json"
+}
