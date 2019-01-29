@@ -106,8 +106,8 @@ func CreateQueryPendingBalancesByAddress(addr, sort string) string {
 	return fmt.Sprintf(QueryPendingBalancesByAddress, addr, _sort)
 }
 
-//QueryUtxoPrunePays _
-const QueryUtxoPrunePays = `{
+// QueryPrunePays _
+const QueryPrunePays = `{
 	"selector":{		
 		"@pay": "%s",
 		"$and":[
@@ -123,12 +123,12 @@ const QueryUtxoPrunePays = `{
 			}
 		] 
 	},
-	"use_index":["utxo","utxo-pay-list"]
+	"use_index":["pay","list"]
 }`
 
-// CreateQueryUtxoPrunePays _
-func CreateQueryUtxoPrunePays(id string, stime, etime *txtime.Time) string {
-	return fmt.Sprintf(QueryUtxoPrunePays, id, stime, etime)
+// CreateQueryPrunePays _
+func CreateQueryPrunePays(id string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryPrunePays, id, stime, etime)
 }
 
 //RefundPays _
@@ -137,7 +137,7 @@ const RefundPays = `{
 	   "@pay": "%s",
 	   "parent_key": "%s"
 	},
-	"use_index":[ "utxo", "utxo-pay-refund" ]
+	"use_index":[ "pay", "refund" ]
  }`
 
 // CreateQueryRefundPays _
@@ -145,8 +145,8 @@ func CreateQueryRefundPays(id, pkey string) string {
 	return fmt.Sprintf(RefundPays, id, pkey)
 }
 
-// QueryUtxoPaysByIDAndTime _
-const QueryUtxoPaysByIDAndTime = `{
+// QueryPaysByIDAndTime _
+const QueryPaysByIDAndTime = `{
 	"selector":{
 		"@pay":"%s",
 		"$and":[
@@ -162,31 +162,31 @@ const QueryUtxoPaysByIDAndTime = `{
 			}
 		]
 	},
-	"use_index":["utxo","utxo-pay-list"],
+	"use_index":["pay","list"],
 	"sort":[{"created_time":"desc"}]
 }`
 
-// CreateQueryUtxoPaysByIDAndTime _
-func CreateQueryUtxoPaysByIDAndTime(id string, stime, etime *txtime.Time) string {
+// CreateQueryPaysByIDAndTime _
+func CreateQueryPaysByIDAndTime(id string, stime, etime *txtime.Time) string {
 	if nil == stime {
 		stime = txtime.Unix(0, 0)
 	}
 	if nil == etime {
 		etime = txtime.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
 	}
-	return fmt.Sprintf(QueryUtxoPaysByIDAndTime, id, stime, etime)
+	return fmt.Sprintf(QueryPaysByIDAndTime, id, stime, etime)
 }
 
-// QueryUtxoPaysByID _
-const QueryUtxoPaysByID = `{
+// QueryPaysByID _
+const QueryPaysByID = `{
 	"selector":{
 		"@pay":"%s"
 	},
-	"use_index":["utxo","utxo-pay-list"],
+	"use_index":["pay","list"],
 	"sort":[{"@pay":"desc"},{"created_time":"desc"}]
 }`
 
-// CreateQueryUtxoPaysByID _
-func CreateQueryUtxoPaysByID(id string) string {
-	return fmt.Sprintf(QueryUtxoPaysByID, id)
+// CreateQueryPaysByID _
+func CreateQueryPaysByID(id string) string {
+	return fmt.Sprintf(QueryPaysByID, id)
 }

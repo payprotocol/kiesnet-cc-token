@@ -155,7 +155,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 
 	} else {
-		log, err = NewUtxoStub(stub).Pay(sBal, rBal, *amount, memo, "")
+		log, err = NewPayStub(stub).Pay(sBal, rBal, *amount, memo, "")
 		if err != nil {
 			return responseError(err, "failed to pay")
 		}
@@ -171,7 +171,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 }
 
 // params[0] : sender's address or token code
-// params[1] : original pay utxo key
+// params[1] : original pay key
 // params[2] : refund amount
 // params[3] : optional. memo (max 128 charactors)
 func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
@@ -206,10 +206,10 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		return shim.Error("invalid amount. must be greater than 0")
 	}
 
-	ub := NewUtxoStub(stub)
+	pb := NewPayStub(stub)
 	pkey := params[1]
 
-	parentPay, err := ub.GetPay(pkey)
+	parentPay, err := pb.GetPay(pkey)
 	if err != nil {
 		return responseError(err, "failed to get the original payment from the key")
 	}
@@ -220,7 +220,7 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		return shim.Error("can't exceed the original pay amount")
 	}
 
-	// receiver's id from the original pay utxo
+	// receiver's id from the original pay
 	rid := parentPay.RID
 
 	// receiver address validation
@@ -285,7 +285,7 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	}
 
 	var log *BalanceLog
-	log, err = ub.Refund(sBal, rBal, *amount.Neg(), memo, parentPay)
+	log, err = pb.Refund(sBal, rBal, *amount.Neg(), memo, parentPay)
 
 	if err != nil {
 		return responseError(err, "failed to pay")
@@ -337,7 +337,7 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if nil != err {
 		return responseError(err, "failed to get the balance")
 	}
-	ub := NewUtxoStub(stub)
+	pb := NewPayStub(stub)
 
 	// start time
 	stime := txtime.Unix(0, 0)
@@ -367,13 +367,13 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to get the timestamp")
 	}
 
-	// safe time is current transaction time minus 10 minutes. this is to prevent missing utxo(s) because of the time differences(+/- 5min) on different servers/devices
+	// safe time is current transaction time minus 10 minutes. this is to prevent missing pay(s) because of the time differences(+/- 5min) on different servers/devices
 	safeTime := txtime.New(ts.Add(-6e+11))
 	if etime.Cmp(safeTime) > 0 {
 		etime = safeTime
 	}
 
-	paySum, err := ub.GetPaySumByTime(account.GetID(), stime, etime)
+	paySum, err := pb.GetPaySumByTime(account.GetID(), stime, etime)
 	if nil != err {
 		return responseError(err, "failed to get pay(s) to prune")
 	}
@@ -467,7 +467,7 @@ func payList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 	}
 
-	res, err := NewUtxoStub(stub).GetUtxoPaysByTime(addr.String(), bookmark, stime, etime, fetchSize)
+	res, err := NewPayStub(stub).GetPaysByTime(addr.String(), bookmark, stime, etime, fetchSize)
 	if nil != err {
 		return responseError(err, "failed to get pays log")
 	}
@@ -500,7 +500,7 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 	}
 
 	// ISSUE: check accounts ? (suspended) Business...
-	if err = NewUtxoStub(stub).PayPendingBalance(pb, doc[3].(string), doc[5].(string)); err != nil {
+	if err = NewPayStub(stub).PayPendingBalance(pb, doc[3].(string), doc[5].(string)); err != nil {
 		return responseError(err, "failed to pay a pending balance")
 	}
 

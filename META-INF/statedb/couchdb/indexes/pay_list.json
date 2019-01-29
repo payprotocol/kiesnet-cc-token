@@ -7,7 +7,7 @@
         },
         "fields": [ "@pay", "created_time" ]
     },
-    "ddoc": "utxo",
-    "name": "utxo-pay-list",
+    "ddoc": "pay",
+    "name": "list",
     "type": "json"
 }
