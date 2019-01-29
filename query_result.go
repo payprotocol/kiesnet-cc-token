@@ -77,3 +77,38 @@ func (qr *QueryResult) MarshalJSON() ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+// NewPayQueryResult _
+func NewPayQueryResult(meta *peer.QueryResponseMetadata, iter shim.StateQueryIteratorInterface) (*QueryResult, error) {
+	result := &QueryResult{}
+	result.Meta = meta
+
+	buf := bytes.NewBufferString("[")
+	for iter.HasNext() {
+		kv, err := iter.Next()
+		if err != nil {
+			return nil, err
+		}
+		buf.WriteString("{\"key\":")
+		if _, err = buf.WriteString("\"" + kv.Key + "\","); nil != err {
+			return nil, err
+		}
+		buf.WriteString("\"value\":")
+		if _, err = buf.Write(kv.Value); err != nil {
+			return nil, err
+		}
+		buf.WriteString("}")
+		if iter.HasNext() {
+			if err = buf.WriteByte(','); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if err := buf.WriteByte(']'); err != nil {
+		return nil, err
+	}
+
+	result.Records = buf.Bytes()
+
+	return result, nil
+}

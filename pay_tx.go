@@ -174,7 +174,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[1] : original pay utxo key
 // params[2] : refund amount
 // params[3] : optional. memo (max 128 charactors)
-func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 3 {
 		return shim.Error("incorrect number of parameters. expecting at least 3")
 	}
@@ -302,7 +302,7 @@ func refund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 // params[0] : address to prune or token code
 // params[1] : end time
-func prune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	if len(params) < 2 {
 		return shim.Error("incorrect number of parameters. expecting 2 parameters")
