@@ -10,7 +10,7 @@
         },
         "fields": [ "@pay", "parent_key" ]
     },
-    "ddoc": "utxo",
-    "name": "utxo-pay-refund",
+    "ddoc": "pay",
+    "name": "refund",
     "type": "json"
 }
