@@ -118,7 +118,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			memo = params[3]
 		}
 		// expiry time
-		if len(params) > 4 && len(params[5]) > 0 {
+		if len(params) > 4 && len(params[4]) > 0 {
 			expiry, err = strconv.ParseInt(params[5], 10, 64)
 			if err != nil {
 				responseError(err, "invalid expiry: need seconds")
