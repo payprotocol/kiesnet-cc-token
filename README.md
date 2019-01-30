@@ -134,7 +134,6 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [receiver] : an account address
 - [amount] : big int(+)
 - [_memo_] : max 128 charactors
-- [_pending_time_] : __time(seconds)__ represented by int64
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
 
 > invoke __`pay/refund`__ [original_pay_key, amount(+), _memo_ ] {_"kiesnet-id/pin"_}
@@ -146,6 +145,7 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 > invoke __`pay/prune`__ [token_code|address, _end_time_] {_"kiesnet-id/pin"_}
 - prune the pays from last pay time to end_time. if end_time is not provided, prune to 10 mins lesser than current time.
 - [_end_time_]: to time for pruning
+- __`has_more`__ field is __true__ in the response json string, it means there are more pays to prune given time period.
 
 > query __`pay/list`__ [token_code|address, _bookmark_, _fetchsize_, _start_time_, _end_time_ ]
 - Get pay list

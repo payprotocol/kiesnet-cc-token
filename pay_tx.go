@@ -31,16 +31,27 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 
-	//sender address validation
+	// addresses
+	rAddr, err := ParseAddress(params[1])
+	if err != nil {
+		return responseError(err, "failed to parse the receiver's account address")
+	}
 	var sAddr *Address
-	code, err := ValidateTokenCode(params[0])
-	if nil == err { // by token code
-		sAddr = NewAddress(code, AccountTypePersonal, kid)
-	} else { // by address
+	if len(params[0]) > 0 {
 		sAddr, err = ParseAddress(params[0])
 		if err != nil {
-			return responseError(err, "failed to parse the payeur's account address")
+			return responseError(err, "failed to parse the sender's account address")
 		}
+		if rAddr.Code != sAddr.Code { // not same token
+			return shim.Error("different token accounts")
+		}
+	} else {
+		sAddr = NewAddress(rAddr.Code, AccountTypePersonal, kid)
+	}
+
+	// prevent from paying to self
+	if sAddr.Equal(rAddr) {
+		return shim.Error("can't pay to self")
 	}
 
 	// amount
@@ -50,21 +61,6 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 	if amount.Sign() < 1 {
 		return shim.Error("invalid amount. must be greater than 0")
-	}
-
-	// receiver address validation
-	rAddr, err := ParseAddress(params[1])
-	if err != nil {
-		return responseError(err, "failed to parse the receiver's account address")
-	}
-
-	if rAddr.Code != sAddr.Code {
-		return shim.Error("different token accounts")
-	}
-
-	// prevent from paying to self
-	if sAddr.Equal(rAddr) {
-		return shim.Error("can't pay to self")
 	}
 
 	ab := NewAccountStub(stub, rAddr.Code)

@@ -78,6 +78,16 @@ func NewBalanceSupplyLog(bal *Balance, diff Amount) *BalanceLog {
 
 // NewBalanceTransferLog _
 func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, memo string) *BalanceLog {
+	if diff.Sign() < 0 { // sender log
+		return &BalanceLog{
+			DOCTYPEID: sender.DOCTYPEID,
+			Type:      BalanceLogTypeSend,
+			RID:       receiver.DOCTYPEID,
+			Diff:      diff,
+			Amount:    sender.Amount,
+			Memo:      memo,
+		}
+	} // else receiver log
 	return &BalanceLog{
 		DOCTYPEID: receiver.DOCTYPEID,
 		Type:      BalanceLogTypeReceive,
