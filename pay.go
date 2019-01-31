@@ -10,7 +10,7 @@ import (
 type Pay struct {
 	DOCTYPEID   string       `json:"@pay"`                   //address
 	Amount      Amount       `json:"amount"`                 //can be positive(pay) or negative(refund)
-	TotalRefund Amount       `json:"total_refund,omitempty"` //Total refund value
+	TotalRefund Amount       `json:"total_refund,omitempty"` //total refund value
 	RID         string       `json:"rid"`                    //related id. user who pays to the merchant or receives refund from the merchant.
 	ParentKey   string       `json:"parent_key,omitempty"`   //parent key. this value exists only when the pay type is refund(negative amount)
 	Memo        string       `json:"memo"`
