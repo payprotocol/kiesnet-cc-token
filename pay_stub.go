@@ -91,12 +91,12 @@ func (pb *PayStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey stri
 		return nil, errors.Wrap(err, "failed to put new pay")
 	}
 
-	amount.Neg()
-	sender.Amount.Add(&amount)
-	sender.UpdatedTime = ts
-	if err = NewBalanceStub(pb.stub).PutBalance(sender); nil != err {
-		return nil, errors.Wrap(err, "failed to update sender balance")
-	}
+	// amount.Neg()
+	// sender.Amount.Add(&amount)
+	// sender.UpdatedTime = ts
+	// if err = NewBalanceStub(pb.stub).PutBalance(sender); nil != err {
+	// 	return nil, errors.Wrap(err, "failed to update sender balance")
+	// }
 
 	var sbl *BalanceLog
 	sbl = NewBalanceWithPayLog(sender, pay)
