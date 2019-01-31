@@ -319,6 +319,9 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if nil != err {
 		return responseError(err, "failed to get the account")
 	}
+	if !account.HasHolder(kid) {
+		return shim.Error("invoker is not holder")
+	}
 	if account.IsSuspended() {
 		return shim.Error("the account is suspended")
 	}
