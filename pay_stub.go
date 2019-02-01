@@ -38,8 +38,7 @@ func (pb *PayStub) CreatePayKey(id string) string {
 
 // CreatePayKeyByTime _
 func (pb *PayStub) CreatePayKeyByTime(ts *txtime.Time, txid string) string {
-	unixNano := ts.UnixNano()
-	return pb.CreatePayKey(fmt.Sprintf("%d%s", unixNano, txid))
+	return pb.CreatePayKey(fmt.Sprintf("%d%s", ts.UnixNano(), txid))
 }
 
 //GetPay _
@@ -83,13 +82,13 @@ func (pb *PayStub) PutParentPay(key string, pay *Pay) error {
 }
 
 // Pay _
-func (pb *PayStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLog, error) {
+func (pb *PayStub) Pay(sender *Balance, receiver string, amount Amount, memo, pkey string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(pb.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
-	payid := fmt.Sprint("%d%s", ts.UnixNano(), pb.stub.GetTxID())
-	pay := NewPay(receiver.GetID(), payid, amount, sender.GetID(), pkey, memo, ts)
+	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
+	pay := NewPay(receiver, payid, amount, sender.GetID(), pkey, memo, ts)
 	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
 	}
@@ -217,7 +216,7 @@ func (pb *PayStub) GetPaysByTime(id, bookmark string, stime, etime *txtime.Time,
 	}
 	defer iter.Close()
 
-	return NewPayQueryResult(meta, iter)
+	return NewQueryResult(meta, iter)
 }
 
 // PayPendingBalance _
