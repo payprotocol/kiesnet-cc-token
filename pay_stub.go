@@ -77,15 +77,15 @@ func (pb *PayStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey stri
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	key := pb.CreatePayKey(receiver.GetID(), ts.UnixNano())
-	if p, err := pb.GetPay(key); nil != err {
-		if _, ok := err.(NotExistedPayError); !ok {
-			return nil, errors.Wrap(err, "failed to get the pay by key")
-		}
-		if nil != p {
-			return nil, errors.New("duplicate pay exists")
-		}
-	}
+	// key := pb.CreatePayKey(receiver.GetID(), ts.UnixNano())
+	// if p, err := pb.GetPay(key); nil != err {
+	// 	if _, ok := err.(NotExistedPayError); !ok {
+	// 		return nil, errors.Wrap(err, "failed to get the pay by key")
+	// 	}
+	// 	if nil != p {
+	// 		return nil, errors.New("duplicate pay exists")
+	// 	}
+	// }
 	pay := NewPay(receiver.GetID(), amount, sender.GetID(), pkey, memo, ts)
 	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
