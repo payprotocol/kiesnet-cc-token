@@ -276,7 +276,7 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	}
 
 	var log *BalanceLog
-	log, err = pb.Refund(sBal, rBal, *amount.Neg(), memo, parentPay)
+	log, err = pb.Refund(sBal, rBal, *amount.Neg(), memo, parentPay, pkey)
 
 	if err != nil {
 		return responseError(err, "failed to pay")
@@ -336,7 +336,7 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// start time
 	stime := txtime.Unix(0, 0)
 	if 0 < len(bal.LastPrunedPayID) {
-		lastTime := strings.Split(bal.LastPrunedPayID, "_")[2]
+		lastTime := strings.Split(bal.LastPrunedPayID, "_")[1]
 		s, err := strconv.ParseInt(lastTime[0:10], 10, 64)
 		if nil != err {
 			return responseError(err, "failed to get seconds from timestamp")
