@@ -97,12 +97,6 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("not enough balance")
 	}
 
-	// receiver balance
-	rBal, err := bb.GetBalance(receiver.GetID())
-	if nil != err {
-		return responseError(err, "failed to get the receiver's balance")
-	}
-
 	// options
 	memo := ""
 	var expiry int64
@@ -151,7 +145,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 
 	} else {
-		payResult, err = NewPayStub(stub).Pay(sBal, rBal, *amount, memo)
+		payResult, err = NewPayStub(stub).Pay(sBal, receiver.GetID(), *amount, memo)
 		if err != nil {
 			return responseError(err, "failed to pay")
 		}
