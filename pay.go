@@ -38,3 +38,9 @@ type PaySum struct {
 	End     string  `json:"end_key"`
 	HasMore bool    `json:"has_more"`
 }
+
+// PayResult _
+type PayResult struct {
+	Pay        *Pay        `json:"pay"`
+	BalanceLog *BalanceLog `json:"balance_log"`
+}

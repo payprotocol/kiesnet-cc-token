@@ -127,7 +127,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	var log *BalanceLog // log for response
-
+	var payResult *PayResult
 	if signers.Size() > 1 {
 		if signers.Size() > 128 {
 			return shim.Error("too many signers")
@@ -151,14 +151,15 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 
 	} else {
-		log, err = NewPayStub(stub).Pay(sBal, rBal, *amount, memo, "")
+		payResult, err = NewPayStub(stub).Pay(sBal, rBal, *amount, memo)
 		if err != nil {
 			return responseError(err, "failed to pay")
 		}
 	}
 
 	// log is not nil
-	data, err := json.Marshal(log)
+	payResult.BalanceLog = log
+	data, err := json.Marshal(payResult)
 	if nil != err {
 		return responseError(err, "failed to marshal the log")
 	}
@@ -166,7 +167,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// params[0] : original pay key
+// params[0] : original pay id
 // params[1] : refund amount
 // params[2] : optional. memo (max 128 charactors)
 func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
@@ -190,9 +191,9 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	}
 
 	pb := NewPayStub(stub)
-	pkey := params[0]
+	parentID := params[0]
 
-	parentPay, err := pb.GetPay(pb.CreatePayKey(pkey))
+	parentPay, err := pb.GetPay(pb.CreatePayKey(parentID))
 	if err != nil {
 		return responseError(err, "failed to get the original payment from the key")
 	}
@@ -276,7 +277,7 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	}
 
 	var log *BalanceLog
-	log, err = pb.Refund(sBal, rBal, *amount.Neg(), memo, parentPay, pkey)
+	log, err = pb.Refund(sBal, rBal, *amount.Neg(), memo, parentPay)
 
 	if err != nil {
 		return responseError(err, "failed to pay")
@@ -341,7 +342,7 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		if nil != err {
 			return responseError(err, "failed to get seconds from timestamp")
 		}
-		n, err := strconv.ParseInt(lastTime[10:], 10, 64)
+		n, err := strconv.ParseInt(lastTime[10:19], 10, 64)
 		if nil != err {
 			return responseError(err, "failed to get nanoseconds from timestamp")
 		}
@@ -364,10 +365,10 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	// safe time is current transaction time minus 10 minutes. this is to prevent missing pay(s) because of the time differences(+/- 5min) on different servers/devices
-	safeTime := txtime.New(ts.Add(-6e+11))
-	if nil == etime || etime.Cmp(safeTime) > 0 {
-		etime = safeTime
-	}
+	// safeTime := txtime.New(ts.Add(-6e+11))
+	// if nil == etime || etime.Cmp(safeTime) > 0 {
+	// 	etime = safeTime
+	// }
 
 	paySum, err := pb.GetPaySumByTime(account.GetID(), stime, etime)
 	if nil != err {
