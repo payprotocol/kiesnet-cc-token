@@ -101,5 +101,5 @@ func (e NotExistedPayError) Error() string {
 	if len(e.key) > 0 {
 		return fmt.Sprintf("the pay key '%s' does not exist", e.key)
 	}
-	return "the pay utxo does not exist"
+	return "the pay does not exist"
 }

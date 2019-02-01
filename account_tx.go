@@ -99,8 +99,6 @@ func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response
 		return shim.Error(err.Error())
 	}
 
-	var account AccountInterface
-
 	var addr *Address
 	code, err := ValidateTokenCode(params[0])
 	if nil == err { // by token code
@@ -112,7 +110,7 @@ func accountGet(stub shim.ChaincodeStubInterface, params []string) peer.Response
 		}
 	}
 	ab := NewAccountStub(stub, addr.Code)
-	account, err = ab.GetAccount(addr)
+	account, err := ab.GetAccount(addr)
 	if err != nil {
 		return responseError(err, "failed to get the account")
 	}

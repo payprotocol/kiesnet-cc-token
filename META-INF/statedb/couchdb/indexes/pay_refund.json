@@ -3,11 +3,14 @@
         "partial_filter_selector": {
             "@pay": {
                 "$exists": true
+            },
+            "parent_key":{
+                "$exists": true
             }
         },
-        "fields": [ "@pay", "created_time" ]
+        "fields": [ "@pay", "parent_key" ]
     },
-    "ddoc": "utxo",
-    "name": "utxo-pay-list",
+    "ddoc": "pay",
+    "name": "refund",
     "type": "json"
 }

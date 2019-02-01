@@ -12,20 +12,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-// UtxoPaysPruneSize _
-const UtxoPaysPruneSize = 500
+// PaysPruneSize _
+const PaysPruneSize = 900
 
-// UtxoPaysFetchSize _
-const UtxoPaysFetchSize = 20
+// PaysFetchSize _
+const PaysFetchSize = 20
 
-// UtxoStub _
-type UtxoStub struct {
+// PayStub _
+type PayStub struct {
 	stub shim.ChaincodeStubInterface
 }
 
-// NewUtxoStub _
-func NewUtxoStub(stub shim.ChaincodeStubInterface) *UtxoStub {
-	return &UtxoStub{stub}
+// NewPayStub _
+func NewPayStub(stub shim.ChaincodeStubInterface) *PayStub {
+	return &PayStub{stub}
 }
 
 // CreatePayKey _
@@ -43,8 +43,8 @@ func (pb *PayStub) CreatePayKeyByTime(ts *txtime.Time, txid string) string {
 }
 
 //GetPay _
-func (ub *UtxoStub) GetPay(key string) (*Pay, error) {
-	data, err := ub.stub.GetState(key)
+func (pb *PayStub) GetPay(key string) (*Pay, error) {
+	data, err := pb.stub.GetState(key)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the pay state")
 	}
@@ -59,7 +59,7 @@ func (ub *UtxoStub) GetPay(key string) (*Pay, error) {
 }
 
 // PutPay _
-func (ub *UtxoStub) PutPay(pay *Pay) error {
+func (pb *PayStub) PutPay(pay *Pay) error {
 	data, err := json.Marshal(pay)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the balance")
@@ -83,8 +83,8 @@ func (pb *PayStub) PutParentPay(key string, pay *Pay) error {
 }
 
 // Pay _
-func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLog, error) {
-	ts, err := txtime.GetTime(ub.stub)
+func (pb *PayStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLog, error) {
+	ts, err := txtime.GetTime(pb.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
@@ -97,14 +97,14 @@ func (ub *UtxoStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey str
 	amount.Neg()
 	sender.Amount.Add(&amount)
 	sender.UpdatedTime = ts
-	if err = NewBalanceStub(ub.stub).PutBalance(sender); nil != err {
+	if err = NewBalanceStub(pb.stub).PutBalance(sender); nil != err {
 		return nil, errors.Wrap(err, "failed to update sender balance")
 	}
 
 	var sbl *BalanceLog
 	sbl = NewBalanceWithPayLog(sender, pay)
 	sbl.CreatedTime = ts
-	if err = NewBalanceStub(ub.stub).PutBalanceLog(sbl); err != nil {
+	if err = NewBalanceStub(pb.stub).PutBalanceLog(sbl); err != nil {
 		return nil, errors.Wrap(err, "failed to update sender balance log")
 	}
 
@@ -121,30 +121,30 @@ func (pb *PayStub) Refund(sender, receiver *Balance, amount Amount, memo string,
 	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
 	pay := NewPay(sender.GetID(), payid, amount, receiver.GetID(), pb.CreatePayKeyByTime(parentPay.CreatedTime, pb.stub.GetTxID()), memo, ts)
 
-	if err = ub.PutPay(pay); nil != err {
+	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
 	}
 
 	receiver.Amount.Add(amount.Copy().Neg())
 	receiver.UpdatedTime = ts
 
-	if err = NewBalanceStub(ub.stub).PutBalance(receiver); nil != err {
+	if err = NewBalanceStub(pb.stub).PutBalance(receiver); nil != err {
 		return nil, errors.Wrap(err, "failed to update receiver balance")
 	}
 
-	//update the total refund amount to the parent utxo
+	//update the total refund amount to the parent pay
 	parentPay.TotalRefund = *parentPay.TotalRefund.Add(amount.Copy().Neg())
 
 	err = pb.PutParentPay(pb.CreatePayKey(parentID), parentPay)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to update parent pay utxo")
+		return nil, errors.Wrap(err, "failed to update parent pay")
 	}
 
 	var rbl *BalanceLog
 	rbl = NewBalanceWithRefundLog(receiver, pay)
 	rbl.CreatedTime = ts
 
-	if err = NewBalanceStub(ub.stub).PutBalanceLog(rbl); err != nil {
+	if err = NewBalanceStub(pb.stub).PutBalanceLog(rbl); err != nil {
 		return nil, errors.Wrap(err, "failed to update receiver's balance log")
 	}
 
@@ -152,9 +152,9 @@ func (pb *PayStub) Refund(sender, receiver *Balance, amount Amount, memo string,
 }
 
 // GetPaySumByTime _{end sum next}
-func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PaySum, error) {
-	query := CreateQueryUtxoPrunePays(id, stime, etime)
-	iter, err := ub.stub.GetQueryResult(query)
+func (pb *PayStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PaySum, error) {
+	query := CreateQueryPrunePays(id, stime, etime)
+	iter, err := pb.stub.GetQueryResult(query)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PayS
 			return nil, err
 		}
 		//get the next pay key ( +1 pay after the threshhold)
-		if cnt == UtxoPaysPruneSize+1 {
+		if cnt == PaysPruneSize+1 {
 			cs.HasMore = true
 			break
 		}
@@ -197,21 +197,21 @@ func (ub *UtxoStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PayS
 
 }
 
-// GetUtxoPaysByTime _
-func (ub *UtxoStub) GetUtxoPaysByTime(id, bookmark string, stime, etime *txtime.Time, fetchSize int) (*QueryResult, error) {
+// GetPaysByTime _
+func (pb *PayStub) GetPaysByTime(id, bookmark string, stime, etime *txtime.Time, fetchSize int) (*QueryResult, error) {
 	if fetchSize < 1 {
-		fetchSize = UtxoPaysFetchSize
+		fetchSize = PaysFetchSize
 	}
 	if fetchSize > 200 {
-		fetchSize = UtxoPaysFetchSize
+		fetchSize = PaysFetchSize
 	}
 	query := ""
 	if stime != nil || etime != nil {
-		query = CreateQueryUtxoPaysByIDAndTime(id, stime, etime)
+		query = CreateQueryPaysByIDAndTime(id, stime, etime)
 	} else {
-		query = CreateQueryUtxoPaysByID(id)
+		query = CreateQueryPaysByID(id)
 	}
-	iter, meta, err := ub.stub.GetQueryResultWithPagination(query, int32(fetchSize), bookmark)
+	iter, meta, err := pb.stub.GetQueryResultWithPagination(query, int32(fetchSize), bookmark)
 	if err != nil {
 		return nil, err
 	}
@@ -221,8 +221,8 @@ func (ub *UtxoStub) GetUtxoPaysByTime(id, bookmark string, stime, etime *txtime.
 }
 
 // PayPendingBalance _
-func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant, memo string) error {
-	ts, err := txtime.GetTime(ub.stub)
+func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, merchant, memo string) error {
+	ts, err := txtime.GetTime(pb.stub)
 	if nil != err {
 		return err
 	}
@@ -243,7 +243,7 @@ func (ub *UtxoStub) PayPendingBalance(pb *PendingBalance, merchant, memo string)
 	}
 
 	// remove pending balance
-	if err := ub.stub.DelState(NewBalanceStub(ub.stub).CreatePendingKey(pb.DOCTYPEID)); err != nil {
+	if err := pb.stub.DelState(NewBalanceStub(pb.stub).CreatePendingKey(pbalance.DOCTYPEID)); err != nil {
 		return errors.Wrap(err, "failed to delete the pending balance")
 	}
 	return nil

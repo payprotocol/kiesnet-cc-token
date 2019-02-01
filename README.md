@@ -77,6 +77,9 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
     - 0x03 : receive
     - 0x04 : deposit (create a pending balance)
     - 0x05 : withdraw (from the pending balance)
+    - 0x06 : pay
+    - 0x07 : refund
+    - 0x08 : prune
 
 > query __`balance/pending/get`__ [pending_balance_id]
 - Get the pending balance
@@ -125,19 +128,31 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
 - [_extra-signers..._] : PAOTs (exclude invoker, max 127)
 
-> invoke __`pay`__ [sender, target(receiver/chunkID), amount(+/-), _memo_, _expiry_] {_"kiesnet-id/pin"_}
-- pay or refund the amount of **positive or negative** token to target or creaete a pay contract
-  + Pay : Pay the amount of **postive token** to receiver or create a contract 
-  + Refund : Refund the amount of **negative token** which matched with payed chunkID. In this case, there is no contract created
+> invoke __`pay`__ [sender, receiver, amount(+), _memo_, _expiry_] {_"kiesnet-id/pin"_}
+- pay the amount of **positive** token to the receiver or creaete a pay contract
 - [sender]: an account address, __TOKENCODE = PAOT__
-- [target] : 
-  + an account address : the positive amount of token
-  + an payed chunkid : the negative amount of token
-- [amount] : big int(+/-)
+- [receiver] : an account address
+- [amount] : big int(+)
 - [_memo_] : max 128 charactors
-- [_pending_time_] : __time(seconds)__ represented by int64
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
-- [_extra-signers..._] : PAOTs (exclude invoker, max 127)
+
+> invoke __`pay/refund`__ [original_pay_key, amount(+), _memo_ ] {_"kiesnet-id/pin"_}
+- refund the amount of token the based on original_pay_key 
+- [original_pay_key] : original_pay_key 
+- [amount]: the amount of token. this value should be lesser than original pay's amount
+- [_memo_]: max 128 charactors
+
+> invoke __`pay/prune`__ [token_code|address, _end_time_] {_"kiesnet-id/pin"_}
+- prune the pays from last pay time to end_time. if end_time is not provided, prune to 10 mins lesser than current time.
+- [_end_time_]: to time for pruning
+- __`has_more`__ field is __true__ in the response json string, it means there are more pays to prune given time period.
+
+> query __`pay/list`__ [token_code|address, _bookmark_, _fetchsize_, _start_time_, _end_time_ ]
+- Get pay list
+- If the 1st parameter is token code, it returns list of the PAOT.
+- [_fetch_size_] : max 200, if it is less than 1, default size will be used (20)
+- [_starttime_] : __time(seconds)__ represented by int64
+- [_endtime_] : __time(seconds)__ represented by int64
 
 > query __`ver`__
 - Get version
