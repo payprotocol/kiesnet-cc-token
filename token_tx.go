@@ -10,6 +10,7 @@ import (
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
+	"github.com/key-inside/kiesnet-ccpkg/contract"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
 	"github.com/pkg/errors"
@@ -83,18 +84,34 @@ func tokenBurn(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if jac.Holders.Size() > 1 {
 		// contract
 		doc := []interface{}{"token/burn", code, amount.String()}
-		return invokeContract(stub, doc, jac.Holders)
+		docb, err := json.Marshal(doc)
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to create a contract")
+		}
+		// ISSUE : should we get and set expiry?
+		con, err := contract.CreateContract(stub, docb, 0, jac.Holders)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+		payload := &TokenResult{Contract: con}
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return responseError(err, "failed to marshal payload")
+		}
+		return shim.Success(data)
 	}
 
 	// burn
-	token, err = tb.Burn(token, bal, *amount)
+	token, log, err := tb.Burn(token, bal, *amount)
 	if err != nil {
 		return responseError(err, "failed to burn")
 	}
 
-	data, err := json.Marshal(token)
+	payload := &TokenResult{Token: token, BalanceLog: log}
+	data, err := json.Marshal(payload)
 	if err != nil {
-		return responseError(err, "failed to marshal the token")
+		return responseError(err, "failed to marshal payload")
 	}
 	return shim.Success(data)
 }
@@ -252,18 +269,35 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	if jac.Holders.Size() > 1 {
 		// contract
 		doc := []interface{}{"token/mint", code, amount.String()}
-		return invokeContract(stub, doc, jac.Holders)
+		// return invokeContract(stub, doc, jac.Holders)
+		docb, err := json.Marshal(doc)
+		if err != nil {
+			logger.Debug(err.Error())
+			return shim.Error("failed to create a contract")
+		}
+		// ISSUE : should we get and set expiry?
+		con, err := contract.CreateContract(stub, docb, 0, jac.Holders)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+		payload := &TokenResult{Contract: con}
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return responseError(err, "failed to marshal payload")
+		}
+		return shim.Success(data)
 	}
 
 	// mint
-	token, err = tb.Mint(token, bal, *amount)
+	token, log, err := tb.Mint(token, bal, *amount)
 	if err != nil {
 		return responseError(err, "failed to mint")
 	}
 
-	data, err := json.Marshal(token)
+	payload := &TokenResult{Token: token, BalanceLog: log}
+	data, err := json.Marshal(payload)
 	if err != nil {
-		return responseError(err, "failed to marshal the token")
+		return responseError(err, "failed to marshal payload")
 	}
 	return shim.Success(data)
 }
@@ -345,7 +379,7 @@ func executeTokenBurn(stub shim.ChaincodeStubInterface, cid string, doc []interf
 		return responseError(err, "failed to get the genesis account balance")
 	}
 
-	if _, err = tb.Burn(token, bal, *amount); err != nil {
+	if _, _, err = tb.Burn(token, bal, *amount); err != nil {
 		return responseError(err, "failed to burn")
 	}
 
@@ -413,7 +447,7 @@ func executeTokenMint(stub shim.ChaincodeStubInterface, cid string, doc []interf
 		return responseError(err, "failed to get the genesis account balance")
 	}
 
-	if _, err = tb.Mint(token, bal, *amount); err != nil {
+	if _, _, err = tb.Mint(token, bal, *amount); err != nil {
 		return responseError(err, "failed to mint")
 	}
 

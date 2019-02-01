@@ -104,15 +104,15 @@ func (tb *TokenStub) PutToken(token *Token) error {
 }
 
 // Burn _
-func (tb *TokenStub) Burn(token *Token, bal *Balance, amount Amount) (*Token, error) {
+func (tb *TokenStub) Burn(token *Token, bal *Balance, amount Amount) (*Token, *BalanceLog, error) {
 	ts, err := txtime.GetTime(tb.stub)
 	if err != nil {
-		return token, errors.Wrap(err, "failed to get the timestamp")
+		return token, nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	// token
 	if token.Supply.Sign() == 0 {
-		return token, SupplyError{reason: "no supply"}
+		return token, nil, SupplyError{reason: "no supply"}
 	}
 
 	// balance
@@ -121,35 +121,36 @@ func (tb *TokenStub) Burn(token *Token, bal *Balance, amount Amount) (*Token, er
 		amount = *(bal.Amount.Copy()) // real diff
 	}
 	if amount.Sign() <= 0 { // nothing to burn
-		return token, nil
+		return token, nil, nil
 	}
 
 	// burn
 	amount.Neg() // -
-	if _, err = bb.Supply(bal, amount); err != nil {
-		return token, errors.Wrap(err, "failed to burn")
+	var log *BalanceLog
+	if log, err = bb.Supply(bal, amount); err != nil {
+		return token, log, errors.Wrap(err, "failed to burn")
 	}
 
 	// supply
 	token.Supply.Add(&amount)
 	token.UpdatedTime = ts
 	if err = tb.PutToken(token); err != nil {
-		return token, errors.Wrap(err, "failed to update the token")
+		return token, log, errors.Wrap(err, "failed to update the token")
 	}
 
-	return token, nil
+	return token, log, nil
 }
 
 // Mint _
-func (tb *TokenStub) Mint(token *Token, bal *Balance, amount Amount) (*Token, error) {
+func (tb *TokenStub) Mint(token *Token, bal *Balance, amount Amount) (*Token, *BalanceLog, error) {
 	ts, err := txtime.GetTime(tb.stub)
 	if err != nil {
-		return token, errors.Wrap(err, "failed to get the timestamp")
+		return token, nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	// token
 	if token.Supply.Cmp(&token.MaxSupply) >= 0 {
-		return token, SupplyError{reason: "max supplied"}
+		return token, nil, SupplyError{reason: "max supplied"}
 	}
 
 	// supply
@@ -161,15 +162,16 @@ func (tb *TokenStub) Mint(token *Token, bal *Balance, amount Amount) (*Token, er
 	}
 	token.UpdatedTime = ts
 	if err = tb.PutToken(token); err != nil {
-		return token, errors.Wrap(err, "failed to update the token")
+		return token, nil, errors.Wrap(err, "failed to update the token")
 	}
 
 	// balance
 	bb := NewBalanceStub(tb.stub)
 	// mint
-	if _, err = bb.Supply(bal, amount); err != nil {
-		return token, errors.Wrap(err, "failed to mint")
+	var log *BalanceLog
+	if log, err = bb.Supply(bal, amount); err != nil {
+		return token, log, errors.Wrap(err, "failed to mint")
 	}
 
-	return token, nil
+	return token, log, nil
 }

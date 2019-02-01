@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/key-inside/kiesnet-ccpkg/contract"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 	"github.com/pkg/errors"
 )
@@ -30,4 +31,11 @@ type Token struct {
 	GenesisAccount string       `json:"genesis_account"`
 	CreatedTime    *txtime.Time `json:"created_time,omitempty"`
 	UpdatedTime    *txtime.Time `json:"updated_time,omitempty"`
+}
+
+// TokenResult is response payload of token/burn and token/mint.
+type TokenResult struct {
+	Token      *Token             `json:"token,omitempty"`
+	BalanceLog *BalanceLog        `json:"balance_log,omitempty"`
+	Contract   *contract.Contract `json:"contract,omitempty"`
 }
