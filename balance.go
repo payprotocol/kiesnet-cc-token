@@ -126,11 +126,12 @@ func NewBalanceWithdrawLog(bal *Balance, pb *PendingBalance) *BalanceLog {
 
 // NewBalanceWithPayLog _
 func NewBalanceWithPayLog(bal *Balance, pay *Pay) *BalanceLog {
+	diff := pay.Amount.Copy().Neg()
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypePay,
 		RID:       pay.DOCTYPEID,
-		Diff:      pay.Amount,
+		Diff:      *diff,
 		Amount:    bal.Amount,
 		Memo:      pay.Memo,
 		PayID:     pay.PayID,
@@ -139,11 +140,12 @@ func NewBalanceWithPayLog(bal *Balance, pay *Pay) *BalanceLog {
 
 // NewBalanceWithRefundLog _
 func NewBalanceWithRefundLog(bal *Balance, pay *Pay) *BalanceLog {
+	diff := pay.Amount.Copy().Neg()
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypeRefund,
 		RID:       pay.DOCTYPEID,
-		Diff:      pay.Amount,
+		Diff:      *diff,
 		Amount:    bal.Amount,
 		Memo:      pay.Memo,
 	}
