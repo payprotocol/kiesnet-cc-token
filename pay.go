@@ -44,3 +44,11 @@ type PayResult struct {
 	Pay        *Pay        `json:"pay"`
 	BalanceLog *BalanceLog `json:"balance_log"`
 }
+
+// NewPayResult _
+func NewPayResult(pay *Pay, log *BalanceLog) *PayResult {
+	return &PayResult{
+		Pay:        pay,
+		BalanceLog: log,
+	}
+}

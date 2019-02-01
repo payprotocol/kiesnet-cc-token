@@ -157,8 +157,10 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 	}
 
-	// log is not nil
-	payResult.BalanceLog = log
+	if payResult.BalanceLog == nil {
+		payResult.BalanceLog = log
+	}
+
 	data, err := json.Marshal(payResult)
 	if nil != err {
 		return responseError(err, "failed to marshal the log")

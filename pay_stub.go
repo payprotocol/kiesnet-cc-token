@@ -108,11 +108,7 @@ func (pb *PayStub) Pay(sender, receiver *Balance, amount Amount, memo string) (*
 		return nil, errors.Wrap(err, "failed to update sender balance log")
 	}
 
-	var payResult *PayResult
-	payResult.BalanceLog = sbl
-	payResult.Pay = pay
-
-	return payResult, nil
+	return NewPayResult(pay, sbl), nil
 }
 
 // Refund _
@@ -221,7 +217,7 @@ func (pb *PayStub) GetPaysByTime(id, bookmark string, stime, etime *txtime.Time,
 	}
 	defer iter.Close()
 
-	return NewPayQueryResult(meta, iter)
+	return NewQueryResult(meta, iter)
 }
 
 // PayPendingBalance _
