@@ -97,12 +97,6 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("not enough balance")
 	}
 
-	// receiver balance
-	rBal, err := bb.GetBalance(receiver.GetID())
-	if nil != err {
-		return responseError(err, "failed to get the receiver's balance")
-	}
-
 	// options
 	memo := ""
 	var expiry int64
@@ -127,7 +121,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	var log *BalanceLog // log for response
-
+	var payResult *PayResult
 	if signers.Size() > 1 {
 		if signers.Size() > 128 {
 			return shim.Error("too many signers")
@@ -151,14 +145,17 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 
 	} else {
-		log, err = NewPayStub(stub).Pay(sBal, rBal, *amount, memo, "")
+		payResult, err = NewPayStub(stub).Pay(sBal, receiver.GetID(), *amount, memo)
 		if err != nil {
 			return responseError(err, "failed to pay")
 		}
 	}
 
-	// log is not nil
-	data, err := json.Marshal(log)
+	if payResult.BalanceLog == nil {
+		payResult.BalanceLog = log
+	}
+
+	data, err := json.Marshal(payResult)
 	if nil != err {
 		return responseError(err, "failed to marshal the log")
 	}
@@ -166,7 +163,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// params[0] : original pay key
+// params[0] : original pay id
 // params[1] : refund amount
 // params[2] : optional. memo (max 128 charactors)
 func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
@@ -190,9 +187,9 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	}
 
 	pb := NewPayStub(stub)
-	pkey := params[0]
+	parentID := params[0]
 
-	parentPay, err := pb.GetPay(pkey)
+	parentPay, err := pb.GetPay(pb.CreatePayKey(parentID))
 	if err != nil {
 		return responseError(err, "failed to get the original payment from the key")
 	}
@@ -292,11 +289,12 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 }
 
 // params[0] : address to prune or token code
-// params[1] : optional. end time
+// params[1] : 10 minutes limit flag. if the value is true, 10 minutes check is activated.
+// params[2] : optional. end time
 func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
-	if len(params) < 1 {
-		return shim.Error("incorrect number of parameters. expecting at least 1 parameter")
+	if len(params) < 2 {
+		return shim.Error("incorrect number of parameters. expecting at least 2 parameters")
 	}
 	// authentication
 	kid, err := kid.GetID(stub, true)
@@ -336,12 +334,12 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// start time
 	stime := txtime.Unix(0, 0)
 	if 0 < len(bal.LastPrunedPayID) {
-		lastTime := strings.Split(bal.LastPrunedPayID, "_")[2]
+		lastTime := strings.Split(bal.LastPrunedPayID, "_")[1]
 		s, err := strconv.ParseInt(lastTime[0:10], 10, 64)
 		if nil != err {
 			return responseError(err, "failed to get seconds from timestamp")
 		}
-		n, err := strconv.ParseInt(lastTime[10:], 10, 64)
+		n, err := strconv.ParseInt(lastTime[10:19], 10, 64)
 		if nil != err {
 			return responseError(err, "failed to get nanoseconds from timestamp")
 		}
@@ -355,18 +353,26 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	var etime *txtime.Time
 	// end time
-	if len(params) > 1 {
-		seconds, err := strconv.ParseInt(params[1], 10, 64)
+	if len(params) > 2 {
+		seconds, err := strconv.ParseInt(params[2], 10, 64)
 		if nil != err {
 			return responseError(err, "failed to parse the end time")
 		}
 		etime = txtime.Unix(seconds, 0)
 	}
 
-	// safe time is current transaction time minus 10 minutes. this is to prevent missing pay(s) because of the time differences(+/- 5min) on different servers/devices
-	safeTime := txtime.New(ts.Add(-6e+11))
-	if nil == etime || etime.Cmp(safeTime) > 0 {
-		etime = safeTime
+	//boolean validation
+	b, err := strconv.ParseBool(params[1])
+	if err != nil {
+		return shim.Error("wrong params[1] value. the value must be true or false")
+	}
+
+	if b == true {
+		// safe time is current transaction time minus 10 minutes. this is to prevent missing pay(s) because of the time differences(+/- 5min) on different servers/devices
+		safeTime := txtime.New(ts.Add(-6e+11))
+		if nil == etime || etime.Cmp(safeTime) > 0 {
+			etime = safeTime
+		}
 	}
 
 	paySum, err := pb.GetPaySumByTime(account.GetID(), stime, etime)

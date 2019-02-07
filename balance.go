@@ -56,6 +56,7 @@ type BalanceLog struct {
 	CreatedTime   *txtime.Time   `json:"created_time,omitempty"`
 	PruneStartKey string         `json:"prune_start_key,omitempty"` // used for pruned balance log
 	PruneEndKey   string         `json:"prune_end_key,omitempty"`   // used for pruned balance log
+	PayID         string         `json:"pay_id,omitempty"`          // used for pay balance log
 }
 
 // NewBalanceSupplyLog _
@@ -133,6 +134,7 @@ func NewBalanceWithPayLog(bal *Balance, pay *Pay) *BalanceLog {
 		Diff:      *diff,
 		Amount:    bal.Amount,
 		Memo:      pay.Memo,
+		PayID:     pay.PayID,
 	}
 }
 

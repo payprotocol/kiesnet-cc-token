@@ -9,6 +9,7 @@ import (
 // Pay _
 type Pay struct {
 	DOCTYPEID   string       `json:"@pay"`                   //address
+	PayID       string       `json:"pay_id"`                 //used for the external client to pass the pay id for refund
 	Amount      Amount       `json:"amount"`                 //can be positive(pay) or negative(refund)
 	TotalRefund Amount       `json:"total_refund,omitempty"` //total refund value
 	RID         string       `json:"rid"`                    //related id. user who pays to the merchant or receives refund from the merchant.
@@ -18,9 +19,10 @@ type Pay struct {
 }
 
 // NewPay _
-func NewPay(id string, amount Amount, rid, pkey, memo string, ts *txtime.Time) *Pay {
+func NewPay(id, payid string, amount Amount, rid, pkey, memo string, ts *txtime.Time) *Pay {
 	return &Pay{
 		DOCTYPEID:   id,
+		PayID:       payid,
 		Amount:      amount,
 		RID:         rid,
 		ParentKey:   pkey,
@@ -35,4 +37,18 @@ type PaySum struct {
 	Start   string  `json:"start_key"`
 	End     string  `json:"end_key"`
 	HasMore bool    `json:"has_more"`
+}
+
+// PayResult _
+type PayResult struct {
+	Pay        *Pay        `json:"pay"`
+	BalanceLog *BalanceLog `json:"balance_log"`
+}
+
+// NewPayResult _
+func NewPayResult(pay *Pay, log *BalanceLog) *PayResult {
+	return &PayResult{
+		Pay:        pay,
+		BalanceLog: log,
+	}
 }

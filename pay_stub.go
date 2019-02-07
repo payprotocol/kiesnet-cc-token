@@ -29,17 +29,11 @@ func NewPayStub(stub shim.ChaincodeStubInterface) *PayStub {
 }
 
 // CreatePayKey _
-func (pb *PayStub) CreatePayKey(id string, unixnano int64) string {
+func (pb *PayStub) CreatePayKey(id string) string {
 	if id == "" {
 		return ""
 	}
-	return fmt.Sprintf("PAY_%s_%d", id, unixnano)
-}
-
-// CreatePayKeyByTime _
-func (pb *PayStub) CreatePayKeyByTime(id string, ts *txtime.Time) string {
-	unixNano := ts.UnixNano()
-	return pb.CreatePayKey(id, unixNano)
+	return fmt.Sprintf("PAY_%s", id)
 }
 
 //GetPay _
@@ -64,29 +58,32 @@ func (pb *PayStub) PutPay(pay *Pay) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the balance")
 	}
-	if err = pb.stub.PutState(pb.CreatePayKey(pay.DOCTYPEID, pay.CreatedTime.UnixNano()), data); err != nil {
+	if err = pb.stub.PutState(pb.CreatePayKey(pay.PayID), data); err != nil {
+		return errors.Wrap(err, "failed to put the balance state")
+	}
+	return nil
+}
+
+// PutParentPay _
+func (pb *PayStub) PutParentPay(key string, pay *Pay) error {
+	data, err := json.Marshal(pay)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal the balance")
+	}
+	if err = pb.stub.PutState(key, data); err != nil {
 		return errors.Wrap(err, "failed to put the balance state")
 	}
 	return nil
 }
 
 // Pay _
-func (pb *PayStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey string) (*BalanceLog, error) {
+func (pb *PayStub) Pay(sender *Balance, receiver string, amount Amount, memo string) (*PayResult, error) {
 	ts, err := txtime.GetTime(pb.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
-
-	key := pb.CreatePayKey(receiver.GetID(), ts.UnixNano())
-	if p, err := pb.GetPay(key); nil != err {
-		if _, ok := err.(NotExistedPayError); !ok {
-			return nil, errors.Wrap(err, "failed to get the pay by key")
-		}
-		if nil != p {
-			return nil, errors.New("duplicate pay exists")
-		}
-	}
-	pay := NewPay(receiver.GetID(), amount, sender.GetID(), pkey, memo, ts)
+	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
+	pay := NewPay(receiver, payid, amount, sender.GetID(), "", memo, ts)
 	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
 	}
@@ -105,7 +102,7 @@ func (pb *PayStub) Pay(sender, receiver *Balance, amount Amount, memo, pkey stri
 		return nil, errors.Wrap(err, "failed to update sender balance log")
 	}
 
-	return sbl, nil
+	return NewPayResult(pay, sbl), nil
 }
 
 // Refund _
@@ -115,17 +112,8 @@ func (pb *PayStub) Refund(sender, receiver *Balance, amount Amount, memo string,
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	key := pb.CreatePayKey(receiver.GetID(), ts.UnixNano())
-	if p, err := pb.GetPay(key); nil != err {
-		if _, ok := err.(NotExistedPayError); !ok {
-			return nil, errors.Wrap(err, "failed to get a pay by key")
-		}
-		if nil != p {
-			return nil, errors.New("duplicate pay exists")
-		}
-	}
-
-	pay := NewPay(sender.GetID(), amount, receiver.GetID(), pb.CreatePayKeyByTime(parentPay.DOCTYPEID, parentPay.CreatedTime), memo, ts)
+	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
+	pay := NewPay(sender.GetID(), payid, amount, receiver.GetID(), pb.CreatePayKey(parentPay.PayID), memo, ts)
 
 	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
@@ -141,7 +129,7 @@ func (pb *PayStub) Refund(sender, receiver *Balance, amount Amount, memo string,
 	//update the total refund amount to the parent pay
 	parentPay.TotalRefund = *parentPay.TotalRefund.Add(amount.Copy().Neg())
 
-	err = pb.PutPay(parentPay)
+	err = pb.PutParentPay(pb.CreatePayKey(parentPay.PayID), parentPay)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to update parent pay")
 	}
@@ -223,7 +211,7 @@ func (pb *PayStub) GetPaysByTime(id, bookmark string, stime, etime *txtime.Time,
 	}
 	defer iter.Close()
 
-	return NewPayQueryResult(meta, iter)
+	return NewQueryResult(meta, iter)
 }
 
 // PayPendingBalance _
@@ -232,18 +220,10 @@ func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, merchant, memo st
 	if nil != err {
 		return err
 	}
+	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
 
-	key := pb.CreatePayKey(merchant, ts.UnixNano())
-	if p, err := pb.GetPay(key); nil != err {
-		if _, ok := err.(NotExistedPayError); !ok {
-			return errors.Wrap(err, "failed to get a pay by key")
-		}
-		if nil != p {
-			return errors.New("duplicate pay exists")
-		}
-	}
 	// Put pay
-	pay := NewPay(merchant, pbalance.Amount, pbalance.Account, "", memo, ts)
+	pay := NewPay(merchant, payid, pbalance.Amount, pbalance.Account, "", memo, ts)
 	if err = pb.PutPay(pay); nil != err {
 		return errors.Wrap(err, "failed to put new pay")
 	}
