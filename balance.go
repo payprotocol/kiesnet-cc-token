@@ -47,16 +47,16 @@ const (
 
 // BalanceLog _
 type BalanceLog struct {
-	DOCTYPEID     string         `json:"@balance_log"` // address
-	Type          BalanceLogType `json:"type"`
-	RID           string         `json:"rid"` // relative ID
-	Diff          Amount         `json:"diff"`
-	Amount        Amount         `json:"amount"`
-	Memo          string         `json:"memo"`
-	CreatedTime   *txtime.Time   `json:"created_time,omitempty"`
-	PruneStartKey string         `json:"prune_start_key,omitempty"` // used for pruned balance log
-	PruneEndKey   string         `json:"prune_end_key,omitempty"`   // used for pruned balance log
-	PayID         string         `json:"pay_id,omitempty"`          // used for pay balance log
+	DOCTYPEID    string         `json:"@balance_log"` // address
+	Type         BalanceLogType `json:"type"`
+	RID          string         `json:"rid"` // relative ID
+	Diff         Amount         `json:"diff"`
+	Amount       Amount         `json:"amount"`
+	Memo         string         `json:"memo"`
+	CreatedTime  *txtime.Time   `json:"created_time,omitempty"`
+	PruneStartID string         `json:"prune_start_id,omitempty"` // used for pruned balance log
+	PruneEndID   string         `json:"prune_end_id,omitempty"`   // used for pruned balance log
+	PayID        string         `json:"pay_id,omitempty"`         // used for pay balance log
 }
 
 // NewBalanceSupplyLog _
@@ -154,12 +154,12 @@ func NewBalanceWithRefundLog(bal *Balance, pay *Pay) *BalanceLog {
 // NewBalanceWithPruneLog No need RID
 func NewBalanceWithPruneLog(bal *Balance, amount Amount, Start, End string) *BalanceLog {
 	return &BalanceLog{
-		DOCTYPEID:     bal.DOCTYPEID,
-		Type:          BalanceLogTypePrune,
-		Diff:          amount,
-		Amount:        bal.Amount,
-		PruneStartKey: Start,
-		PruneEndKey:   End,
+		DOCTYPEID:    bal.DOCTYPEID,
+		Type:         BalanceLogTypePrune,
+		Diff:         amount,
+		Amount:       bal.Amount,
+		PruneStartID: Start,
+		PruneEndID:   End,
 	}
 }
 

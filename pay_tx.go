@@ -5,7 +5,6 @@ package main
 import (
 	"encoding/json"
 	"strconv"
-	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
@@ -334,12 +333,11 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// start time
 	stime := txtime.Unix(0, 0)
 	if 0 < len(bal.LastPrunedPayID) {
-		lastTime := strings.Split(bal.LastPrunedPayID, "_")[1]
-		s, err := strconv.ParseInt(lastTime[0:10], 10, 64)
+		s, err := strconv.ParseInt(bal.LastPrunedPayID[0:10], 10, 64)
 		if nil != err {
 			return responseError(err, "failed to get seconds from timestamp")
 		}
-		n, err := strconv.ParseInt(lastTime[10:19], 10, 64)
+		n, err := strconv.ParseInt(bal.LastPrunedPayID[10:19], 10, 64)
 		if nil != err {
 			return responseError(err, "failed to get nanoseconds from timestamp")
 		}

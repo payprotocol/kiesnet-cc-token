@@ -34,8 +34,8 @@ func NewPay(id, payid string, amount Amount, rid, pid, memo string, ts *txtime.T
 // PaySum _
 type PaySum struct {
 	Sum     *Amount `json:"sum"`
-	Start   string  `json:"start_key"`
-	End     string  `json:"end_key"`
+	Start   string  `json:"start_id"`
+	End     string  `json:"end_id"`
 	HasMore bool    `json:"has_more"`
 }
 
