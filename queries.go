@@ -131,20 +131,6 @@ func CreateQueryPrunePays(id string, stime, etime *txtime.Time) string {
 	return fmt.Sprintf(QueryPrunePays, id, stime, etime)
 }
 
-//RefundPays _
-const RefundPays = `{
-	"selector": {
-	   "@pay": "%s",
-	   "parent_key": "%s"
-	},
-	"use_index":[ "pay", "refund" ]
- }`
-
-// CreateQueryRefundPays _
-func CreateQueryRefundPays(id, pkey string) string {
-	return fmt.Sprintf(RefundPays, id, pkey)
-}
-
 // QueryPaysByIDAndTime _
 const QueryPaysByIDAndTime = `{
 	"selector":{

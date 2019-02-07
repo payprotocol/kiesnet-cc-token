@@ -13,7 +13,7 @@ import (
 )
 
 // PaysPruneSize _
-const PaysPruneSize = 900
+const PaysPruneSize = 5
 
 // PaysFetchSize _
 const PaysFetchSize = 20
@@ -113,7 +113,7 @@ func (pb *PayStub) Refund(sender, receiver *Balance, amount Amount, memo string,
 	}
 
 	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
-	pay := NewPay(sender.GetID(), payid, amount, receiver.GetID(), pb.CreatePayKey(parentPay.PayID), memo, ts)
+	pay := NewPay(sender.GetID(), payid, amount, receiver.GetID(), parentPay.PayID, memo, ts)
 
 	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
