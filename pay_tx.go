@@ -121,7 +121,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	var log *BalanceLog // log for response
-	var payResult *PayResult
+	payResult := &PayResult{}
 	if signers.Size() > 1 {
 		if signers.Size() > 128 {
 			return shim.Error("too many signers")
@@ -359,6 +359,8 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return responseError(err, "failed to parse the end time")
 		}
 		etime = txtime.Unix(seconds, 0)
+	} else {
+		etime = ts
 	}
 
 	//boolean validation
