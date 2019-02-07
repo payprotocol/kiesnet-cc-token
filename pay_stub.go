@@ -36,11 +36,6 @@ func (pb *PayStub) CreatePayKey(id string) string {
 	return fmt.Sprintf("PAY_%s", id)
 }
 
-// CreatePayKeyByTime _
-func (pb *PayStub) CreatePayKeyByTime(ts *txtime.Time, txid string) string {
-	return pb.CreatePayKey(fmt.Sprintf("%d%s", ts.UnixNano(), txid))
-}
-
 //GetPay _
 func (pb *PayStub) GetPay(key string) (*Pay, error) {
 	data, err := pb.stub.GetState(key)
@@ -118,7 +113,7 @@ func (pb *PayStub) Refund(sender, receiver *Balance, amount Amount, memo string,
 	}
 
 	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
-	pay := NewPay(sender.GetID(), payid, amount, receiver.GetID(), pb.CreatePayKeyByTime(parentPay.CreatedTime, pb.stub.GetTxID()), memo, ts)
+	pay := NewPay(sender.GetID(), payid, amount, receiver.GetID(), pb.CreatePayKey(parentPay.PayID), memo, ts)
 
 	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
