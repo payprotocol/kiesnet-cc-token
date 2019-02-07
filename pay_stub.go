@@ -13,7 +13,7 @@ import (
 )
 
 // PaysPruneSize _
-const PaysPruneSize = 5
+const PaysPruneSize = 900
 
 // PaysFetchSize _
 const PaysFetchSize = 20
