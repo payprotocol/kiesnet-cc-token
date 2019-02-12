@@ -149,18 +149,18 @@ const QueryPaysByIDAndTime = `{
 		]
 	},
 	"use_index":["pay","list"],
-	"sort":[{"created_time":"desc"}]
+	"sort":[{"created_time":"%s"}]
 }`
 
 // CreateQueryPaysByIDAndTime _
-func CreateQueryPaysByIDAndTime(id string, stime, etime *txtime.Time) string {
+func CreateQueryPaysByIDAndTime(id, sortOrder string, stime, etime *txtime.Time) string {
 	if nil == stime {
 		stime = txtime.Unix(0, 0)
 	}
 	if nil == etime {
 		etime = txtime.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
 	}
-	return fmt.Sprintf(QueryPaysByIDAndTime, id, stime, etime)
+	return fmt.Sprintf(QueryPaysByIDAndTime, id, stime, etime, sortOrder)
 }
 
 // QueryPaysByID _
@@ -169,10 +169,10 @@ const QueryPaysByID = `{
 		"@pay":"%s"
 	},
 	"use_index":["pay","list"],
-	"sort":[{"@pay":"desc"},{"created_time":"desc"}]
+	"sort":[{"@pay":"%s"},{"created_time":"%s"}]
 }`
 
 // CreateQueryPaysByID _
-func CreateQueryPaysByID(id string) string {
-	return fmt.Sprintf(QueryPaysByID, id)
+func CreateQueryPaysByID(id, sortOrder string) string {
+	return fmt.Sprintf(QueryPaysByID, id, sortOrder, sortOrder)
 }

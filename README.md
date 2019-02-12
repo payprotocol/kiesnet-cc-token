@@ -144,13 +144,14 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 
 > invoke __`pay/prune`__ [token_code|address, ten_minutes_flag, _end_time_] {_"kiesnet-id/pin"_}
 - prune the pays from last pay time to end_time. if end_time is not provided, prune to 10 mins lesser than current time(if ten_minutes_flag is set to true).
-- [ten_minutes_flag] : __Boolean__ if set to true, the end_time can't be greater then current time minus 10 minutes.
+- [ten_minutes_flag] : __Boolean__ if set to true, the end_time can't be greater than current time minus 10 minutes.
 - [_end_time_]: to time for pruning
 - __`has_more`__ field is __true__ in the response json string, it means there are more pays to prune given time period.
 
-> query __`pay/list`__ [token_code|address, _bookmark_, _fetchsize_, _start_time_, _end_time_ ]
+> query __`pay/list`__ [token_code|address, sort_order, _bookmark_, _fetchsize_, _start_time_, _end_time_ ]
 - Get pay list
 - If the 1st parameter is token code, it returns list of the PAOT.
+- [_sort_order_] : "asc" ascending order. "desc" decending order. if not set, decending order is the default value.
 - [_fetch_size_] : max 200, if it is less than 1, default size will be used (20)
 - [_starttime_] : __time(seconds)__ represented by int64
 - [_endtime_] : __time(seconds)__ represented by int64

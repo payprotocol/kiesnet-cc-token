@@ -191,7 +191,7 @@ func (pb *PayStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PaySu
 }
 
 // GetPaysByTime _
-func (pb *PayStub) GetPaysByTime(id, bookmark string, stime, etime *txtime.Time, fetchSize int) (*QueryResult, error) {
+func (pb *PayStub) GetPaysByTime(id, sortOrder, bookmark string, stime, etime *txtime.Time, fetchSize int) (*QueryResult, error) {
 	if fetchSize < 1 {
 		fetchSize = PaysFetchSize
 	}
@@ -200,9 +200,9 @@ func (pb *PayStub) GetPaysByTime(id, bookmark string, stime, etime *txtime.Time,
 	}
 	query := ""
 	if stime != nil || etime != nil {
-		query = CreateQueryPaysByIDAndTime(id, stime, etime)
+		query = CreateQueryPaysByIDAndTime(id, sortOrder, stime, etime)
 	} else {
-		query = CreateQueryPaysByID(id)
+		query = CreateQueryPaysByID(id, sortOrder)
 	}
 	iter, meta, err := pb.stub.GetQueryResultWithPagination(query, int32(fetchSize), bookmark)
 	if err != nil {
