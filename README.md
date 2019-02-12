@@ -142,8 +142,9 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [amount]: the amount of token. this value should be lesser than original pay's amount
 - [_memo_]: max 128 charactors
 
-> invoke __`pay/prune`__ [token_code|address, _end_time_] {_"kiesnet-id/pin"_}
-- prune the pays from last pay time to end_time. if end_time is not provided, prune to 10 mins lesser than current time.
+> invoke __`pay/prune`__ [token_code|address, ten_minutes_flag, _end_time_] {_"kiesnet-id/pin"_}
+- prune the pays from last pay time to end_time. if end_time is not provided, prune to 10 mins lesser than current time(if ten_minutes_flag is set to true).
+- [ten_minutes_flag] : __Boolean__ if set to true, the end_time can't be greater then current time minus 10 minutes.
 - [_end_time_]: to time for pruning
 - __`has_more`__ field is __true__ in the response json string, it means there are more pays to prune given time period.
 

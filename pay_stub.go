@@ -5,7 +5,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
@@ -154,13 +153,10 @@ func (pb *PayStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PaySu
 	}
 	defer iter.Close()
 
-	var s int64
 	cs := &PaySum{HasMore: false}
 	c := &Pay{}
 	cnt := 0 //record counter
-	if !iter.HasNext() {
-		return nil, errors.New(fmt.Sprintf("no pays between %s and %s", stime, etime))
-	}
+	sum, _ := NewAmount("0")
 
 	for iter.HasNext() {
 		cnt++
@@ -181,13 +177,13 @@ func (pb *PayStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PaySu
 		//get the next pay key ( +1 pay after the threshhold)
 		if cnt == PaysPruneSize+1 {
 			cs.HasMore = true
+			cnt--
 			break
 		}
-		s += c.Amount.Int64()
+		sum = sum.Add(&c.Amount)
 		cs.End = c.PayID
 	}
-
-	sum, err := NewAmount(strconv.FormatInt(s, 10))
+	cs.Count = cnt
 	cs.Sum = sum
 
 	return cs, nil
