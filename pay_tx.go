@@ -18,8 +18,9 @@ import (
 // params[0] : sender's address or token code
 // params[1] : receiver's address
 // params[2] : amount(>0)
-// params[3] : optional. memo (max 128 charactors)
-// params[4] : optional. expiry (duration represented by int64 seconds, multi-sig only)
+// params[3] : optional. order id
+// params[4] : optional. memo (max 128 charactors)
+// params[5] : optional. expiry (duration represented by int64 seconds, multi-sig only)
 func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 3 {
 		return shim.Error("incorrect number of parameters. expecting at least 3")
@@ -100,22 +101,27 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// options
 	memo := ""
 	var expiry int64
+	orderID := ""
 	signers := stringset.New(kid)
 	if a, ok := sender.(*JointAccount); ok {
 		signers.AppendSet(a.Holders)
 	}
-	// memo
+	// order id
 	if len(params) > 3 {
-		if len(params[3]) > 128 { // 128 charactors limit
-			memo = params[3][:128]
-		} else {
-			memo = params[3]
-		}
-		// expiry time
-		if len(params) > 4 && len(params[4]) > 0 {
-			expiry, err = strconv.ParseInt(params[4], 10, 64)
-			if err != nil {
-				responseError(err, "invalid expiry: need seconds")
+		orderID = params[3]
+		// memo
+		if len(params) > 4 {
+			if len(params[4]) > 128 { // 128 charactors limit
+				memo = params[4][:128]
+			} else {
+				memo = params[4]
+			}
+			// expiry time
+			if len(params) > 5 && len(params[5]) > 0 {
+				expiry, err = strconv.ParseInt(params[5], 10, 64)
+				if err != nil {
+					responseError(err, "invalid expiry: need seconds")
+				}
 			}
 		}
 	}
@@ -129,7 +135,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		// pending balance id
 		pbID := stub.GetTxID()
 		// contract
-		doc := []string{"pay", pbID, sender.GetID(), receiver.GetID(), amount.String(), memo}
+		doc := []string{"pay", pbID, sender.GetID(), receiver.GetID(), amount.String(), orderID, memo}
 		docb, err := json.Marshal(doc)
 		if err != nil {
 			return responseError(err, "failed to marshal contract do")
@@ -145,7 +151,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 
 	} else {
-		payResult, err = NewPayStub(stub).Pay(sBal, receiver.GetID(), *amount, memo)
+		payResult, err = NewPayStub(stub).Pay(sBal, receiver.GetID(), *amount, orderID, memo)
 		if err != nil {
 			return responseError(err, "failed to pay")
 		}
@@ -490,11 +496,46 @@ func payList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
+// params[0] : pay id
+// params[1] : optional. order id (vendor specific)
+func payGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) < 1 {
+		return shim.Error("incorrect number of parameters. expecting 1 or 2")
+	}
+
+	// authentication
+	_, err := kid.GetID(stub, false)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	payID := params[0]
+	orderID := ""
+	if len(params) == 2 {
+		orderID = params[1]
+	}
+
+	pb := NewPayStub(stub)
+	var pay *Pay
+	if payID == "" && orderID != "" {
+		// get by order id
+		pay, err = pb.GetPayByOrderID(orderID)
+	} else {
+		// get by pay id
+		pay, err = pb.GetPay(pb.CreatePayKey(payID))
+	}
+	data, err := json.Marshal(pay)
+	if err != nil {
+		return responseError(err, "failed to marshal the pay")
+	}
+	return shim.Success(data)
+}
+
 // contract callbacks
 
-// doc: ["pay", pending-balance-ID, sender-ID, receiver-ID, amount, memo]
+// doc: ["pay", pending-balance-ID, sender-ID, receiver-ID, amount, order-ID, memo]
 func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
-	if len(doc) < 5 {
+	if len(doc) < 6 {
 		return shim.Error("invalid contract document")
 	}
 
@@ -510,7 +551,7 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 	}
 
 	// ISSUE: check accounts ? (suspended) Business...
-	if err = NewPayStub(stub).PayPendingBalance(pb, doc[3].(string), doc[5].(string)); err != nil {
+	if err = NewPayStub(stub).PayPendingBalance(pb, doc[3].(string), doc[5].(string), doc[6].(string)); err != nil {
 		return responseError(err, "failed to pay a pending balance")
 	}
 

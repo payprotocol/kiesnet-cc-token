@@ -176,3 +176,17 @@ const QueryPaysByID = `{
 func CreateQueryPaysByID(id, sortOrder string) string {
 	return fmt.Sprintf(QueryPaysByID, id, sortOrder, sortOrder)
 }
+
+// QueryPayByOrderID _
+const QueryPayByOrderID = `{
+	"selector":{
+		"order_id":"%s"
+	},
+	"sort":["order_id"],
+	"use_index":["pay","order-id"]
+}`
+
+// CreateQueryPayByOrderID _
+func CreateQueryPayByOrderID(orderID string) string {
+	return fmt.Sprintf(QueryPayByOrderID, orderID)
+}

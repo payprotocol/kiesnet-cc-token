@@ -14,18 +14,20 @@ type Pay struct {
 	TotalRefund Amount       `json:"total_refund,omitempty"` //total refund value
 	RID         string       `json:"rid"`                    //related id. user who pays to the merchant or receives refund from the merchant.
 	ParentID    string       `json:"parent_id,omitempty"`    //parent id. this value exists only when the pay type is refund(negative amount)
+	OrderID     string       `json:"order_id,omitempty"`     // order id. vendor specific unique identifier.
 	Memo        string       `json:"memo"`
 	CreatedTime *txtime.Time `json:"created_time,omitempty"`
 }
 
 // NewPay _
-func NewPay(id, payid string, amount Amount, rid, pid, memo string, ts *txtime.Time) *Pay {
+func NewPay(id, payid string, amount Amount, rid, pid, orderID, memo string, ts *txtime.Time) *Pay {
 	return &Pay{
 		DOCTYPEID:   id,
 		PayID:       payid,
 		Amount:      amount,
 		RID:         rid,
 		ParentID:    pid,
+		OrderID:     orderID,
 		Memo:        memo,
 		CreatedTime: ts,
 	}

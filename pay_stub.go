@@ -51,6 +51,30 @@ func (pb *PayStub) GetPay(key string) (*Pay, error) {
 	return nil, NotExistedPayError{key: key}
 }
 
+// GetPayByOrderID retrieves Pay by vendor specific order id field.
+func (pb *PayStub) GetPayByOrderID(orderID string) (*Pay, error) {
+	query := CreateQueryPayByOrderID(orderID)
+	iter, err := pb.stub.GetQueryResult(query)
+	if nil != err {
+		return nil, err
+	}
+	defer iter.Close()
+
+	if !iter.HasNext() {
+		return nil, errors.New("cannot find pay of the order id")
+	}
+	kv, err := iter.Next()
+	if nil != err {
+		return nil, err
+	}
+	pay := &Pay{}
+	err = json.Unmarshal(kv.Value, pay)
+	if nil != err {
+		return nil, err
+	}
+	return pay, nil
+}
+
 // PutPay _
 func (pb *PayStub) PutPay(pay *Pay) error {
 	data, err := json.Marshal(pay)
@@ -76,13 +100,13 @@ func (pb *PayStub) PutParentPay(key string, pay *Pay) error {
 }
 
 // Pay _
-func (pb *PayStub) Pay(sender *Balance, receiver string, amount Amount, memo string) (*PayResult, error) {
+func (pb *PayStub) Pay(sender *Balance, receiver string, amount Amount, orderID, memo string) (*PayResult, error) {
 	ts, err := txtime.GetTime(pb.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
-	pay := NewPay(receiver, payid, amount, sender.GetID(), "", memo, ts)
+	pay := NewPay(receiver, payid, amount, sender.GetID(), "", orderID, memo, ts)
 	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
 	}
@@ -112,7 +136,7 @@ func (pb *PayStub) Refund(sender, receiver *Balance, amount Amount, memo string,
 	}
 
 	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
-	pay := NewPay(sender.GetID(), payid, amount, receiver.GetID(), parentPay.PayID, memo, ts)
+	pay := NewPay(sender.GetID(), payid, amount, receiver.GetID(), parentPay.PayID, "", memo, ts)
 
 	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
@@ -214,7 +238,7 @@ func (pb *PayStub) GetPaysByTime(id, sortOrder, bookmark string, stime, etime *t
 }
 
 // PayPendingBalance _
-func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, merchant, memo string) error {
+func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, merchant, memo, orderID string) error {
 	ts, err := txtime.GetTime(pb.stub)
 	if nil != err {
 		return err
@@ -222,7 +246,7 @@ func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, merchant, memo st
 	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
 
 	// Put pay
-	pay := NewPay(merchant, payid, pbalance.Amount, pbalance.Account, "", memo, ts)
+	pay := NewPay(merchant, payid, pbalance.Amount, pbalance.Account, "", orderID, memo, ts)
 	if err = pb.PutPay(pay); nil != err {
 		return errors.Wrap(err, "failed to put new pay")
 	}
