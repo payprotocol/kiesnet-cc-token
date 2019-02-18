@@ -298,7 +298,6 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 // params[1] : 10 minutes limit flag. if the value is true, 10 minutes check is activated.
 // params[2] : optional. end time
 func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-
 	if len(params) < 2 {
 		return shim.Error("incorrect number of parameters. expecting at least 2 parameters")
 	}
