@@ -502,7 +502,7 @@ func payGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// authentication
 	_, err := kid.GetID(stub, false)
-	if err != nil {
+	if nil != err {
 		return shim.Error(err.Error())
 	}
 
@@ -514,15 +514,21 @@ func payGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	pb := NewPayStub(stub)
 	var pay *Pay
-	if payID == "" && orderID != "" {
+	if "" == payID {
+		if "" == orderID {
+			return shim.Error("invalid parameter")
+		}
 		// get by order id
 		pay, err = pb.GetPayByOrderID(orderID)
 	} else {
 		// get by pay id
 		pay, err = pb.GetPay(pb.CreatePayKey(payID))
 	}
+	if nil != err {
+		return responseError(err, "failed to get pay")
+	}
 	data, err := json.Marshal(pay)
-	if err != nil {
+	if nil != err {
 		return responseError(err, "failed to marshal the pay")
 	}
 	return shim.Success(data)
