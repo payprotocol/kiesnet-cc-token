@@ -93,13 +93,13 @@ func (e NotExistedAccountError) Error() string {
 // NotExistedPayError _
 type NotExistedPayError struct {
 	ResponsibleErrorImpl
-	key string
+	id string
 }
 
 // Error implements error interface
 func (e NotExistedPayError) Error() string {
-	if len(e.key) > 0 {
-		return fmt.Sprintf("the pay key '%s' does not exist", e.key)
+	if len(e.id) > 0 {
+		return fmt.Sprintf("the pay id '%s' does not exist", e.id)
 	}
 	return "the pay does not exist"
 }

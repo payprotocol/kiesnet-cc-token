@@ -27,28 +27,38 @@ func NewPayStub(stub shim.ChaincodeStubInterface) *PayStub {
 	return &PayStub{stub}
 }
 
-// CreatePayKey _
-func (pb *PayStub) CreatePayKey(id string) string {
+// CreateKey _
+func (pb *PayStub) CreateKey(id string) string {
 	if id == "" {
 		return ""
 	}
 	return fmt.Sprintf("PAY_%s", id)
 }
 
-//GetPay _
-func (pb *PayStub) GetPay(key string) (*Pay, error) {
-	data, err := pb.stub.GetState(key)
-	if err != nil {
+// GetPay _
+func (pb *PayStub) GetPay(id string) (*Pay, error) {
+	data, err := pb.GetPayState(id)
+	if nil != err {
+		return nil, err
+	}
+	// data is not nil
+	pay := &Pay{}
+	if err = json.Unmarshal(data, pay); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal the pay")
+	}
+	return pay, nil
+}
+
+// GetPayState _
+func (pb *PayStub) GetPayState(id string) ([]byte, error) {
+	data, err := pb.stub.GetState(pb.CreateKey(id))
+	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the pay state")
 	}
-	if data != nil {
-		pay := &Pay{}
-		if err = json.Unmarshal(data, pay); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal the pay")
-		}
-		return pay, nil
+	if nil != data {
+		return data, nil
 	}
-	return nil, NotExistedPayError{key: key}
+	return nil, NotExistedPayError{id: id}
 }
 
 // GetPayByOrderID retrieves Pay by vendor specific order id field.
@@ -81,7 +91,7 @@ func (pb *PayStub) PutPay(pay *Pay) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the balance")
 	}
-	if err = pb.stub.PutState(pb.CreatePayKey(pay.PayID), data); err != nil {
+	if err = pb.stub.PutState(pb.CreateKey(pay.PayID), data); err != nil {
 		return errors.Wrap(err, "failed to put the balance state")
 	}
 	return nil
@@ -152,7 +162,7 @@ func (pb *PayStub) Refund(sender, receiver *Balance, amount Amount, memo string,
 	//update the total refund amount to the parent pay
 	parentPay.TotalRefund = *parentPay.TotalRefund.Add(amount.Copy().Neg())
 
-	err = pb.PutParentPay(pb.CreatePayKey(parentPay.PayID), parentPay)
+	err = pb.PutParentPay(pb.CreateKey(parentPay.PayID), parentPay)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to update parent pay")
 	}

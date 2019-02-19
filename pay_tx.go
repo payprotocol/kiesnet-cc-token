@@ -195,9 +195,9 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	pb := NewPayStub(stub)
 	parentID := params[0]
 
-	parentPay, err := pb.GetPay(pb.CreatePayKey(parentID))
+	parentPay, err := pb.GetPay(parentID)
 	if err != nil {
-		return responseError(err, "failed to get the original payment from the key")
+		return responseError(err, "failed to get the original payment")
 	}
 
 	// get sender from original pay
@@ -522,7 +522,7 @@ func payGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		pay, err = pb.GetPayByOrderID(orderID)
 	} else {
 		// get by pay id
-		pay, err = pb.GetPay(pb.CreatePayKey(payID))
+		pay, err = pb.GetPay(payID)
 	}
 	if nil != err {
 		return responseError(err, "failed to get pay")
