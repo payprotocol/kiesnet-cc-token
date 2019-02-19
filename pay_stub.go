@@ -220,7 +220,7 @@ func (pb *PayStub) GetPaysByTime(id, sortOrder, bookmark string, stime, etime *t
 		fetchSize = PaysFetchSize
 	}
 	if fetchSize > 200 {
-		fetchSize = PaysFetchSize
+		fetchSize = 200
 	}
 	query := ""
 	if stime != nil || etime != nil {
