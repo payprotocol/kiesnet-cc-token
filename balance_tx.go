@@ -13,6 +13,7 @@ import (
 )
 
 // params[0] : token code | account address
+// params[1] : optional. balance log type
 // params[1] : bookmark
 // params[2] : fetch size (if < 1 => default size, max 200)
 // params[3] : start time (time represented by int64 seconds)
@@ -28,37 +29,42 @@ func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		return shim.Error(err.Error())
 	}
 
+	typeStr := ""
 	bookmark := ""
 	fetchSize := 0
 	var stime, etime *txtime.Time
-	// bookmark
+	// balance log type
 	if len(params) > 1 {
-		bookmark = params[1]
-		// fetch size
+		typeStr = params[1]
+		// bookmark
 		if len(params) > 2 {
-			fetchSize, err = strconv.Atoi(params[2])
-			if err != nil {
-				return shim.Error("invalid fetch size")
-			}
-			// start time
+			bookmark = params[2]
+			// fetch size
 			if len(params) > 3 {
-				if len(params[3]) > 0 {
-					seconds, err := strconv.ParseInt(params[3], 10, 64)
-					if err != nil {
-						return shim.Error("invalid start time: need seconds since 1970")
-					}
-					stime = txtime.Unix(seconds, 0)
+				fetchSize, err = strconv.Atoi(params[3])
+				if err != nil {
+					return shim.Error("invalid fetch size")
 				}
-				// end time
+				// start time
 				if len(params) > 4 {
 					if len(params[4]) > 0 {
 						seconds, err := strconv.ParseInt(params[4], 10, 64)
 						if err != nil {
-							return shim.Error("invalid end time: need seconds since 1970")
+							return shim.Error("invalid start time: need seconds since 1970")
 						}
-						etime = txtime.Unix(seconds, 0)
-						if stime != nil && stime.Cmp(etime) >= 0 {
-							return shim.Error("invalid time parameters")
+						stime = txtime.Unix(seconds, 0)
+					}
+					// end time
+					if len(params) > 5 {
+						if len(params[5]) > 0 {
+							seconds, err := strconv.ParseInt(params[5], 10, 64)
+							if err != nil {
+								return shim.Error("invalid end time: need seconds since 1970")
+							}
+							etime = txtime.Unix(seconds, 0)
+							if stime != nil && stime.Cmp(etime) >= 0 {
+								return shim.Error("invalid time parameters")
+							}
 						}
 					}
 				}
@@ -77,8 +83,14 @@ func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		}
 	}
 
+	if typeStr != "" {
+		if _, err := strconv.ParseInt(typeStr, 10, 8); nil != err {
+			return responseError(err, "failed to parse balance log type")
+		}
+	}
+
 	bb := NewBalanceStub(stub)
-	res, err := bb.GetQueryBalanceLogs(addr.String(), bookmark, fetchSize, stime, etime)
+	res, err := bb.GetQueryBalanceLogs(addr.String(), typeStr, bookmark, fetchSize, stime, etime)
 	if err != nil {
 		return responseError(err, "failed to get balance logs")
 	}

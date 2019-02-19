@@ -12,20 +12,30 @@ import (
 const QueryBalanceLogsByID = `{
 	"selector": {
 		"@balance_log": "%s"
+		%s
 	},
-	"sort": [{"@balance_log": "desc"}, {"created_time": "desc"}],
-	"use_index": ["balance", "logs"]
+	"sort": [%s],
+	"use_index": ["balance", "%s"]
 }`
 
 // CreateQueryBalanceLogsByID _
-func CreateQueryBalanceLogsByID(id string) string {
-	return fmt.Sprintf(QueryBalanceLogsByID, id)
+func CreateQueryBalanceLogsByID(id, typeStr string) string {
+	_type := ""
+	_sort := `{"@balance_log": "desc"}, {"created_time": "desc"}`
+	_index := "logs"
+	if typeStr != "" {
+		_type = fmt.Sprintf(`,"type":%s`, typeStr)
+		_sort = `{"@balance_log": "desc"}, {"type": "desc"}, {"created_time": "desc"}`
+		_index = "logs-type"
+	}
+	return fmt.Sprintf(QueryBalanceLogsByID, id, _type, _sort, _index)
 }
 
 // QueryBalanceLogsByIDAndTimes _
 const QueryBalanceLogsByIDAndTimes = `{
 	"selector": {
 		"@balance_log": "%s",
+		%s
 		"$and": [
             {
                 "created_time": {
@@ -39,19 +49,27 @@ const QueryBalanceLogsByIDAndTimes = `{
             }
         ]
 	},
-	"sort": [{"@balance_log": "desc"}, {"created_time": "desc"}],
-	"use_index": ["balance", "logs"]
+	"sort": [%s],
+	"use_index": ["balance", "%s"]
 }`
 
 // CreateQueryBalanceLogsByIDAndTimes _
-func CreateQueryBalanceLogsByIDAndTimes(id string, stime, etime *txtime.Time) string {
+func CreateQueryBalanceLogsByIDAndTimes(id, typeStr string, stime, etime *txtime.Time) string {
+	_type := ""
+	_sort := `{"@balance_log": "desc"}, {"created_time": "desc"}`
+	_index := "logs"
+	if typeStr != "" {
+		_type = fmt.Sprintf(`"type":%s,`, typeStr)
+		_sort = `{"@balance_log": "desc"}, {"type": "desc"}, {"created_time": "desc"}`
+		_index = "logs-type"
+	}
 	if nil == stime {
 		stime = txtime.Unix(0, 0)
 	}
 	if nil == etime {
 		etime = txtime.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
 	}
-	return fmt.Sprintf(QueryBalanceLogsByIDAndTimes, id, stime.String(), etime.String())
+	return fmt.Sprintf(QueryBalanceLogsByIDAndTimes, id, _type, stime.String(), etime.String(), _sort, _index)
 }
 
 // QueryHoldersByID _
