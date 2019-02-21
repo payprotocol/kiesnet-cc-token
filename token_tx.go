@@ -314,6 +314,13 @@ func tokenRefresh(stub shim.ChaincodeStubInterface, params []string) peer.Respon
 		return shim.Error(err.Error())
 	}
 
+	// authentication
+	// ISSUE: only genesis account holders ?
+	_, err = kid.GetID(stub, true)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
 	fb := NewFeeStub(stub)
 	policy, err := fb.RefreshFeePolicy(code)
 	if err != nil {
