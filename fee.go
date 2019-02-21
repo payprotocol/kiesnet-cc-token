@@ -2,20 +2,16 @@
 
 package main
 
-var _feeRates = map[string]map[string]FeeRate{
-	"pci": {
-		"transfer": FeeRate{Rate: 0.1, MaxFee: 10000},
-		"pay":      FeeRate{Rate: -0.2},
-	},
+var _feePolicies = map[string]*FeePolicy{}
+
+// FeePolicy _
+type FeePolicy struct {
+	TargetAddress string
+	Rates         map[string]FeeRate
 }
 
 // FeeRate _
 type FeeRate struct {
-	Rate   float32
-	MaxFee int64 // 0 is unlimit
-}
-
-// GetFeeRate _
-func GetFeeRate(tokenCode string, funcName string) FeeRate {
-	return _feeRates["pci"][funcName]
+	Rate      float32
+	MaxAmount int64 // 0 is unlimit
 }

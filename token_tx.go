@@ -137,7 +137,7 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		return shim.Error("already issued token : " + code)
 	}
 
-	decimal, maxSupply, supply, err := getValidatedTokenMeta(stub, code)
+	decimal, maxSupply, supply, _, err := getValidatedTokenMeta(stub, code)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -302,6 +302,31 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	return shim.Success(data)
 }
 
+// refresh fee policy
+// params[0] : token code
+func tokenRefresh(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) != 1 {
+		return shim.Error("incorrect number of parameters. expecting 1")
+	}
+
+	code, err := ValidateTokenCode(params[0])
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	fb := NewFeeStub(stub)
+	policy, err := fb.RefreshFeePolicy(code)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	data, err := json.Marshal(policy)
+	if err != nil {
+		return responseError(err, "failed to marshal payload")
+	}
+	return shim.Success(data)
+}
+
 // helpers
 
 func invokeKNT(stub shim.ChaincodeStubInterface, code string, params []string) ([]byte, error) {
@@ -323,32 +348,33 @@ func invokeKNT(stub shim.ChaincodeStubInterface, code string, params []string) (
 	return nil, errors.New(res.GetMessage())
 }
 
-func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, *Amount, *Amount, error) {
+func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, *Amount, *Amount, string, error) {
 	// get token meta
 	meta, err := invokeKNT(stub, code, []string{"token"})
 	if err != nil {
-		return 0, nil, nil, errors.Wrap(err, "failed to get the token meta")
+		return 0, nil, nil, "", errors.Wrap(err, "failed to get the token meta")
 	}
 	metaMap := map[string]string{}
 	if err = json.Unmarshal(meta, &metaMap); err != nil {
-		return 0, nil, nil, errors.Wrap(err, "failed to unmarshal the token meta")
+		return 0, nil, nil, "", errors.Wrap(err, "failed to unmarshal the token meta")
 	}
 
 	// validate meta
 	decimal, err := strconv.Atoi(metaMap["decimal"])
 	if err != nil || decimal < 0 || decimal > 18 {
-		return 0, nil, nil, errors.New("decimal must be integer between 0 and 18")
+		return 0, nil, nil, "", errors.New("decimal must be integer between 0 and 18")
 	}
 	maxSupply, err := NewAmount(metaMap["max_supply"])
 	if err != nil || maxSupply.Sign() < 0 {
-		return 0, nil, nil, errors.New("max supply must be positive integer")
+		return 0, nil, nil, "", errors.New("max supply must be positive integer")
 	}
 	supply, err := NewAmount(metaMap["initial_supply"])
 	if err != nil || supply.Sign() < 0 || supply.Cmp(maxSupply) > 0 {
-		return 0, nil, nil, errors.New("initial supply must be positive integer and less(or equal) than max supply")
+		return 0, nil, nil, "", errors.New("initial supply must be positive integer and less(or equal) than max supply")
 	}
+	fee := metaMap["fee"]
 
-	return decimal, maxSupply, supply, nil
+	return decimal, maxSupply, supply, fee, nil
 }
 
 // contract callbacks
@@ -403,7 +429,7 @@ func executeTokenCreate(stub shim.ChaincodeStubInterface, cid string, doc []inte
 		return shim.Error("already issued token : " + code)
 	}
 
-	decimal, maxSupply, supply, err := getValidatedTokenMeta(stub, code)
+	decimal, maxSupply, supply, _, err := getValidatedTokenMeta(stub, code)
 	if err != nil {
 		return shim.Error(err.Error())
 	}

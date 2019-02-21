@@ -54,11 +54,9 @@ var routes = map[string]TxFunc{
 	"token/create":             tokenCreate,
 	"token/get":                tokenGet,
 	"token/mint":               tokenMint,
+	"token/refresh":            tokenRefresh,
 	"transfer":                 transfer,
 	"ver":                      ver,
-	// ISSUE: need functions below ?
-	// "account/logs":
-	// "token/logs":
 }
 
 func ver(stub shim.ChaincodeStubInterface, params []string) peer.Response {
