@@ -24,13 +24,14 @@ func ValidateTokenCode(code string) (string, error) {
 
 // Token _
 type Token struct {
-	DOCTYPEID      string       `json:"@token"` // Code, validate:"required,min=3,max=6,alphanum"
-	Decimal        int          `json:"decimal"`
-	MaxSupply      Amount       `json:"max_supply"`
-	Supply         Amount       `json:"supply"`
-	GenesisAccount string       `json:"genesis_account"`
-	CreatedTime    *txtime.Time `json:"created_time,omitempty"`
-	UpdatedTime    *txtime.Time `json:"updated_time,omitempty"`
+	DOCTYPEID       string       `json:"@token"` // Code, validate:"required,min=3,max=6,alphanum"
+	Decimal         int          `json:"decimal"`
+	MaxSupply       Amount       `json:"max_supply"`
+	Supply          Amount       `json:"supply"`
+	LastPrunedFeeID string       `json:"last_pruned_fee_id,omitempty"`
+	GenesisAccount  string       `json:"genesis_account"`
+	CreatedTime     *txtime.Time `json:"created_time,omitempty"`
+	UpdatedTime     *txtime.Time `json:"updated_time,omitempty"`
 }
 
 // TokenResult is response payload of token/burn and token/mint.
