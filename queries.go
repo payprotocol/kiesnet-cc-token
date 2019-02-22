@@ -208,3 +208,41 @@ const QueryPayByOrderID = `{
 func CreateQueryPayByOrderID(orderID string) string {
 	return fmt.Sprintf(QueryPayByOrderID, orderID)
 }
+
+// QueryFeesByIDAndTime _
+//TODO check sort, use_index
+const QueryFeesByIDAndTime = `{
+	"selector":{
+		"@fee":"%s",
+		"created_time":{"$gte":"%s"},
+		"created_time":{"$lte":"%s"},
+	},
+	"sort":[{"@fee":"desc"},{"created_time":"desc"}],
+	"use_index":["fee","list"]
+}`
+
+// CreateQueryFeesByIDAndTimes _
+func CreateQueryFeesByIDAndTimes(id string, stime, etime *txtime.Time) string {
+	if nil == stime {
+		stime = txtime.Unix(0, 0)
+	}
+	if nil == etime {
+		etime = txtime.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
+	}
+	return fmt.Sprintf(QueryFeesByIDAndTime, id, stime, etime)
+}
+
+// QueryFeesByID _
+//TODO check sort, use_index
+const QueryFeesByID = `{
+	"selector":{
+		"@fee":"%s"
+	},
+	"sort":[{"@fee":"desc"},{"created_time":"desc"}],
+	"use_index":["fee","list"]
+}`
+
+// CreateQueryFeesByID _`
+func CreateQueryFeesByID(id string) string {
+	return fmt.Sprintf(QueryFeesByID, id)
+}

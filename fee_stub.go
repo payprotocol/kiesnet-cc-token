@@ -7,7 +7,11 @@ import (
 	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
+	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
+
+// FeeFetchSize _
+const FeeFetchSize = 20
 
 // FeeStub _
 type FeeStub struct {
@@ -78,4 +82,26 @@ func (fb *FeeStub) GetFeePolicy(code string) (*FeePolicy, error) {
 func (fb *FeeStub) RefreshFeePolicy(code string) (*FeePolicy, error) {
 	_feePolicies[code] = nil
 	return fb.GetFeePolicy(code)
+}
+
+// GetQueryFees _
+func (fb *FeeStub) GetQueryFees(id, bookmark string, fetchSize int, stime, etime *txtime.Time) (*QueryResult, error) {
+	if fetchSize < 1 {
+		fetchSize = FeeFetchSize
+	}
+	if fetchSize > 200 {
+		fetchSize = 200
+	}
+	query := ""
+	if nil != stime || nil != etime {
+		query = CreateQueryFeesByIDAndTimes(id, stime, etime)
+	} else {
+		query = CreateQueryFeesByID(id)
+	}
+	iter, meta, err := fb.stub.GetQueryResultWithPagination(query, int32(fetchSize), bookmark)
+	if nil != err {
+		return nil, err
+	}
+	defer iter.Close()
+	return NewQueryResult(meta, iter)
 }

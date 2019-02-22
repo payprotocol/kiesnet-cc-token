@@ -99,6 +99,12 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 > invoke __`balance/pending/withdraw`__ [pending_balance_id] {_"kiesnet-id/pin"_}
 - Withdraw the balance
 
+> query __`fee/list`__ [token_code, _bookmark_, _fetch_size_, _starttime_, _endtime_]
+- Get fee list of token
+- [_fetch_size_] : max 200, if it is less than 1, default size will be used (20)
+- [_starttime_] : __time(seconds)__ represented by int64
+- [_endtime_] : __time(seconds)__ represented by int64
+
 > invoke __`token/burn`__ [token_code, amount] {_"kiesnet-id/pin"_}
 - Get the burnable amount and burn the amount.
 - [amount] : big int
