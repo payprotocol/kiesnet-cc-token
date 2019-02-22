@@ -180,6 +180,7 @@ type PendingBalance struct {
 	Account     string             `json:"account"` // account ID (address)
 	RID         string             `json:"rid"`     // relative ID - account or contract
 	Amount      Amount             `json:"amount"`
+	Fee         Amount             `json:"fee,omitempty"`
 	Memo        string             `json:"memo"`
 	CreatedTime *txtime.Time       `json:"created_time,omitempty"`
 	PendingTime *txtime.Time       `json:"pending_time,omitempty"`
