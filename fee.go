@@ -26,3 +26,12 @@ type FeeRate struct {
 	Rate      float32
 	MaxAmount int64 // 0 is unlimit
 }
+
+// FeeSum stands for amount&state of accumulated fee from Start to End
+type FeeSum struct {
+	Sum     *Amount `json:"sum"`
+	Count   int     `json:"count"`
+	Start   string  `json:"start_id"`
+	End     string  `json:"end_id"`
+	HasMore bool    `json:"has_more"`
+}

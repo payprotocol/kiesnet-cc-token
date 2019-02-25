@@ -3,12 +3,16 @@
 package main
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
+
+// FeePruneSize is number of fee utxo that one prune request can handle.
+const FeePruneSize = 900
 
 // FeeFetchSize _
 const FeeFetchSize = 20
@@ -104,4 +108,44 @@ func (fb *FeeStub) GetQueryFees(id, bookmark string, fetchSize int, stime, etime
 	}
 	defer iter.Close()
 	return NewQueryResult(meta, iter)
+}
+
+// GetFeeSumByTime returns FeeSum from stime to etime.
+func (fb *FeeStub) GetFeeSumByTime(id string, stime, etime *txtime.Time) (*FeeSum, error) {
+	query := CreateQueryPruneFee(id, stime, etime)
+	iter, err := fb.stub.GetQueryResult(query)
+	if nil != err {
+		return nil, err
+	}
+	defer iter.Close()
+
+	feeSum := &FeeSum{HasMore: false}
+	fee := &Fee{}
+	cnt := 0
+	sum, _ := NewAmount("0")
+
+	for iter.HasNext() {
+		cnt++
+		kv, err := iter.Next()
+		if nil != err {
+			return nil, err
+		}
+		err = json.Unmarshal(kv.Value, fee)
+		if nil != err {
+			return nil, err
+		}
+		if 1 == cnt {
+			feeSum.Start = fee.FeeID
+		}
+		if FeePruneSize+1 == cnt {
+			feeSum.HasMore = true
+			cnt--
+			break
+		}
+		sum = sum.Add(&fee.Amount)
+		feeSum.End = fee.FeeID
+	}
+	feeSum.Count = cnt
+	feeSum.Sum = sum
+	return feeSum, nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
+// ISSUE : token/fee/list?
 // ISSUE : Only genesis account holder should be able to query fee list?
 // params[0] : token code
 // params[1] : optional. bookmark
@@ -51,6 +52,7 @@ func feeList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// if !account.HasHolder(kid) { // authority
 	// 	return shim.Error("no authority")
 	// }
+	// genesis account is never suspended
 
 	bookmark := ""
 	fetchSize := 0
@@ -101,5 +103,131 @@ func feeList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to marshal fees")
 	}
 
+	return shim.Success(data)
+}
+
+// ISSUE : token/fee/prune?
+// Only genesis account holder is able to prune fee list.
+// params[0] : token code
+// params[1] : 10 minutes limit flag. if the value is true, 10 minutes check is activated.
+// params[2] : optional. end time
+func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) < 2 {
+		return shim.Error("incorrect number of parameters. expecting 2+")
+	}
+
+	code, err := ValidateTokenCode(params[0])
+	if nil != err {
+		return shim.Error(err.Error())
+	}
+
+	// token
+	tb := NewTokenStub(stub)
+	token, err := tb.GetToken(code)
+	if nil != err {
+		return responseError(err, "failed to get the token")
+	}
+
+	// authentication
+	kid, err := kid.GetID(stub, true)
+	if nil != err {
+		return shim.Error(err.Error())
+	}
+
+	// genesis account
+	addr, _ := ParseAddress(token.GenesisAccount) // err is nil
+	ab := NewAccountStub(stub, code)
+	account, err := ab.GetAccount(addr)
+	if nil != err {
+		return responseError(err, "failed to get the genesis account")
+	}
+	if !account.HasHolder(kid) { // authority
+		return shim.Error("no authority")
+	}
+	// genesis account is never suspended
+
+	stime := txtime.Unix(0, 0)
+	if len(token.LastPrunedFeeID) > 0 {
+		//TODO check fee id parsing logic
+		s, err := strconv.ParseInt(token.LastPrunedFeeID[0:10], 10, 64)
+		if nil != err {
+			return responseError(err, "failed to get timestamp of last pruned fee")
+		}
+		//TODO check fee id parsing logic
+		n, err := strconv.ParseInt(token.LastPrunedFeeID[10:19], 10, 64)
+		if nil != err {
+			return responseError(err, "failed to get nanoseconds of last pruned fee")
+		}
+		stime = txtime.Unix(s, n)
+	}
+
+	ts, err := txtime.GetTime(stub)
+	if nil != err {
+		return responseError(err, "failed to get tx timestamp")
+	}
+
+	var etime *txtime.Time
+	if len(params) > 2 {
+		seconds, err := strconv.ParseInt(params[2], 10, 64)
+		if nil != err {
+			return responseError(err, "failed to parse the end time")
+		}
+		etime = txtime.Unix(seconds, 0)
+	} else {
+		etime = ts
+	}
+
+	safely, err := strconv.ParseBool(params[1])
+	if nil != err {
+		return shim.Error("malformed boolean flag")
+	}
+
+	if safely {
+		// safe time is current transaction time minus 10 minutes. this is to prevent missing pay(s) because of the time differences(+/- 5min) on different servers/devices
+		safeTime := txtime.New(ts.Add(-6e+11))
+		if nil == etime || etime.Cmp(safeTime) > 0 {
+			etime = safeTime
+		}
+	}
+
+	// calculate fee sum
+	fb := NewFeeStub(stub)
+	feeSum, err := fb.GetFeeSumByTime(account.GetID(), stime, etime)
+	if nil != err {
+		return responseError(err, "failed to get fees to prune")
+	}
+
+	bb := NewBalanceStub(stub)
+	bal, err := bb.GetBalance(account.GetID())
+	if nil != err {
+		return responseError(err, "failed to get the genesis account balance")
+	}
+
+	if feeSum.Count > 0 {
+		bal.Amount.Add(feeSum.Sum)
+		bal.UpdatedTime = ts
+		err = bb.PutBalance(bal)
+		if nil != err {
+			return responseError(err, "failed to update genesis account balance")
+		}
+		token.LastPrunedFeeID = feeSum.End
+		err = tb.PutToken(token)
+		if nil != err {
+			return responseError(err, "failed to update token")
+		}
+	}
+
+	// balance log
+	pruneLog := NewBalanceLogTypePruneFee(bal, *feeSum.Sum, feeSum.Start, feeSum.End)
+	pruneLog.CreatedTime = ts
+	err = bb.PutBalanceLog(pruneLog)
+	if nil != err {
+		return responseError(err, "failed to save balance log")
+	}
+
+	data, err := json.Marshal(feeSum)
+	if nil != err {
+		return shim.Error(err.Error())
+	}
 	return shim.Success(data)
 }

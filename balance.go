@@ -43,6 +43,8 @@ const (
 	BalanceLogTypeRefund
 	// BalanceLogTypePrune the amount of pruned payments
 	BalanceLogTypePrune
+	// BalanceLogTypePruneFee is created when fee utxos are pruned to genesis account.
+	BalanceLogTypePruneFee
 )
 
 // BalanceLog _
@@ -156,6 +158,18 @@ func NewBalanceWithPruneLog(bal *Balance, amount Amount, Start, End string) *Bal
 	return &BalanceLog{
 		DOCTYPEID:    bal.DOCTYPEID,
 		Type:         BalanceLogTypePrune,
+		Diff:         amount,
+		Amount:       bal.Amount,
+		PruneStartID: Start,
+		PruneEndID:   End,
+	}
+}
+
+// NewBalanceLogTypePruneFee creates new BalanceLog of type BalanceLogTypePruneFee
+func NewBalanceLogTypePruneFee(bal *Balance, amount Amount, Start, End string) *BalanceLog {
+	return &BalanceLog{
+		DOCTYPEID:    bal.DOCTYPEID,
+		Type:         BalanceLogTypePruneFee,
 		Diff:         amount,
 		Amount:       bal.Amount,
 		PruneStartID: Start,

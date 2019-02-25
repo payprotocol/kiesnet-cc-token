@@ -209,6 +209,22 @@ func CreateQueryPayByOrderID(orderID string) string {
 	return fmt.Sprintf(QueryPayByOrderID, orderID)
 }
 
+// QueryPruneFee _
+//TODO check sort, use_index
+const QueryPruneFee = `{
+	"selector":{
+		"@fee":"%s",
+		"created_time":{"$gt":"%s"},
+		"created_time":{"$lte":"%s"}
+	},
+	"use_index":["fee","list"]
+}`
+
+// CreateQueryPruneFee generates query string to fetch fee list of id from stime to etime.
+func CreateQueryPruneFee(id string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryPruneFee, id, stime, etime)
+}
+
 // QueryFeesByIDAndTime _
 //TODO check sort, use_index
 const QueryFeesByIDAndTime = `{
