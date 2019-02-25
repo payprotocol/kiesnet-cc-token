@@ -4,11 +4,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
+	"github.com/pkg/errors"
 )
 
 // FeePruneSize is number of fee utxo that one prune request can handle.
@@ -25,6 +27,73 @@ type FeeStub struct {
 // NewFeeStub _
 func NewFeeStub(stub shim.ChaincodeStubInterface) *FeeStub {
 	return &FeeStub{stub}
+}
+
+// CreateKey _
+func (fb *FeeStub) CreateKey(id string) string {
+	return "FEE_" + id
+}
+
+// CreateFee _
+func (fb *FeeStub) CreateFee(tokenCode string, amount Amount) (*Fee, error) {
+	ts, err := txtime.GetTime(fb.stub)
+	if nil != err {
+		return nil, errors.Wrap(err, "failed to get the timestamp")
+	}
+
+	fee := &Fee{}
+	fee.DOCTYPEID = tokenCode
+	fee.FeeID = fmt.Sprintf("%d%s", ts.UnixNano(), fb.stub.GetTxID())
+	fee.Amount = amount
+	fee.CreatedTime = ts
+
+	err = fb.PutFee(fee)
+	if nil != err {
+		return nil, errors.Wrap(err, "failed to create fee")
+	}
+
+	return fee, nil
+}
+
+//ISSUE : Do we have to fetch individual Fee via chaincode call?
+// // GetFee _
+// func (fb *FeeStub) GetFee(id string) (*Fee, error) {
+// 	data, err := fb.GetFeeState(id)
+// 	if nil != err {
+// 		return nil, err
+// 	}
+// 	// data is not nil
+// 	fee := &Fee{}
+// 	err = json.Unmarshal(data, fee)
+// 	if nil != err {
+// 		return nil, errors.Wrap(err, "failed to unmarshal the fee")
+// 	}
+// 	return fee, nil
+// }
+
+// // GetFeeState _
+// func (fb *FeeStub) GetFeeState(id string) ([]byte, error) {
+// 	data, err := fb.stub.GetState(fb.CreateKey(id))
+// 	if nil != err {
+// 		return nil, errors.Wrap(err, "failed to get the fee state")
+// 	}
+// 	if data != nil {
+// 		return data, nil
+// 	}
+// 	return nil, NotExistedFeeError{id: id}
+// }
+
+// PutFee _
+func (fb *FeeStub) PutFee(fee *Fee) error {
+	data, err := json.Marshal(fee)
+	if nil != err {
+		return errors.Wrap(err, "failed to marshal the fee")
+	}
+	err = fb.stub.PutState(fb.CreateKey(fee.FeeID), data)
+	if nil != err {
+		return errors.Wrap(err, "failed to put the fee state")
+	}
+	return nil
 }
 
 // GetFeePolicy _

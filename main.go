@@ -45,6 +45,7 @@ var routes = map[string]TxFunc{
 	"balance/pending/withdraw": balancePendingWithdraw,
 	"contract/execute":         contractExecute,
 	"contract/cancel":          contractCancel,
+	"fee/mock":                 feeMock,
 	"fee/list":                 feeList,
 	"fee/prune":                feePrune,
 	"pay":                      pay,

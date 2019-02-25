@@ -231,3 +231,39 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 	return shim.Success(data)
 }
+
+func feeMock(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) < 2 {
+		return shim.Error("incorrect number of parameters. expecting 2")
+	}
+
+	// authentication
+	_, err := kid.GetID(stub, false)
+	if nil != err {
+		return shim.Error(err.Error())
+	}
+
+	code, err := ValidateTokenCode(params[0])
+	if nil != err {
+		return shim.Error(err.Error())
+	}
+
+	amount, err := NewAmount(params[1])
+	if nil != err {
+		return shim.Error(err.Error())
+	}
+
+	fb := NewFeeStub(stub)
+	fee, err := fb.CreateFee(code, *amount)
+	if nil != err {
+		return shim.Error("failed to create fee")
+	}
+
+	data, err := json.Marshal(fee)
+	if nil != err {
+		logger.Debug(err.Error())
+		return shim.Error("failed to marshal the fee")
+	}
+
+	return shim.Success(data)
+}

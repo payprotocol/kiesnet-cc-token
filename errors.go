@@ -103,3 +103,17 @@ func (e NotExistedPayError) Error() string {
 	}
 	return "the pay does not exist"
 }
+
+// NotExistedFeeError occurs when GetFeeState() got invalid fee id
+type NotExistedFeeError struct {
+	ResponsibleErrorImpl
+	id string
+}
+
+// Error implements error interface
+func (e NotExistedFeeError) Error() string {
+	if len(e.id) > 0 {
+		return fmt.Sprintf("the fee id '%s' does not exist", e.id)
+	}
+	return "the fee does not exist"
+}
