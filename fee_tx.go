@@ -78,7 +78,7 @@ func feeList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 					if len(params[4]) > 0 {
 						seconds, err := strconv.ParseInt(params[4], 10, 64)
 						if nil != err {
-							return shim.Error("invalid end t ime: need seconds since 1970")
+							return shim.Error("invalid end time: need seconds since 1970")
 						}
 						etime = txtime.Unix(seconds, 0)
 						if nil != stime && stime.Cmp(etime) >= 0 {
