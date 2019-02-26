@@ -13,16 +13,6 @@ type Fee struct {
 	CreatedTime *txtime.Time `json:"created_time"`
 }
 
-func NewFee(id, feeId, account string, amount Amount, ts *txtime.Time) *Fee {
-	return &Fee{
-		DOCTYPEID:   id,
-		FeeID:       feeId,
-		Account:     account,
-		Amount:      amount,
-		CreatedTime: ts,
-	}
-}
-
 var _feePolicies = map[string]*FeePolicy{}
 
 // FeePolicy _
