@@ -93,7 +93,7 @@ func feeList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	fb := NewFeeStub(stub)
-	res, err := fb.GetQueryFees(token.GenesisAccount, bookmark, fetchSize, stime, etime)
+	res, err := fb.GetQueryFees(token.DOCTYPEID, bookmark, fetchSize, stime, etime)
 	if nil != err {
 		return responseError(err, "failed to get fees")
 	}
@@ -238,14 +238,20 @@ func feeMock(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	// authentication
-	_, err := kid.GetID(stub, false)
+	kid, err := kid.GetID(stub, false)
 	if nil != err {
 		return shim.Error(err.Error())
 	}
 
+	var addr *Address
 	code, err := ValidateTokenCode(params[0])
-	if nil != err {
-		return shim.Error(err.Error())
+	if nil == err { // by token code
+		addr = NewAddress(code, AccountTypePersonal, kid)
+	} else { // by address
+		addr, err = ParseAddress(params[0])
+		if err != nil {
+			return responseError(err, "failed to get the account")
+		}
 	}
 
 	amount, err := NewAmount(params[1])
@@ -254,7 +260,7 @@ func feeMock(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	fb := NewFeeStub(stub)
-	fee, err := fb.CreateFee(code, *amount)
+	fee, err := fb.CreateFee(addr, *amount)
 	if nil != err {
 		return shim.Error("failed to create fee")
 	}

@@ -36,15 +36,16 @@ func (fb *FeeStub) CreateKey(id string) string {
 }
 
 // CreateFee _
-func (fb *FeeStub) CreateFee(tokenCode string, amount Amount) (*Fee, error) {
+func (fb *FeeStub) CreateFee(payer *Address, amount Amount) (*Fee, error) {
 	ts, err := txtime.GetTime(fb.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	fee := &Fee{}
-	fee.DOCTYPEID = tokenCode
+	fee.DOCTYPEID = payer.Code
 	fee.FeeID = fmt.Sprintf("%d%s", ts.UnixNano(), fb.stub.GetTxID())
+	fee.Account = payer.String()
 	fee.Amount = amount
 	fee.CreatedTime = ts
 
@@ -159,7 +160,7 @@ func (fb *FeeStub) RefreshFeePolicy(code string) (*FeePolicy, error) {
 }
 
 // GetQueryFees _
-func (fb *FeeStub) GetQueryFees(id, bookmark string, fetchSize int, stime, etime *txtime.Time) (*QueryResult, error) {
+func (fb *FeeStub) GetQueryFees(tokenCode, bookmark string, fetchSize int, stime, etime *txtime.Time) (*QueryResult, error) {
 	if fetchSize < 1 {
 		fetchSize = FeeFetchSize
 	}
@@ -168,9 +169,9 @@ func (fb *FeeStub) GetQueryFees(id, bookmark string, fetchSize int, stime, etime
 	}
 	query := ""
 	if nil != stime || nil != etime {
-		query = CreateQueryFeesByIDAndTimes(id, stime, etime)
+		query = CreateQueryFeesByCodeAndTimes(tokenCode, stime, etime)
 	} else {
-		query = CreateQueryFeesByID(id)
+		query = CreateQueryFeesByCode(tokenCode)
 	}
 	iter, meta, err := fb.stub.GetQueryResultWithPagination(query, int32(fetchSize), bookmark)
 	if nil != err {

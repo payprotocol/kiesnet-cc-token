@@ -225,9 +225,9 @@ func CreateQueryPruneFee(id string, stime, etime *txtime.Time) string {
 	return fmt.Sprintf(QueryPruneFee, id, stime, etime)
 }
 
-// QueryFeesByIDAndTime _
+// QueryFeesByCodeAndTime _
 //TODO check sort, use_index
-const QueryFeesByIDAndTime = `{
+const QueryFeesByCodeAndTime = `{
 	"selector":{
 		"@fee":"%s",
 		"created_time":{"$gte":"%s"},
@@ -237,20 +237,20 @@ const QueryFeesByIDAndTime = `{
 	"use_index":["fee","list"]
 }`
 
-// CreateQueryFeesByIDAndTimes _
-func CreateQueryFeesByIDAndTimes(id string, stime, etime *txtime.Time) string {
+// CreateQueryFeesByCodeAndTimes _
+func CreateQueryFeesByCodeAndTimes(tokenCode string, stime, etime *txtime.Time) string {
 	if nil == stime {
 		stime = txtime.Unix(0, 0)
 	}
 	if nil == etime {
 		etime = txtime.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
 	}
-	return fmt.Sprintf(QueryFeesByIDAndTime, id, stime, etime)
+	return fmt.Sprintf(QueryFeesByCodeAndTime, tokenCode, stime, etime)
 }
 
-// QueryFeesByID _
+// QueryFeesByCode _
 //TODO check sort, use_index
-const QueryFeesByID = `{
+const QueryFeesByCode = `{
 	"selector":{
 		"@fee":"%s"
 	},
@@ -258,7 +258,7 @@ const QueryFeesByID = `{
 	"use_index":["fee","list"]
 }`
 
-// CreateQueryFeesByID _`
-func CreateQueryFeesByID(id string) string {
-	return fmt.Sprintf(QueryFeesByID, id)
+// CreateQueryFeesByCode _
+func CreateQueryFeesByCode(tokenCode string) string {
+	return fmt.Sprintf(QueryFeesByCode, tokenCode)
 }
