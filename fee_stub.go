@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -218,4 +219,32 @@ func (fb *FeeStub) GetFeeSumByTime(id string, stime, etime *txtime.Time) (*FeeSu
 	feeSum.Count = cnt
 	feeSum.Sum = sum
 	return feeSum, nil
+}
+
+func (fb *FeeStub) CalcFee(feePolicy FeePolicy, fn, account string, amount Amount) (*Fee, error) {
+	ts, err := txtime.GetTime(fb.stub)
+	if nil != err {
+		return nil, errors.Wrap(err, "failed to get the timestamp")
+	}
+
+	feeRate := feePolicy.Rates[fn]
+
+	amountFloat := new(big.Float).SetInt(&amount.Int)
+	feeRateFloat := big.NewFloat(float64(feeRate.Rate))
+	feeAmountFloat := new(big.Float).Mul(amountFloat, feeRateFloat)
+	feeAmountString := strings.Split(feeAmountFloat.Text('f', 64), ".")[0] // floor
+	feeAmountInt, _ := new(big.Int).SetString(feeAmountString, 10)
+
+	if feeRate.MaxAmount > 0 { // 0 is unlimit
+		feeMaxAmountBigInt := big.NewInt(feeRate.MaxAmount)
+		if feeAmountInt.Cmp(feeMaxAmountBigInt) > 0 {
+			feeAmountInt = feeMaxAmountBigInt
+		}
+	}
+
+	feeID := fmt.Sprintf("%d%s", ts.UnixNano(), fb.stub.GetTxID())
+
+	DOCTYPEID := "" // Kyle TODO: 어떤 값을 넣지? genesis account address?
+
+	return NewFee(DOCTYPEID, feeID, account, amount, ts), nil
 }
