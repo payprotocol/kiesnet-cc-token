@@ -110,13 +110,13 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("failed to get the fee policy")
 	}
 
-	fee, err := fb.CalcFee(*feePolicy, "transfer", sender.GetID(), *amount)
+	feeAmount, err := fb.CalcFee(*feePolicy, "transfer", sender.GetID(), *amount)
 	if err != nil {
 		logger.Debug(err.Error())
-		return shim.Error("failed to get the fee policy")
+		return shim.Error("failed to get the fee amount")
 	}
 
-	amount.Add(&fee.Amount)
+	amount.Add(feeAmount)
 
 	// feePolicy.TargetAddress // genesis account
 	// Kyle TODO: FeePolicy, FeeRate 가져와서 더한 후에 amount 계산

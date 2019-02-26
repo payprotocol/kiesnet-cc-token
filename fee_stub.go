@@ -221,14 +221,8 @@ func (fb *FeeStub) GetFeeSumByTime(tokenCode string, stime, etime *txtime.Time) 
 	return feeSum, nil
 }
 
-func (fb *FeeStub) CalcFee(feePolicy FeePolicy, fn, account string, amount Amount) (*Fee, error) {
-	ts, err := txtime.GetTime(fb.stub)
-	if nil != err {
-		return nil, errors.Wrap(err, "failed to get the timestamp")
-	}
-
+func (fb *FeeStub) CalcFee(feePolicy FeePolicy, fn, account string, amount Amount) (*Amount, error) {
 	feeRate := feePolicy.Rates[fn]
-
 	amountFloat := new(big.Float).SetInt(&amount.Int)
 	feeRateFloat := big.NewFloat(float64(feeRate.Rate))
 	feeAmountFloat := new(big.Float).Mul(amountFloat, feeRateFloat)
@@ -242,9 +236,10 @@ func (fb *FeeStub) CalcFee(feePolicy FeePolicy, fn, account string, amount Amoun
 		}
 	}
 
-	feeID := fmt.Sprintf("%d%s", ts.UnixNano(), fb.stub.GetTxID())
+	feeAmount, err := NewAmount(feeAmountInt.String())
+	if nil != err {
+		return nil, err
+	}
 
-	DOCTYPEID := "" // Kyle TODO: 어떤 값을 넣지? genesis account address?
-
-	return NewFee(DOCTYPEID, feeID, account, amount, ts), nil
+	return feeAmount, nil
 }
