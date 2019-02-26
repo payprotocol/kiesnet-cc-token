@@ -192,7 +192,7 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// calculate fee sum
 	fb := NewFeeStub(stub)
-	feeSum, err := fb.GetFeeSumByTime(account.GetID(), stime, etime)
+	feeSum, err := fb.GetFeeSumByTime(code, stime, etime)
 	if nil != err {
 		return responseError(err, "failed to get fees to prune")
 	}

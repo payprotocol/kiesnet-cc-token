@@ -217,12 +217,13 @@ const QueryPruneFee = `{
 		"created_time":{"$gt":"%s"},
 		"created_time":{"$lte":"%s"}
 	},
+	"sort":["created_time"],
 	"use_index":["fee","list"]
 }`
 
-// CreateQueryPruneFee generates query string to fetch fee list of id from stime to etime.
-func CreateQueryPruneFee(id string, stime, etime *txtime.Time) string {
-	return fmt.Sprintf(QueryPruneFee, id, stime, etime)
+// CreateQueryPruneFee generates query string to fetch fee list of tokenCode from stime to etime.
+func CreateQueryPruneFee(tokenCode string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryPruneFee, tokenCode, stime, etime)
 }
 
 // QueryFeesByCodeAndTime _

@@ -182,8 +182,8 @@ func (fb *FeeStub) GetQueryFees(tokenCode, bookmark string, fetchSize int, stime
 }
 
 // GetFeeSumByTime returns FeeSum from stime to etime.
-func (fb *FeeStub) GetFeeSumByTime(id string, stime, etime *txtime.Time) (*FeeSum, error) {
-	query := CreateQueryPruneFee(id, stime, etime)
+func (fb *FeeStub) GetFeeSumByTime(tokenCode string, stime, etime *txtime.Time) (*FeeSum, error) {
+	query := CreateQueryPruneFee(tokenCode, stime, etime)
 	iter, err := fb.stub.GetQueryResult(query)
 	if nil != err {
 		return nil, err
