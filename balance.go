@@ -114,6 +114,22 @@ func NewBalanceDepositLog(bal *Balance, pb *PendingBalance) *BalanceLog {
 	}
 }
 
+// NewBalanceDepositLog2 _
+// BalanceLog.Diff는 balance의 실제 변화량이 들어가야 한다.
+// 기존 deposit log의 Diff는 PendingBalance.Amount가 들어간다
+// fee 적용 후 balance 변화량은 amount + fee이다. (pay contract는 fee를 0으로 만들어 넣는다.)
+func NewBalanceDepositLog2(bal *Balance, pb *PendingBalance) *BalanceLog {
+	diff := pb.Amount.Copy().Add(&pb.Fee).Neg()
+	return &BalanceLog{
+		DOCTYPEID: bal.DOCTYPEID,
+		Type:      BalanceLogTypeDeposit,
+		RID:       pb.RID,
+		Diff:      *diff,
+		Amount:    bal.Amount,
+		Memo:      pb.Memo,
+	}
+}
+
 // NewBalanceWithdrawLog _
 func NewBalanceWithdrawLog(bal *Balance, pb *PendingBalance) *BalanceLog {
 	return &BalanceLog{
@@ -212,6 +228,24 @@ func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount A
 		Account:     owner.GetID(),
 		RID:         rel.GetID(),
 		Amount:      amount,
+		Memo:        memo,
+		PendingTime: pTime,
+	}
+}
+
+// NewPendingBalance2 _
+func NewPendingBalance2(id string, owner Identifiable, rel Identifiable, amount, fee Amount, memo string, pTime *txtime.Time) *PendingBalance {
+	ptype := PendingBalanceTypeAccount
+	if _, ok := rel.(*contract.Contract); ok {
+		ptype = PendingBalanceTypeContract
+	}
+	return &PendingBalance{
+		DOCTYPEID:   id,
+		Type:        ptype,
+		Account:     owner.GetID(),
+		RID:         rel.GetID(),
+		Amount:      amount,
+		Fee:         fee,
 		Memo:        memo,
 		PendingTime: pTime,
 	}

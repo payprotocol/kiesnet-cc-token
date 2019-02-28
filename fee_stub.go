@@ -103,7 +103,8 @@ func (fb *FeeStub) PutFee(fee *Fee) error {
 	return nil
 }
 
-// GetFeePolicy _
+// GetFeePolicy returns fee policy of given code token.
+// If target policy does not exist in cache, invoke knt.
 func (fb *FeeStub) GetFeePolicy(code string) (*FeePolicy, error) {
 	// if nil == _feePolicies {
 	// 	_feePolicies = map[string]*FeePolicy{}

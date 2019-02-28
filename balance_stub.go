@@ -314,6 +314,40 @@ func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contrac
 	return log, nil
 }
 
+// Deposit2 _
+func (bb *BalanceStub) Deposit2(id string, sender *Balance, con *contract.Contract, amount, fee Amount, memo string) (*BalanceLog, error) {
+	ts, err := txtime.GetTime(bb.stub)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the timestamp")
+	}
+
+	expiryTime, err := con.GetExpiryTime()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the expiry time")
+	}
+
+	pb := NewPendingBalance2(id, sender, con, amount, fee, memo, expiryTime)
+	pb.CreatedTime = ts
+	if err = bb.PutPendingBalance(pb); err != nil {
+		return nil, errors.Wrap(err, "failed to create the pending balance")
+	}
+
+	// applied = -(amount + fee)
+	applied := amount.Copy().Add(&fee).Neg()
+	sender.Amount.Add(applied)
+	sender.UpdatedTime = ts
+	if err = bb.PutBalance(sender); err != nil {
+		return nil, err
+	}
+	log := NewBalanceDepositLog2(sender, pb)
+	log.CreatedTime = ts
+	if err = bb.PutBalanceLog(log); err != nil {
+		return nil, err
+	}
+
+	return log, nil
+}
+
 // Withdraw _
 // It does not validate pending time!
 func (bb *BalanceStub) Withdraw(pb *PendingBalance) (*BalanceLog, error) {

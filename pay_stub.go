@@ -110,13 +110,13 @@ func (pb *PayStub) PutParentPay(key string, pay *Pay) error {
 }
 
 // Pay _
-func (pb *PayStub) Pay(sender *Balance, receiver string, amount Amount, orderID, memo string) (*PayResult, error) {
+func (pb *PayStub) Pay(sender *Balance, receiver string, amount, fee Amount, orderID, memo string) (*PayResult, error) {
 	ts, err := txtime.GetTime(pb.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
-	pay := NewPay(receiver, payid, amount, sender.GetID(), "", orderID, memo, ts)
+	pay := NewPay(receiver, payid, amount, fee, sender.GetID(), "", orderID, memo, ts)
 	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
 	}
@@ -139,14 +139,15 @@ func (pb *PayStub) Pay(sender *Balance, receiver string, amount Amount, orderID,
 }
 
 // Refund _
-func (pb *PayStub) Refund(sender, receiver *Balance, amount Amount, memo string, parentPay *Pay) (*BalanceLog, error) {
+func (pb *PayStub) Refund(sender, receiver *Balance, amount, fee Amount, memo string, parentPay *Pay) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(pb.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
-	pay := NewPay(sender.GetID(), payid, amount, receiver.GetID(), parentPay.PayID, "", memo, ts)
+	// Here fee is negative, so it will be returned to the merchant.
+	pay := NewPay(sender.GetID(), payid, amount, fee, receiver.GetID(), parentPay.PayID, "", memo, ts)
 
 	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new pay")
@@ -191,6 +192,7 @@ func (pb *PayStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PaySu
 	c := &Pay{}
 	cnt := 0 //record counter
 	sum, _ := NewAmount("0")
+	fee, _ := NewAmount("0")
 
 	for iter.HasNext() {
 		cnt++
@@ -215,10 +217,12 @@ func (pb *PayStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PaySu
 			break
 		}
 		sum = sum.Add(&c.Amount)
+		fee = fee.Add(&c.Fee)
 		cs.End = c.PayID
 	}
 	cs.Count = cnt
 	cs.Sum = sum
+	cs.Fee = fee
 
 	return cs, nil
 
@@ -253,10 +257,11 @@ func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, merchant, memo, o
 	if nil != err {
 		return err
 	}
+
 	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
 
 	// Put pay
-	pay := NewPay(merchant, payid, pbalance.Amount, pbalance.Account, "", orderID, memo, ts)
+	pay := NewPay(merchant, payid, pbalance.Amount, pbalance.Fee, pbalance.Account, "", orderID, memo, ts)
 	if err = pb.PutPay(pay); nil != err {
 		return errors.Wrap(err, "failed to put new pay")
 	}
