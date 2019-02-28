@@ -102,24 +102,18 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// Kyle TODO: FeePolicy, FeeRate 가져와서 더한 후에 amount 계산
 	fb := NewFeeStub(stub)
 
-	feePolicy, err := fb.GetFeePolicy(rAddr.Code)
-	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the fee policy")
-	}
-
-	feeAmount, err := fb.CalcFee(*feePolicy, "transfer", sender.GetID(), *amount)
+	feeAmount, err := fb.CalcFee(rAddr.Code, "transfer", *amount)
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the fee amount")
 	}
 
-	amount.Add(feeAmount)
+	applied := amount.Copy().Add(feeAmount)
 
 	// feePolicy.TargetAddress // genesis account
 	// Kyle TODO: FeePolicy, FeeRate 가져와서 더한 후에 amount 계산
 
-	if sBal.Amount.Cmp(amount) < 0 {
+	if sBal.Amount.Cmp(applied) < 0 {
 		return shim.Error("not enough balance")
 	}
 
@@ -203,17 +197,22 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return shim.Error(err.Error())
 		}
 		// pending balance
-		log, err = bb.Deposit(pbID, sBal, con, *amount, memo)
+		log, err = bb.Deposit2(pbID, sBal, con, *amount, *feeAmount, memo)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to create a pending balance")
 		}
 	} else { // instant sending
-		log, err = bb.Transfer(sBal, rBal, *amount, memo, pendingTime)
+		log, err = bb.Transfer(sBal, rBal, *amount, *feeAmount, memo, pendingTime)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to transfer")
 		}
+	}
+
+	_, err = fb.CreateFee(sAddr, *feeAmount)
+	if err != nil {
+		return shim.Error(err.Error())
 	}
 
 	// log is not nil

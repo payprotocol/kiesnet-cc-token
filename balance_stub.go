@@ -204,14 +204,15 @@ func (bb *BalanceStub) Supply(bal *Balance, amount Amount) (*BalanceLog, error) 
 }
 
 // Transfer _
-func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo string, pendingTime *txtime.Time) (*BalanceLog, error) {
+func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, memo string, pendingTime *txtime.Time) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
-		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, amount, memo, pendingTime)
+		pbfee, _ := NewAmount("0")
+		pb := NewPendingBalance2(bb.stub.GetTxID(), receiver, sender, amount, *pbfee, memo, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
 			return nil, err
@@ -229,13 +230,14 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount Amount, memo s
 		}
 	}
 
-	amount.Neg()               // -
-	sender.Amount.Add(&amount) // withdraw
+	applied := amount.Copy().Add(&fee)
+	applied.Neg()              // -
+	sender.Amount.Add(applied) // withdraw
 	sender.UpdatedTime = ts
 	if err = bb.PutBalance(sender); err != nil {
 		return nil, err
 	}
-	sbl := NewBalanceTransferLog(sender, receiver, amount, memo)
+	sbl := NewBalanceTransferLog(sender, receiver, *applied, memo)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
 		return nil, err
@@ -254,7 +256,8 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 	sender := &Balance{DOCTYPEID: pb.Account} // proxy
 
 	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
-		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, pb.Amount, pb.Memo, pendingTime)
+		feeAmount, _ := NewAmount("0")
+		pb := NewPendingBalance2(bb.stub.GetTxID(), receiver, sender, pb.Amount, *feeAmount, pb.Memo, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
 			return err
@@ -270,6 +273,12 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 		if err = bb.PutBalanceLog(rbl); err != nil {
 			return err
 		}
+	}
+
+	fb := NewFeeStub(bb.stub)
+	sAddr, _ := ParseAddress(pb.Account)
+	if _, err := fb.CreateFee(sAddr, pb.Fee); err != nil {
+		return err
 	}
 
 	// remove pending balance
@@ -360,7 +369,8 @@ func (bb *BalanceStub) Withdraw(pb *PendingBalance) (*BalanceLog, error) {
 	if err != nil {
 		return nil, err
 	}
-	bal.Amount.Add(&pb.Amount)
+	applied := pb.Amount.Copy().Add(&pb.Fee)
+	bal.Amount.Add(applied)
 	bal.UpdatedTime = ts
 	if err = bb.PutBalance(bal); err != nil {
 		return nil, err
