@@ -194,14 +194,14 @@ type PendingBalance struct {
 	Account     string             `json:"account"` // account ID (address)
 	RID         string             `json:"rid"`     // relative ID - account or contract
 	Amount      Amount             `json:"amount"`
-	Fee         Amount             `json:"fee,omitempty"` // If this field is non-zero, make new Fee or append to sender when this PendingBalance is withdrew/deleted
+	Fee         Amount             `json:"fee,omitempty"`
 	Memo        string             `json:"memo"`
 	CreatedTime *txtime.Time       `json:"created_time,omitempty"`
 	PendingTime *txtime.Time       `json:"pending_time,omitempty"`
 }
 
 // NewPendingBalance _
-func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount, fee Amount, memo string, pTime *txtime.Time) *PendingBalance {
+func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount Amount, memo string, pTime *txtime.Time) *PendingBalance {
 	ptype := PendingBalanceTypeAccount
 	if _, ok := rel.(*contract.Contract); ok {
 		ptype = PendingBalanceTypeContract
@@ -212,7 +212,6 @@ func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount, 
 		Account:     owner.GetID(),
 		RID:         rel.GetID(),
 		Amount:      amount,
-		Fee:         fee,
 		Memo:        memo,
 		PendingTime: pTime,
 	}
