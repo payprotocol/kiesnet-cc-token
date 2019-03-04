@@ -19,7 +19,7 @@ import (
 // params[1] : receiver's address
 // params[2] : amount(>0)
 // params[3] : optional. order id
-// params[4] : optional. memo (max 128 charactors)
+// params[4] : optional. memo (see MemoMaxLength)
 // params[5] : optional. expiry (duration represented by int64 seconds, multi-sig only)
 func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 3 {
@@ -111,8 +111,8 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		orderID = params[3]
 		// memo
 		if len(params) > 4 {
-			if len(params[4]) > 128 { // 128 charactors limit
-				memo = params[4][:128]
+			if len(params[4]) > MemoMaxLength { // length limit
+				memo = params[4][:MemoMaxLength]
 			} else {
 				memo = params[4]
 			}
@@ -171,7 +171,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 // params[0] : original pay id
 // params[1] : refund amount
-// params[2] : optional. memo (max 128 charactors)
+// params[2] : optional. memo (see MemoMaxLength)
 func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 2 {
 		return shim.Error("incorrect number of parameters. expecting at least 2")
@@ -269,8 +269,8 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	memo := ""
 	// memo
 	if len(params) > 2 {
-		if len(params[2]) > 128 { // 128 charactors limit
-			memo = params[2][:128]
+		if len(params[2]) > MemoMaxLength { // length limit
+			memo = params[2][:MemoMaxLength]
 		} else {
 			memo = params[2]
 		}

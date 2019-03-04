@@ -17,7 +17,7 @@ import (
 // params[0] : sender address (empty string = personal account)
 // params[1] : receiver address
 // params[2] : amount (big int string)
-// params[3] : memo (max 128 charactors)
+// params[3] : memo (see MemoMaxLength)
 // params[4] : pending time (time represented by int64 seconds)
 // params[5] : expiry (duration represented by int64 seconds, multi-sig only)
 // params[6:] : extra signers (personal account addresses)
@@ -119,8 +119,8 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 	// memo
 	if len(params) > 3 {
-		if len(params[3]) > 128 { // 128 charactors limit
-			memo = params[3][:128]
+		if len(params[3]) > MemoMaxLength { // length limit
+			memo = params[3][:MemoMaxLength]
 		} else {
 			memo = params[3]
 		}

@@ -126,7 +126,7 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [sender] : an account address, __empty = PAOT__
 - [receiver] : an account address
 - [amount] : big int
-- [_memo_] : max 128 charactors
+- [_memo_] : max 1024 charactors
 - [_pending_time_] : __time(seconds)__ represented by int64
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
 - [_extra-signers..._] : PAOTs (exclude invoker, max 127)
@@ -136,14 +136,14 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [sender]: an account address, __TOKENCODE = PAOT__
 - [receiver] : an account address
 - [amount] : big int(+)
-- [_memo_] : max 128 charactors
+- [_memo_] : max 1024 charactors
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
 
 > invoke __`pay/refund`__ [original_pay_key, amount(+), _memo_ ] {_"kiesnet-id/pin"_}
 - refund the amount of token the based on original_pay_key 
 - [original_pay_key] : original_pay_key 
 - [amount]: the amount of token. this value should be lesser than original pay's amount
-- [_memo_]: max 128 charactors
+- [_memo_]: max 1024 charactors
 
 > invoke __`pay/prune`__ [token_code|address, ten_minutes_flag, _end_time_] {_"kiesnet-id/pin"_}
 - prune the pays from last pay time to end_time. if end_time is not provided, prune to 10 mins lesser than current time(if ten_minutes_flag is set to true).

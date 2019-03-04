@@ -59,6 +59,9 @@ type BalanceLog struct {
 	PayID        string         `json:"pay_id,omitempty"`         // used for pay balance log
 }
 
+// MemoMaxLength is used to limit memo field length (BalanceLog, PendingBalance, Pay)
+const MemoMaxLength = 1024
+
 // NewBalanceSupplyLog _
 func NewBalanceSupplyLog(bal *Balance, diff Amount) *BalanceLog {
 	if diff.Sign() < 0 { // burn
