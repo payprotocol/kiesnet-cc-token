@@ -102,8 +102,6 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// Kyle TODO: FeePolicy, FeeRate 가져와서 더한 후에 amount 계산
 	fb := NewFeeStub(stub)
 
-	// getFee or calcFee와 같이 fee_stub.go 내부에 로직 구현?
-	// 그럴 경우 return type은 Fee로 할 것인가
 	feePolicy, err := fb.GetFeePolicy(rAddr.Code)
 	if err != nil {
 		logger.Debug(err.Error())
