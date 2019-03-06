@@ -17,14 +17,14 @@ var _feePolicies = map[string]*FeePolicy{}
 
 // FeePolicy _
 type FeePolicy struct {
-	TargetAddress string
-	Rates         map[string]FeeRate
+	TargetAddress string             `json:"target_address"`
+	Rates         map[string]FeeRate `json:"rates"`
 }
 
 // FeeRate _
 type FeeRate struct {
-	Rate      float32
-	MaxAmount int64 // 0 is unlimit
+	Rate      float32 `json:"rate"`
+	MaxAmount int64   `json:"max_amount"` // 0 is unlimit
 }
 
 // FeeSum stands for amount&state of accumulated fee from Start to End
