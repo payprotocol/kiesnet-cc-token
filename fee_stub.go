@@ -131,9 +131,9 @@ func (fb *FeeStub) GetFeePolicy(code string) (*FeePolicy, error) {
 			kv := strings.Split(f, "=")
 			if len(kv) > 1 {
 				rm := strings.Split(kv[1], ",")
-				rate, err := strconv.ParseFloat(rm[0], 32)
-				if err != nil {
-					return nil, err
+				rate := rm[0]
+				if _, ok := new(big.Float).SetString(rate); !ok {
+					return nil, errors.New("failed to parse rate")
 				}
 				max := int64(0)
 				if len(rm) > 1 {
@@ -143,7 +143,7 @@ func (fb *FeeStub) GetFeePolicy(code string) (*FeePolicy, error) {
 					}
 				}
 				rates[kv[0]] = FeeRate{
-					Rate:      float32(rate),
+					Rate:      rate,
 					MaxAmount: max,
 				}
 			}
@@ -231,7 +231,8 @@ func (fb *FeeStub) GetFeeSumByTime(tokenCode string, stime, etime *txtime.Time) 
 func (fb *FeeStub) CalcFee(feePolicy FeePolicy, fn, account string, amount Amount) (*Amount, error) {
 	feeRate := feePolicy.Rates[fn]
 	amountFloat := new(big.Float).SetInt(&amount.Int)
-	feeRateFloat := big.NewFloat(float64(feeRate.Rate))
+	// We've already checked validity of Rate on GetFeePolicy()
+	feeRateFloat, _ := new(big.Float).SetString(feeRate.Rate)
 	feeAmountFloat := new(big.Float).Mul(amountFloat, feeRateFloat)
 	feeAmountString := strings.Split(feeAmountFloat.Text('f', 64), ".")[0] // floor
 	feeAmountInt, _ := new(big.Int).SetString(feeAmountString, 10)

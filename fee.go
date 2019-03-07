@@ -23,8 +23,8 @@ type FeePolicy struct {
 
 // FeeRate _
 type FeeRate struct {
-	Rate      float32 `json:"rate"`
-	MaxAmount int64   `json:"max_amount"` // 0 is unlimit
+	Rate      string `json:"rate"`       // numeric string of positive decimal fraction
+	MaxAmount int64  `json:"max_amount"` // 0 is unlimit
 }
 
 // FeeSum stands for amount&state of accumulated fee from Start to End
