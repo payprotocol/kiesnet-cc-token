@@ -35,8 +35,13 @@ func (fb *FeeStub) CreateKey(id string) string {
 	return "FEE_" + id
 }
 
-// CreateFee _
+// CreateFee creates new fee utxo of given amount and puts the state.
+// If give amount is zero, it puts nothing and returns nil.
 func (fb *FeeStub) CreateFee(payer *Address, amount Amount) (*Fee, error) {
+	if amount.Int.Cmp(big.NewInt(0)) == 0 {
+		return nil, nil
+	}
+
 	ts, err := txtime.GetTime(fb.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
