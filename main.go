@@ -24,7 +24,7 @@ func (cc *Chaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 	if txFn := routes[fn]; txFn != nil {
 		return txFn(stub, params)
 	}
-	return shim.Error("unknown function: '" + fn + "'")
+	return shim.Error("unknown function: [" + fn + "]")
 }
 
 // TxFunc _

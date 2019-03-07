@@ -134,7 +134,7 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 			return responseError(err, "failed to get the token state")
 		}
 	} else {
-		return shim.Error("already issued token : " + code)
+		return shim.Error("already issued token : [" + code + "]")
 	}
 
 	decimal, maxSupply, supply, _, err := getValidatedTokenMeta(stub, code)
@@ -433,7 +433,7 @@ func executeTokenCreate(stub shim.ChaincodeStubInterface, cid string, doc []inte
 			return responseError(err, "failed to get the token state")
 		}
 	} else {
-		return shim.Error("already issued token : " + code)
+		return shim.Error("already issued token : [" + code + "]")
 	}
 
 	decimal, maxSupply, supply, _, err := getValidatedTokenMeta(stub, code)

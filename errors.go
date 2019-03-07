@@ -27,7 +27,7 @@ type NotIssuedTokenError struct {
 
 // Error implements error interface
 func (e NotIssuedTokenError) Error() string {
-	return fmt.Sprintf("the token '%s' is not issued", e.code)
+	return fmt.Sprintf("the token [%s] is not issued", e.code)
 }
 
 // InvalidAccessError _
@@ -60,7 +60,7 @@ type InvalidAccountAddrError struct {
 // Error implements error interface
 func (e InvalidAccountAddrError) Error() string {
 	if len(e.reason) > 0 {
-		return fmt.Sprintf("invalid account address: %s", e.reason)
+		return fmt.Sprintf("invalid account address: [%s]", e.reason)
 	}
 	return "invalid account address"
 }
@@ -73,7 +73,7 @@ type ExistedAccountError struct {
 
 // Error implements error interface
 func (e ExistedAccountError) Error() string {
-	return fmt.Sprintf("the account '%s' already exists", e.addr)
+	return fmt.Sprintf("the account [%s] already exists", e.addr)
 }
 
 // NotExistedAccountError _
@@ -85,7 +85,7 @@ type NotExistedAccountError struct {
 // Error implements error interface
 func (e NotExistedAccountError) Error() string {
 	if len(e.addr) > 0 {
-		return fmt.Sprintf("the account '%s' doest not exist", e.addr)
+		return fmt.Sprintf("the account [%s] doest not exist", e.addr)
 	}
 	return "the account does not exist"
 }
@@ -99,7 +99,7 @@ type NotExistedPayError struct {
 // Error implements error interface
 func (e NotExistedPayError) Error() string {
 	if len(e.id) > 0 {
-		return fmt.Sprintf("the pay id '%s' does not exist", e.id)
+		return fmt.Sprintf("the pay id [%s] does not exist", e.id)
 	}
 	return "the pay does not exist"
 }

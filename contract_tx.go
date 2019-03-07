@@ -21,11 +21,11 @@ var ctrRoutes = map[string][]CtrFunc{
 	"account/create":        []CtrFunc{contractVoid, executeAccountCreate},
 	"account/holder/add":    []CtrFunc{contractVoid, executeAccountHolderAdd},
 	"account/holder/remove": []CtrFunc{contractVoid, executeAccountHolderRemove},
-	"pay":          []CtrFunc{cancelTransfer, executePay},
-	"token/burn":   []CtrFunc{contractVoid, executeTokenBurn},
-	"token/create": []CtrFunc{contractVoid, executeTokenCreate},
-	"token/mint":   []CtrFunc{contractVoid, executeTokenMint},
-	"transfer":     []CtrFunc{cancelTransfer, executeTransfer},
+	"pay":                   []CtrFunc{cancelTransfer, executePay},
+	"token/burn":            []CtrFunc{contractVoid, executeTokenBurn},
+	"token/create":          []CtrFunc{contractVoid, executeTokenCreate},
+	"token/mint":            []CtrFunc{contractVoid, executeTokenMint},
+	"transfer":              []CtrFunc{cancelTransfer, executeTransfer},
 }
 
 // fnIdx : 0 = cancel, 1 = execute
@@ -60,7 +60,7 @@ func contractCallback(stub shim.ChaincodeStubInterface, fnIdx int, params []stri
 	if ctrFn := ctrRoutes[dtype][fnIdx]; ctrFn != nil {
 		return ctrFn(stub, cid, doc)
 	}
-	return shim.Error("unknown contract: '" + dtype + "'")
+	return shim.Error("unknown contract: [" + dtype + "]")
 }
 
 func contractCancel(stub shim.ChaincodeStubInterface, params []string) peer.Response {

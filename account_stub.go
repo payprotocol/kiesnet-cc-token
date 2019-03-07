@@ -192,14 +192,14 @@ func (ab *AccountStub) GetQueryHolderAccounts(kid, bookmark string, fetchSize in
 func (ab *AccountStub) GetSignableIDs(addr string) ([]string, error) {
 	_addr, err := ParseAddress(addr)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse the account address: %s", addr)
+		return nil, errors.Wrapf(err, "failed to parse the account address: [%s]", addr)
 	}
 	if _addr.Code != ab.token {
-		return nil, errors.Errorf("mismatched token account: %s", addr)
+		return nil, errors.Errorf("mismatched token account: [%s]", addr)
 	}
 	account, err := ab.GetAccount(_addr)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get the account: %s", addr)
+		return nil, errors.Wrapf(err, "failed to get the account: [%s]", addr)
 	}
 	if pac, ok := account.(*Account); ok {
 		return []string{pac.Holder()}, nil
