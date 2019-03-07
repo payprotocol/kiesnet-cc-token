@@ -132,7 +132,7 @@ func (fb *FeeStub) GetFeePolicy(code string) (*FeePolicy, error) {
 			if len(kv) > 1 {
 				rm := strings.Split(kv[1], ",")
 				rate := rm[0]
-				if _, ok := new(big.Float).SetString(rate); !ok {
+				if _, ok := new(big.Rat).SetString(rate); !ok {
 					return nil, errors.New("failed to parse rate")
 				}
 				max := int64(0)
@@ -230,24 +230,18 @@ func (fb *FeeStub) GetFeeSumByTime(tokenCode string, stime, etime *txtime.Time) 
 // CalcFee returns calculated fee amount from transfer/pay amount
 func (fb *FeeStub) CalcFee(feePolicy FeePolicy, fn, account string, amount Amount) (*Amount, error) {
 	feeRate := feePolicy.Rates[fn]
-	amountFloat := new(big.Float).SetInt(&amount.Int)
 	// We've already checked validity of Rate on GetFeePolicy()
-	feeRateFloat, _ := new(big.Float).SetString(feeRate.Rate)
-	feeAmountFloat := new(big.Float).Mul(amountFloat, feeRateFloat)
-	feeAmountString := strings.Split(feeAmountFloat.Text('f', 64), ".")[0] // floor
-	feeAmountInt, _ := new(big.Int).SetString(feeAmountString, 10)
-
-	if feeRate.MaxAmount > 0 { // 0 is unlimit
-		feeMaxAmountBigInt := big.NewInt(feeRate.MaxAmount)
-		if feeAmountInt.Cmp(feeMaxAmountBigInt) > 0 {
-			feeAmountInt = feeMaxAmountBigInt
-		}
+	feeRateRat, _ := new(big.Rat).SetString(feeRate.Rate)
+	// feeAmount = amount * rate
+	feeAmount := &Amount{Int: *new(big.Int).Div(new(big.Int).Mul(&amount.Int, feeRateRat.Num()), feeRateRat.Denom())}
+	if feeRate.MaxAmount == 0 { // unlimited fee
+		return feeAmount, nil
 	}
-
-	feeAmount, err := NewAmount(feeAmountInt.String())
-	if nil != err {
-		return nil, err
+	// limited to MaxAmount
+	maxAmount := &Amount{Int: *big.NewInt(feeRate.MaxAmount)}
+	if feeAmount.Cmp(maxAmount) > 0 { // feeAmount is gt.
+		return maxAmount, nil
 	}
-
+	// maxAmount is gte.
 	return feeAmount, nil
 }
