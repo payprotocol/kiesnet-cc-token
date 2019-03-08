@@ -228,7 +228,11 @@ func (fb *FeeStub) GetFeeSumByTime(tokenCode string, stime, etime *txtime.Time) 
 }
 
 // CalcFee returns calculated fee amount from transfer/pay amount
-func (fb *FeeStub) CalcFee(feePolicy FeePolicy, fn, account string, amount Amount) (*Amount, error) {
+func (fb *FeeStub) CalcFee(tokenCode, fn string, amount Amount) (*Amount, error) {
+	feePolicy, err := fb.GetFeePolicy(tokenCode)
+	if err != nil {
+		return nil, err
+	}
 	feeRate := feePolicy.Rates[fn]
 	// We've already checked validity of Rate on GetFeePolicy()
 	feeRateRat, _ := new(big.Rat).SetString(feeRate.Rate)
