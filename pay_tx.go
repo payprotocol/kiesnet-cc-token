@@ -23,7 +23,7 @@ import (
 // params[5] : optional. expiry (duration represented by int64 seconds, multi-sig only)
 func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 3 {
-		return shim.Error("incorrect number of parameters. expecting at least 3")
+		return shim.Error("incorrect number of parameters. expecting 3+")
 	}
 
 	// authentication
@@ -138,16 +138,16 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		doc := []string{"pay", pbID, sender.GetID(), receiver.GetID(), amount.String(), orderID, memo}
 		docb, err := json.Marshal(doc)
 		if err != nil {
-			return responseError(err, "failed to marshal contract do")
+			return responseError(err, "failed to marshal contract document")
 		}
 		con, err := contract.CreateContract(stub, docb, expiry, signers)
 		if err != nil {
-			return responseError(err, "failed to create the contract")
+			return responseError(err, "failed to create a contract")
 		}
 		// pending balance
 		log, err = bb.Deposit(pbID, sBal, con, *amount, memo)
 		if err != nil {
-			return responseError(err, "failed to create a pending balance")
+			return responseError(err, "failed to create the pending balance")
 		}
 
 	} else {
@@ -174,7 +174,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[2] : optional. memo (see MemoMaxLength)
 func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 2 {
-		return shim.Error("incorrect number of parameters. expecting at least 2")
+		return shim.Error("incorrect number of parameters. expecting 2+")
 	}
 
 	// authentication
@@ -297,7 +297,7 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 // params[2] : optional. end time
 func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 2 {
-		return shim.Error("incorrect number of parameters. expecting at least 2 parameters")
+		return shim.Error("incorrect number of parameters. expecting 2+")
 	}
 	// authentication
 	kid, err := kid.GetID(stub, true)
@@ -368,7 +368,7 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	//boolean validation
 	b, err := strconv.ParseBool(params[1])
 	if err != nil {
-		return shim.Error("wrong params[1] value. the value must be true or false")
+		return shim.Error("wrong first params value. the value must be true or false")
 	}
 
 	if b == true {

@@ -64,14 +64,14 @@ func (ab *AccountStub) CreateAccount(kid string) (*Account, *Balance, error) {
 		bb := NewBalanceStub(ab.stub)
 		balance, err := bb.CreateBalance(account.GetID())
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "failed to create a account balance")
+			return nil, nil, errors.Wrap(err, "failed to create an account balance")
 		}
 
 		// create account-holder relationship
 		holder := NewHolder(kid, account)
 		holder.CreatedTime = ts
 		if err = ab.PutHolder(holder); err != nil {
-			return nil, nil, errors.Wrap(err, "failed to create a holder")
+			return nil, nil, errors.Wrap(err, "failed to create the holder")
 		}
 
 		return account, balance, nil
@@ -112,15 +112,15 @@ func (ab *AccountStub) CreateJointAccount(holders *stringset.Set) (*JointAccount
 		bb := NewBalanceStub(ab.stub)
 		balance, err := bb.CreateBalance(account.GetID())
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "failed to create a account balance")
+			return nil, nil, errors.Wrap(err, "failed to create an account balance")
 		}
 
-		// cretae account-holder relationship
+		// create account-holder relationship
 		for kid := range holders.Map() {
 			holder := NewHolder(kid, account)
 			holder.CreatedTime = ts
 			if err = ab.PutHolder(holder); err != nil {
-				return nil, nil, errors.Wrap(err, "failed to create a holder")
+				return nil, nil, errors.Wrap(err, "failed to create the holder")
 			}
 		}
 

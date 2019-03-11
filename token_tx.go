@@ -448,7 +448,7 @@ func executeTokenCreate(stub shim.ChaincodeStubInterface, cid string, doc []inte
 	}
 
 	if _, err = tb.CreateToken(code, decimal, *maxSupply, *supply, holders); err != nil {
-		return responseError(err, "failed to create token")
+		return responseError(err, "failed to create the token")
 	}
 
 	return shim.Success(nil)
