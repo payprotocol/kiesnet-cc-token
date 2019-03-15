@@ -149,7 +149,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		// Cannot calculate fee amount now.
 		// Fee amount must be calculated when the contract gets all of its approval.
 		feeAmount, _ := NewAmount("0")
-		log, err = bb.Deposit2(pbID, sBal, con, *amount, *feeAmount, memo)
+		log, err = bb.Deposit(pbID, sBal, con, *amount, *feeAmount, memo)
 		if err != nil {
 			return responseError(err, "failed to create a pending balance")
 		}

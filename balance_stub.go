@@ -212,7 +212,7 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, m
 
 	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
 		pbfee, _ := NewAmount("0")
-		pb := NewPendingBalance2(bb.stub.GetTxID(), receiver, sender, amount, *pbfee, memo, pendingTime)
+		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, amount, *pbfee, memo, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
 			return nil, err
@@ -257,7 +257,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 
 	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
 		feeAmount, _ := NewAmount("0")
-		pb := NewPendingBalance2(bb.stub.GetTxID(), receiver, sender, pb.Amount, *feeAmount, pb.Memo, pendingTime)
+		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, pb.Amount, *feeAmount, pb.Memo, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
 			return err
@@ -291,7 +291,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 
 // Deposit _
 // It does not validate pending time!
-func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contract, amount Amount, memo string) (*BalanceLog, error) {
+func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contract, amount, fee Amount, memo string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
@@ -302,40 +302,7 @@ func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contrac
 		return nil, errors.Wrap(err, "failed to get the expiry time")
 	}
 
-	pb := NewPendingBalance(id, sender, con, amount, memo, expiryTime)
-	pb.CreatedTime = ts
-	if err = bb.PutPendingBalance(pb); err != nil {
-		return nil, errors.Wrap(err, "failed to create the pending balance")
-	}
-
-	amount.Neg() // -
-	sender.Amount.Add(&amount)
-	sender.UpdatedTime = ts
-	if err = bb.PutBalance(sender); err != nil {
-		return nil, err
-	}
-	log := NewBalanceDepositLog(sender, pb)
-	log.CreatedTime = ts
-	if err = bb.PutBalanceLog(log); err != nil {
-		return nil, err
-	}
-
-	return log, nil
-}
-
-// Deposit2 _
-func (bb *BalanceStub) Deposit2(id string, sender *Balance, con *contract.Contract, amount, fee Amount, memo string) (*BalanceLog, error) {
-	ts, err := txtime.GetTime(bb.stub)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get the timestamp")
-	}
-
-	expiryTime, err := con.GetExpiryTime()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get the expiry time")
-	}
-
-	pb := NewPendingBalance2(id, sender, con, amount, fee, memo, expiryTime)
+	pb := NewPendingBalance(id, sender, con, amount, fee, memo, expiryTime)
 	pb.CreatedTime = ts
 	if err = bb.PutPendingBalance(pb); err != nil {
 		return nil, errors.Wrap(err, "failed to create the pending balance")

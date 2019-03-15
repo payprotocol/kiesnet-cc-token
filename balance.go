@@ -217,24 +217,7 @@ type PendingBalance struct {
 }
 
 // NewPendingBalance _
-func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount Amount, memo string, pTime *txtime.Time) *PendingBalance {
-	ptype := PendingBalanceTypeAccount
-	if _, ok := rel.(*contract.Contract); ok {
-		ptype = PendingBalanceTypeContract
-	}
-	return &PendingBalance{
-		DOCTYPEID:   id,
-		Type:        ptype,
-		Account:     owner.GetID(),
-		RID:         rel.GetID(),
-		Amount:      amount,
-		Memo:        memo,
-		PendingTime: pTime,
-	}
-}
-
-// NewPendingBalance2 _
-func NewPendingBalance2(id string, owner Identifiable, rel Identifiable, amount, fee Amount, memo string, pTime *txtime.Time) *PendingBalance {
+func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount, fee Amount, memo string, pTime *txtime.Time) *PendingBalance {
 	ptype := PendingBalanceTypeAccount
 	if _, ok := rel.(*contract.Contract); ok {
 		ptype = PendingBalanceTypeContract
