@@ -57,7 +57,7 @@ var routes = map[string]TxFunc{
 	"token/create":             tokenCreate,
 	"token/get":                tokenGet,
 	"token/mint":               tokenMint,
-	"token/refresh":            tokenRefresh,
+	"token/update":             tokenUpdate,
 	"transfer":                 transfer,
 	"ver":                      ver,
 }

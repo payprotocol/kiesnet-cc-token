@@ -2,7 +2,14 @@
 
 package main
 
-import "github.com/key-inside/kiesnet-ccpkg/txtime"
+import (
+	"math/big"
+	"strconv"
+	"strings"
+
+	"github.com/key-inside/kiesnet-ccpkg/txtime"
+	"github.com/pkg/errors"
+)
 
 // Fee is a transfer/pay fee utxo which will be pruned to genesis account
 type Fee struct {
@@ -13,12 +20,43 @@ type Fee struct {
 	CreatedTime *txtime.Time `json:"created_time"`
 }
 
-var _feePolicies = map[string]*FeePolicy{}
-
 // FeePolicy _
 type FeePolicy struct {
 	TargetAddress string             `json:"target_address"`
 	Rates         map[string]FeeRate `json:"rates"`
+}
+
+// ParseFeePolicy parses fee policy format string to FeePolicy struct.
+func ParseFeePolicy(s string) (policy *FeePolicy, err error) {
+	// fees -> map
+	// ISSUE : Should we limit fn(= kv[0]) to one of "transfer" or "pay" here?
+	rates := map[string]FeeRate{}
+	fees := strings.Split(s, ";")
+	for _, f := range fees {
+		kv := strings.Split(f, "=")
+		if len(kv) > 1 {
+			rm := strings.Split(kv[1], ",")
+			rate := rm[0]
+			if _, ok := new(big.Rat).SetString(rate); !ok {
+				return nil, errors.New("failed to parse rate")
+			}
+			max := int64(0)
+			if len(rm) > 1 {
+				max, err = strconv.ParseInt(rm[1], 10, 64)
+				if err != nil {
+					return nil, errors.New("failed to parse max fee amount")
+				}
+			}
+			rates[kv[0]] = FeeRate{
+				Rate:      rate,
+				MaxAmount: max,
+			}
+		}
+	}
+	policy = &FeePolicy{
+		Rates: rates,
+	}
+	return
 }
 
 // FeeRate _

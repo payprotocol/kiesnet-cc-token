@@ -10,6 +10,7 @@ import (
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
+	"github.com/key-inside/kiesnet-ccpkg/ccid"
 	"github.com/key-inside/kiesnet-ccpkg/contract"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
@@ -137,7 +138,7 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		return shim.Error("already issued token : " + code)
 	}
 
-	decimal, maxSupply, supply, _, err := getValidatedTokenMeta(stub, code)
+	decimal, maxSupply, supply, feePolicy, err := getValidatedTokenMeta(stub, code)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -169,7 +170,7 @@ func tokenCreate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		return invokeContract(stub, doc, holders)
 	}
 
-	token, err := tb.CreateToken(code, decimal, *maxSupply, *supply, holders)
+	token, err := tb.CreateToken(code, decimal, *maxSupply, *supply, feePolicy, holders)
 	if err != nil {
 		return responseError(err, "failed to create the token")
 	}
@@ -302,36 +303,52 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	return shim.Success(data)
 }
 
-// refresh fee policy
 // params[0] : token code
-func tokenRefresh(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if len(params) != 1 {
-		return shim.Error("incorrect number of parameters. expecting 1")
+// params[1] : fee policy string
+func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) != 2 {
+		return shim.Error("incorrect number of parameters. expecting 2")
 	}
 
-	code, err := ValidateTokenCode(params[0])
+	code := params[0]
+	fee := params[1]
+
+	// MUST be invoked by knt
+	ccid, err := ccid.GetID(stub)
 	if err != nil {
+		return shim.Error("failed to get ccid")
+	}
+	kntCCid := strings.ToLower(code)
+	if os.Getenv("DEV_CHANNEL_NAME") != "" {
+		kntCCid = "knt-cc-" + kntCCid
+	} else {
+		kntCCid = "knt-" + kntCCid
+	}
+	if kntCCid == ccid {
+		return shim.Error("invalid access")
+	}
+
+	// Just return success if token is not issued.
+	tb := NewTokenStub(stub)
+	token, err := tb.GetToken(code)
+	if err != nil {
+		if _, ok := err.(NotIssuedTokenError); ok {
+			return shim.Success(nil)
+		}
 		return shim.Error(err.Error())
 	}
 
-	// authentication
-	// ISSUE: only genesis account holders ?
-	_, err = kid.GetID(stub, true)
+	// Update token state.
+	policy, err := ParseFeePolicy(fee)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-
-	fb := NewFeeStub(stub)
-	policy, err := fb.RefreshFeePolicy(code)
+	token.FeePolicy = policy
+	err = tb.PutToken(token)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-
-	data, err := json.Marshal(policy)
-	if err != nil {
-		return responseError(err, "failed to marshal payload")
-	}
-	return shim.Success(data)
+	return shim.Success(nil)
 }
 
 // helpers
@@ -355,33 +372,40 @@ func invokeKNT(stub shim.ChaincodeStubInterface, code string, params []string) (
 	return nil, errors.New(res.GetMessage())
 }
 
-func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, *Amount, *Amount, string, error) {
+func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, *Amount, *Amount, *FeePolicy, error) {
 	// get token meta
 	meta, err := invokeKNT(stub, code, []string{"token"})
 	if err != nil {
-		return 0, nil, nil, "", errors.Wrap(err, "failed to get the token meta")
+		return 0, nil, nil, nil, errors.Wrap(err, "failed to get the token meta")
 	}
 	metaMap := map[string]string{}
 	if err = json.Unmarshal(meta, &metaMap); err != nil {
-		return 0, nil, nil, "", errors.Wrap(err, "failed to unmarshal the token meta")
+		return 0, nil, nil, nil, errors.Wrap(err, "failed to unmarshal the token meta")
 	}
 
 	// validate meta
 	decimal, err := strconv.Atoi(metaMap["decimal"])
 	if err != nil || decimal < 0 || decimal > 18 {
-		return 0, nil, nil, "", errors.New("decimal must be integer between 0 and 18")
+		return 0, nil, nil, nil, errors.New("decimal must be integer between 0 and 18")
 	}
 	maxSupply, err := NewAmount(metaMap["max_supply"])
 	if err != nil || maxSupply.Sign() < 0 {
-		return 0, nil, nil, "", errors.New("max supply must be positive integer")
+		return 0, nil, nil, nil, errors.New("max supply must be positive integer")
 	}
 	supply, err := NewAmount(metaMap["initial_supply"])
 	if err != nil || supply.Sign() < 0 || supply.Cmp(maxSupply) > 0 {
-		return 0, nil, nil, "", errors.New("initial supply must be positive integer and less(or equal) than max supply")
+		return 0, nil, nil, nil, errors.New("initial supply must be positive integer and less(or equal) than max supply")
 	}
 	fee := metaMap["fee"]
+	var policy *FeePolicy
+	if len(fee) > 0 {
+		policy, err = ParseFeePolicy(fee)
+		if err != nil {
+			return 0, nil, nil, nil, err
+		}
+	}
 
-	return decimal, maxSupply, supply, fee, nil
+	return decimal, maxSupply, supply, policy, nil
 }
 
 // contract callbacks
@@ -436,7 +460,7 @@ func executeTokenCreate(stub shim.ChaincodeStubInterface, cid string, doc []inte
 		return shim.Error("already issued token : " + code)
 	}
 
-	decimal, maxSupply, supply, _, err := getValidatedTokenMeta(stub, code)
+	decimal, maxSupply, supply, feePolicy, err := getValidatedTokenMeta(stub, code)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -447,7 +471,7 @@ func executeTokenCreate(stub shim.ChaincodeStubInterface, cid string, doc []inte
 		holders.Add(kid.(string))
 	}
 
-	if _, err = tb.CreateToken(code, decimal, *maxSupply, *supply, holders); err != nil {
+	if _, err = tb.CreateToken(code, decimal, *maxSupply, *supply, feePolicy, holders); err != nil {
 		return responseError(err, "failed to create token")
 	}
 

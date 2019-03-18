@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"strconv"
-	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
@@ -103,68 +101,6 @@ func (fb *FeeStub) PutFee(fee *Fee) error {
 	return nil
 }
 
-// GetFeePolicy returns fee policy of given code token.
-// If target policy does not exist in cache, invoke knt.
-func (fb *FeeStub) GetFeePolicy(code string) (*FeePolicy, error) {
-	// if nil == _feePolicies {
-	// 	_feePolicies = map[string]*FeePolicy{}
-	// 	return nil, nil
-	// }
-	policy := _feePolicies[code]
-	if nil == policy {
-		logger.Debugf("caching %s fee policy", code)
-		// check issued token
-		tb := NewTokenStub(fb.stub)
-		token, err := tb.GetToken(code)
-		if err != nil {
-			return nil, err
-		}
-		// get token meta
-		_, _, _, fee, err := getValidatedTokenMeta(fb.stub, code)
-		if err != nil {
-			return nil, err
-		}
-		// fees -> map
-		rates := map[string]FeeRate{}
-		fees := strings.Split(fee, ";")
-		for _, f := range fees {
-			kv := strings.Split(f, "=")
-			if len(kv) > 1 {
-				rm := strings.Split(kv[1], ",")
-				rate := rm[0]
-				if _, ok := new(big.Rat).SetString(rate); !ok {
-					return nil, errors.New("failed to parse rate")
-				}
-				max := int64(0)
-				if len(rm) > 1 {
-					max, err = strconv.ParseInt(rm[1], 10, 64)
-					if err != nil {
-						return nil, err
-					}
-				}
-				rates[kv[0]] = FeeRate{
-					Rate:      rate,
-					MaxAmount: max,
-				}
-			}
-		}
-
-		policy = &FeePolicy{
-			TargetAddress: token.GenesisAccount,
-			Rates:         rates,
-		}
-		_feePolicies[code] = policy
-	}
-
-	return policy, nil
-}
-
-// RefreshFeePolicy _
-func (fb *FeeStub) RefreshFeePolicy(code string) (*FeePolicy, error) {
-	_feePolicies[code] = nil
-	return fb.GetFeePolicy(code)
-}
-
 // GetQueryFees _
 func (fb *FeeStub) GetQueryFees(tokenCode, bookmark string, fetchSize int, stime, etime *txtime.Time) (*QueryResult, error) {
 	if fetchSize < 1 {
@@ -229,11 +165,14 @@ func (fb *FeeStub) GetFeeSumByTime(tokenCode string, stime, etime *txtime.Time) 
 
 // CalcFee returns calculated fee amount from transfer/pay amount
 func (fb *FeeStub) CalcFee(tokenCode, fn string, amount Amount) (*Amount, error) {
-	feePolicy, err := fb.GetFeePolicy(tokenCode)
+	token, err := NewTokenStub(fb.stub).GetToken(tokenCode)
 	if err != nil {
 		return nil, err
 	}
-	feeRate := feePolicy.Rates[fn]
+	if token.FeePolicy == nil {
+		return &Amount{Int: *big.NewInt(0)}, nil
+	}
+	feeRate := token.FeePolicy.Rates[fn]
 	// We've already checked validity of Rate on GetFeePolicy()
 	feeRateRat, _ := new(big.Rat).SetString(feeRate.Rate)
 	// feeAmount = amount * rate

@@ -30,6 +30,7 @@ type Token struct {
 	Supply          Amount       `json:"supply"`
 	LastPrunedFeeID string       `json:"last_pruned_fee_id,omitempty"`
 	GenesisAccount  string       `json:"genesis_account"`
+	FeePolicy       *FeePolicy   `json:"fee_policy,omitempty"`
 	CreatedTime     *txtime.Time `json:"created_time,omitempty"`
 	UpdatedTime     *txtime.Time `json:"updated_time,omitempty"`
 }
