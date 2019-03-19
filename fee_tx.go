@@ -107,7 +107,7 @@ func feeList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 }
 
 // ISSUE : token/fee/prune?
-// Only genesis account holder is able to prune fee list.
+// Only holder of fee policy target account is able to prune fee list.
 // params[0] : token code
 // params[1] : 10 minutes limit flag. if the value is true, 10 minutes check is activated.
 // params[2] : optional. end time
@@ -134,8 +134,8 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 
-	// genesis account
-	addr, _ := ParseAddress(token.GenesisAccount) // err is nil
+	// target account
+	addr, _ := ParseAddress(token.FeePolicy.TargetAddress) // err is nil
 	ab := NewAccountStub(stub, code)
 	account, err := ab.GetAccount(addr)
 	if nil != err {
@@ -144,7 +144,7 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if !account.HasHolder(kid) { // authority
 		return shim.Error("no authority")
 	}
-	// genesis account is never suspended
+	// ISSUE : What if target account is suspended?
 
 	stime := txtime.Unix(0, 0)
 	if len(token.LastPrunedFeeID) > 0 {
