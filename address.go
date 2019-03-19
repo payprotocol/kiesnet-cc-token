@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -50,7 +49,7 @@ func ParseAddress(addr string) (*Address, error) {
 
 	idh, err := hex.DecodeString(addr[i:])
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to decode address")
+		return nil, InvalidAccountAddrError{reason: "hex"}
 	}
 
 	_addr := &Address{}
