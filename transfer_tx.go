@@ -210,11 +210,6 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 	}
 
-	_, err = fb.CreateFee(sAddr, *feeAmount)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
 	// log is not nil
 	data, err := json.Marshal(log)
 	if err != nil {

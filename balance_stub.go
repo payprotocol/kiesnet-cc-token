@@ -237,6 +237,13 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, m
 	if err = bb.PutBalance(sender); err != nil {
 		return nil, err
 	}
+
+	fb := NewFeeStub(bb.stub)
+	sAddr, _ := ParseAddress(sender.DOCTYPEID)
+	if _, err := fb.CreateFee(sAddr, fee); err != nil {
+		return nil, err
+	}
+
 	sbl := NewBalanceTransferLog(sender, receiver, *applied, memo)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
