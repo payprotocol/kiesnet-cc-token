@@ -238,10 +238,12 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, m
 		return nil, err
 	}
 
-	fb := NewFeeStub(bb.stub)
-	sAddr, _ := ParseAddress(sender.DOCTYPEID)
-	if _, err := fb.CreateFee(sAddr, fee); err != nil {
-		return nil, err
+	// Do not create Fee if the amount is 0 (that means, the fee payer is the target address of fee policy).
+	if fee.Int64() != 0 {
+		sAddr, _ := ParseAddress(sender.DOCTYPEID)
+		if _, err := NewFeeStub(bb.stub).CreateFee(sAddr, fee); err != nil {
+			return nil, err
+		}
 	}
 
 	sbl := NewBalanceTransferLog(sender, receiver, *applied, memo)
@@ -282,10 +284,12 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 		}
 	}
 
-	fb := NewFeeStub(bb.stub)
-	sAddr, _ := ParseAddress(pb.Account)
-	if _, err := fb.CreateFee(sAddr, pb.Fee); err != nil {
-		return err
+	// Do not create Fee if the amount is 0 (that means, the fee payer is the target address of fee policy).
+	if pb.Fee.Int64() != 0 {
+		sAddr, _ := ParseAddress(pb.Account)
+		if _, err := NewFeeStub(bb.stub).CreateFee(sAddr, pb.Fee); err != nil {
+			return err
+		}
 	}
 
 	// remove pending balance

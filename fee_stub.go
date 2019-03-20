@@ -164,14 +164,20 @@ func (fb *FeeStub) GetFeeSumByTime(tokenCode string, stime, etime *txtime.Time) 
 }
 
 // CalcFee returns calculated fee amount from transfer/pay amount
-func (fb *FeeStub) CalcFee(tokenCode, fn string, amount Amount) (*Amount, error) {
-	token, err := NewTokenStub(fb.stub).GetToken(tokenCode)
+func (fb *FeeStub) CalcFee(payer *Address, fn string, amount Amount) (*Amount, error) {
+	token, err := NewTokenStub(fb.stub).GetToken(payer.Code)
 	if err != nil {
 		return nil, err
 	}
+	// The amount is 0 if policy does't exist.
 	if token.FeePolicy == nil {
 		return &Amount{Int: *big.NewInt(0)}, nil
 	}
+	// The amount is 0 if the fee payer is the target address of fee policy on transfer.
+	if fn == "transfer" && token.FeePolicy.TargetAddress == payer.String() {
+		return &Amount{Int: *big.NewInt(0)}, nil
+	}
+
 	feeRate := token.FeePolicy.Rates[fn]
 	// We've already checked validity of Rate on GetFeePolicy()
 	feeRateRat, _ := new(big.Rat).SetString(feeRate.Rate)

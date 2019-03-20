@@ -156,7 +156,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	} else {
 		fb := NewFeeStub(stub)
-		feeAmount, err := fb.CalcFee(sAddr.Code, "pay", *amount)
+		feeAmount, err := fb.CalcFee(rAddr, "pay", *amount)
 		if err != nil {
 			return responseError(err, "failed to get the fee amount")
 		}
@@ -585,7 +585,7 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 
 	fb := NewFeeStub(stub)
 	rAddr, _ := ParseAddress(doc[3].(string)) // merchant
-	feeAmount, err := fb.CalcFee(rAddr.Code, "pay", pb.Amount)
+	feeAmount, err := fb.CalcFee(rAddr, "pay", pb.Amount)
 	if err != nil {
 		return responseError(err, "failed to get the fee amount")
 	}

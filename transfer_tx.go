@@ -102,7 +102,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// Kyle TODO: FeePolicy, FeeRate 가져와서 더한 후에 amount 계산
 	fb := NewFeeStub(stub)
 
-	feeAmount, err := fb.CalcFee(rAddr.Code, "transfer", *amount)
+	feeAmount, err := fb.CalcFee(sAddr, "transfer", *amount)
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the fee amount")
