@@ -103,22 +103,6 @@ func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, memo string) 
 
 // NewBalanceDepositLog _
 func NewBalanceDepositLog(bal *Balance, pb *PendingBalance) *BalanceLog {
-	diff := pb.Amount.Copy().Neg()
-	return &BalanceLog{
-		DOCTYPEID: bal.DOCTYPEID,
-		Type:      BalanceLogTypeDeposit,
-		RID:       pb.RID,
-		Diff:      *diff,
-		Amount:    bal.Amount,
-		Memo:      pb.Memo,
-	}
-}
-
-// NewBalanceDepositLog2 _
-// BalanceLog.Diff는 balance의 실제 변화량이 들어가야 한다.
-// 기존 deposit log의 Diff는 PendingBalance.Amount가 들어간다
-// fee 적용 후 balance 변화량은 amount + fee이다. (pay contract는 fee를 0으로 만들어 넣는다.)
-func NewBalanceDepositLog2(bal *Balance, pb *PendingBalance) *BalanceLog {
 	diff := pb.Amount.Copy().Add(&pb.Fee).Neg()
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,

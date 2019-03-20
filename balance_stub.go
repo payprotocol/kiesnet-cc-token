@@ -326,7 +326,7 @@ func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contrac
 	if err = bb.PutBalance(sender); err != nil {
 		return nil, err
 	}
-	log := NewBalanceDepositLog2(sender, pb)
+	log := NewBalanceDepositLog(sender, pb)
 	log.CreatedTime = ts
 	if err = bb.PutBalanceLog(log); err != nil {
 		return nil, err
