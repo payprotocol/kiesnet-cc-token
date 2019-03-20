@@ -116,11 +116,12 @@ func NewBalanceDepositLog(bal *Balance, pb *PendingBalance) *BalanceLog {
 
 // NewBalanceWithdrawLog _
 func NewBalanceWithdrawLog(bal *Balance, pb *PendingBalance) *BalanceLog {
+	diff := pb.Amount.Copy().Add(&pb.Fee)
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypeWithdraw,
 		RID:       pb.RID,
-		Diff:      pb.Amount,
+		Diff:      *diff,
 		Amount:    bal.Amount,
 		Memo:      pb.Memo,
 	}
