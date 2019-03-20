@@ -584,7 +584,7 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 	}
 
 	fb := NewFeeStub(stub)
-	rAddr, _ := ParseAddress(pb.Account) // merchant
+	rAddr, _ := ParseAddress(doc[3].(string)) // merchant
 	feeAmount, err := fb.CalcFee(rAddr.Code, "pay", pb.Amount)
 	if err != nil {
 		return responseError(err, "failed to get the fee amount")
