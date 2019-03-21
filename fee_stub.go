@@ -177,7 +177,7 @@ func (fb *FeeStub) CalcFee(payer *Address, fn string, amount Amount) (*Amount, e
 		return nil, errors.New("invalid fee rate type")
 	}
 	// The amount is 0 if the fee payer is the target address of fee policy on transfer.
-	if fn == "transfer" && token.FeePolicy.TargetAddress == payer.String() {
+	if token.FeePolicy.TargetAddress == payer.String() {
 		return &Amount{Int: *big.NewInt(0)}, nil
 	}
 	feeRate, ok := token.FeePolicy.Rates[fn]
