@@ -30,7 +30,7 @@ type Token struct {
 	Supply          Amount       `json:"supply"`
 	LastPrunedFeeID string       `json:"last_pruned_fee_id,omitempty"`
 	GenesisAccount  string       `json:"genesis_account"`
-	FeePolicy       *FeePolicy   `json:"fee_policy,omitempty"`
+	FeePolicy       *FeePolicy   `json:"fee_policy,omitempty"` // FeePolicy is nil if and only if knt fee is never yet imported. Once knt is initiated/upgraded with fee, it wil always exists.
 	CreatedTime     *txtime.Time `json:"created_time,omitempty"`
 	UpdatedTime     *txtime.Time `json:"updated_time,omitempty"`
 }

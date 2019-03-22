@@ -347,19 +347,43 @@ func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	}
 
 	// Update token state.
-	policy, err := ParseFeePolicy(fee)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	if len(targetAddress) == 0 { // No new target address input. Do not edit current value.
-		policy.TargetAddress = token.FeePolicy.TargetAddress
+	var update bool
+	if len(fee) > 0 {
+		policy, err := ParseFeePolicy(fee)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+		if len(targetAddress) > 0 {
+			policy.TargetAddress = targetAddress
+		} else { // No new target address input. Do not edit current value.
+			if token.FeePolicy == nil {
+				policy.TargetAddress = token.GenesisAccount
+			} else {
+				policy.TargetAddress = token.FeePolicy.TargetAddress
+			}
+		}
+		token.FeePolicy = policy
+		update = true
 	} else {
-		policy.TargetAddress = targetAddress
+		// Ignore knt target address if knt fee is empty.
+		if token.FeePolicy == nil {
+			// knt fee is empty, also token.FeePolicy is nil
+			// nothing happened.
+			update = false
+		} else {
+			// knt fee is empty, but token.FeePolicy exists.
+			// but we must not make Token.FeePolicy nil.
+			// keep the target address
+			// remove all rates
+			token.FeePolicy.Rates = map[string]FeeRate{}
+			update = true
+		}
 	}
-	token.FeePolicy = policy
-	err = tb.PutToken(token)
-	if err != nil {
-		return shim.Error(err.Error())
+	if update {
+		err = tb.PutToken(token)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
 	}
 	return shim.Success(nil)
 }

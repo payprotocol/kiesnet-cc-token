@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"math/big"
 	"strconv"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -134,7 +135,22 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 
-	// target account
+	// If Token.FeePolicy is nil, that means there is no fee utxo.
+	if token.FeePolicy == nil {
+		feeSum := &FeeSum{
+			Sum:     &Amount{Int: *big.NewInt(0)},
+			Count:   0,
+			HasMore: false,
+		}
+		data, err := json.Marshal(feeSum)
+		if nil != err {
+			return shim.Error(err.Error())
+		}
+		return shim.Success(data)
+	}
+
+	// If Token.FeePolicy is not nil, Token.FeePolicy.TargetAddress is never empty.
+	// ISSUE : We MUST validate target address before(tokenUpdate)
 	addr, _ := ParseAddress(token.FeePolicy.TargetAddress) // err is nil
 	ab := NewAccountStub(stub, code)
 	account, err := ab.GetAccount(addr)
