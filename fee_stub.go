@@ -180,8 +180,10 @@ func (fb *FeeStub) CalcFee(payer *Address, fn string, amount Amount) (*Amount, e
 	if fn == "transfer" && token.FeePolicy.TargetAddress == payer.String() {
 		return &Amount{Int: *big.NewInt(0)}, nil
 	}
-
-	feeRate := token.FeePolicy.Rates[fn]
+	feeRate, ok := token.FeePolicy.Rates[fn]
+	if !ok { // no such fn
+		return &Amount{Int: *big.NewInt(0)}, nil
+	}
 	// We've already checked validity of Rate on GetFeePolicy()
 	feeRateRat, _ := new(big.Rat).SetString(feeRate.Rate)
 	// feeAmount = amount * rate
