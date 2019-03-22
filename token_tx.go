@@ -305,13 +305,19 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 
 // params[0] : token code
 // params[1] : fee policy string
+// params[2] : target address string
 func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if len(params) != 2 {
-		return shim.Error("incorrect number of parameters. expecting 2")
+	if len(params) < 2 {
+		return shim.Error("incorrect number of parameters. expecting 2+")
 	}
 
 	code := params[0]
 	fee := params[1]
+
+	targetAddress := ""
+	if len(params) > 2 {
+		targetAddress = params[2]
+	}
 
 	// MUST be invoked by knt
 	ccid, err := ccid.GetID(stub)
@@ -344,6 +350,11 @@ func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	policy, err := ParseFeePolicy(fee)
 	if err != nil {
 		return shim.Error(err.Error())
+	}
+	if len(targetAddress) == 0 { // No new target address input. Do not edit current value.
+		policy.TargetAddress = token.FeePolicy.TargetAddress
+	} else {
+		policy.TargetAddress = targetAddress
 	}
 	token.FeePolicy = policy
 	err = tb.PutToken(token)
@@ -405,6 +416,7 @@ func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, 
 		if err != nil {
 			return 0, nil, nil, nil, err
 		}
+		policy.TargetAddress = metaMap["target_address"]
 	}
 
 	return decimal, maxSupply, supply, policy, nil
