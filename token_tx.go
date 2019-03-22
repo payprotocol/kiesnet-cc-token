@@ -324,7 +324,7 @@ func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	} else {
 		kntCCid = "knt-" + kntCCid
 	}
-	if kntCCid == ccid {
+	if kntCCid != ccid {
 		return shim.Error("invalid access")
 	}
 
