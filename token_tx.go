@@ -318,13 +318,15 @@ func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	if err != nil {
 		return shim.Error("failed to get ccid")
 	}
+	logger.Debugf("ccid: %s", ccid)
 	kntCCid := strings.ToLower(code)
 	if os.Getenv("DEV_CHANNEL_NAME") != "" {
 		kntCCid = "knt-cc-" + kntCCid
 	} else {
 		kntCCid = "knt-" + kntCCid
 	}
-	if kntCCid != ccid {
+	logger.Debugf("kntCCid: %s", kntCCid)
+	if ccid != "lscc" && kntCCid != ccid {
 		return shim.Error("invalid access")
 	}
 
