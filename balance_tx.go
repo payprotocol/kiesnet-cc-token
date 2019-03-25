@@ -13,11 +13,11 @@ import (
 )
 
 // params[0] : token code | account address
-// params[1] : optional. balance log type
-// params[1] : bookmark
-// params[2] : fetch size (if < 1 => default size, max 200)
-// params[3] : start time (time represented by int64 seconds)
-// params[4] : end time (time represented by int64 seconds)
+// params[1] : balance log type
+// params[2] : bookmark
+// params[3] : fetch size (if < 1 => default size, max 200)
+// params[4] : start time (time represented by int64 seconds)
+// params[5] : end time (time represented by int64 seconds)
 func balanceLogs(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 1 {
 		return shim.Error("incorrect number of parameters. expecting 1+")
