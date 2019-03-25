@@ -26,15 +26,29 @@ type FeePolicy struct {
 	Rates         map[string]FeeRate `json:"rates"`
 }
 
+// isValidFn returns true if given fn is defined.
+func isValidFn(fn string) bool {
+	switch fn {
+	case "transfer":
+		fallthrough
+	case "pay": // All valid fee rate type case should fallthrough here, the last one.
+		return true
+	}
+	return false
+}
+
 // ParseFeePolicy parses fee policy format string to FeePolicy struct.
 func ParseFeePolicy(s string) (policy *FeePolicy, err error) {
 	// fees -> map
-	// ISSUE : Should we limit fn(= kv[0]) to one of "transfer" or "pay" here?
 	rates := map[string]FeeRate{}
 	fees := strings.Split(s, ";")
 	for _, f := range fees {
 		kv := strings.Split(f, "=")
 		if len(kv) > 1 {
+			// We limit fn(= kv[0]) to one of "transfer" or "pay".
+			if valid := isValidFn(kv[0]); !valid {
+				return nil, errors.New("invalid fee rate type")
+			}
 			rm := strings.Split(kv[1], ",")
 			rate := rm[0]
 			if _, ok := new(big.Rat).SetString(rate); !ok {
