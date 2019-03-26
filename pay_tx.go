@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -145,13 +146,21 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return responseError(err, "failed to create a contract")
 		}
 		// pending balance
-		log, err = bb.Deposit(pbID, sBal, con, *amount, memo)
+		// Cannot calculate fee amount now.
+		// Fee amount must be calculated when the contract gets all of its approval.
+		feeAmount, _ := NewAmount("0")
+		log, err = bb.Deposit(pbID, sBal, con, *amount, *feeAmount, memo)
 		if err != nil {
 			return responseError(err, "failed to create the pending balance")
 		}
 
 	} else {
-		payResult, err = NewPayStub(stub).Pay(sBal, receiver.GetID(), *amount, orderID, memo)
+		fb := NewFeeStub(stub)
+		feeAmount, err := fb.CalcFee(rAddr, "pay", *amount)
+		if err != nil {
+			return responseError(err, "failed to get the fee amount")
+		}
+		payResult, err = NewPayStub(stub).Pay(sBal, receiver.GetID(), *amount, *feeAmount, orderID, memo)
 		if err != nil {
 			return responseError(err, "failed to pay")
 		}
@@ -276,8 +285,20 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		}
 	}
 
+	feeAmount := *parentPay.Fee.Copy()      // total refund
+	if amount.Cmp(&parentPay.Amount) != 0 { // partial refund
+		// Apply rate at the time of payment.
+		// Some of total fee amount(which the merchant could receive) may be lost
+		// because below logic discards the precision, but it doesn't matter.
+		// feeAmount = amount * parentPay.Fee / parentPay.Amount
+		feeAmount.Int = *big.NewInt(1).Div(big.NewInt(1).Mul(&amount.Int, &parentPay.Fee.Int), &parentPay.Amount.Int)
+	}
+
 	var log *BalanceLog
-	log, err = pb.Refund(sBal, rBal, *amount.Neg(), memo, parentPay)
+	//TODO amount를 그대로 넣도록 바꿔야 한다.
+	// 수수료 환급/추가과금 여부(= feeAmount의 Sign)는 CalcFee() 내부에서 결정되어 나와야 한다
+	// 여기에서는 amount와 같은 형태로(Neg 안취할거면 둘다 안하는걸로) 들어가야 한다.
+	log, err = pb.Refund(sBal, rBal, *amount.Neg(), *feeAmount.Neg(), memo, parentPay)
 
 	if err != nil {
 		return responseError(err, "failed to pay")
@@ -383,8 +404,11 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if nil != err {
 		return responseError(err, "failed to get pay(s) to prune")
 	}
+	// sum - fee
+	applied := paySum.Sum.Copy().Add(paySum.Fee.Copy().Neg())
+
 	// Add balance
-	bal.Amount.Add(paySum.Sum)
+	bal.Amount.Add(applied)
 	bal.UpdatedTime = ts
 	if 0 != len(paySum.End) {
 		bal.LastPrunedPayID = paySum.End
@@ -394,8 +418,16 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to update balance")
 	}
 
+	// Do not create Fee if the amount is 0.
+	if paySum.Fee.Int64() != 0 {
+		_, err = NewFeeStub(stub).CreateFee(addr, *paySum.Fee)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+	}
+
 	// balance log
-	rbl := NewBalanceWithPruneLog(bal, *paySum.Sum, paySum.Start, paySum.End)
+	rbl := NewBalanceWithPruneLog(bal, *applied, paySum.Start, paySum.End)
 	rbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(rbl); err != nil {
 		return shim.Error(err.Error())
@@ -552,6 +584,14 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 	if pb.Type != PendingBalanceTypeContract || pb.RID != cid {
 		return shim.Error("invalid pending balance")
 	}
+
+	fb := NewFeeStub(stub)
+	rAddr, _ := ParseAddress(doc[3].(string)) // merchant
+	feeAmount, err := fb.CalcFee(rAddr, "pay", pb.Amount)
+	if err != nil {
+		return responseError(err, "failed to get the fee amount")
+	}
+	pb.Fee = *feeAmount
 
 	// ISSUE: check accounts ? (suspended) Business...
 	if err = NewPayStub(stub).PayPendingBalance(pb, doc[3].(string), doc[5].(string), doc[6].(string)); err != nil {

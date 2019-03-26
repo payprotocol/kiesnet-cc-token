@@ -27,12 +27,20 @@ func (tb *TokenStub) CreateKey(code string) string {
 }
 
 // CreateToken _
-func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amount, holders *stringset.Set) (*Token, error) {
+func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amount, feePolicy *FeePolicy, holders *stringset.Set) (*Token, error) {
 	// create genesis account (joint account)
 	ab := NewAccountStub(tb.stub, code)
 	account, balance, err := ab.CreateJointAccount(holders)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create the genesis account")
+	}
+
+	if feePolicy != nil && len(feePolicy.TargetAddress) == 0 {
+		feePolicy.TargetAddress = account.GetID()
+	} else {
+		if _, err := ab.GetAccountState(feePolicy.TargetAddress); err != nil {
+			return nil, err
+		}
 	}
 
 	// initial mint
@@ -55,6 +63,7 @@ func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amo
 		MaxSupply:      maxSupply,
 		Supply:         supply,
 		GenesisAccount: account.GetID(),
+		FeePolicy:      feePolicy,
 		CreatedTime:    ts,
 		UpdatedTime:    ts,
 	}

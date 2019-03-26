@@ -43,6 +43,8 @@ const (
 	BalanceLogTypeRefund
 	// BalanceLogTypePrune the amount of pruned payments
 	BalanceLogTypePrune
+	// BalanceLogTypePruneFee is created when fee utxos are pruned to genesis account.
+	BalanceLogTypePruneFee
 )
 
 // BalanceLog _
@@ -104,7 +106,7 @@ func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, memo string) 
 
 // NewBalanceDepositLog _
 func NewBalanceDepositLog(bal *Balance, pb *PendingBalance) *BalanceLog {
-	diff := pb.Amount.Copy().Neg()
+	diff := pb.Amount.Copy().Add(&pb.Fee).Neg()
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypeDeposit,
@@ -117,11 +119,12 @@ func NewBalanceDepositLog(bal *Balance, pb *PendingBalance) *BalanceLog {
 
 // NewBalanceWithdrawLog _
 func NewBalanceWithdrawLog(bal *Balance, pb *PendingBalance) *BalanceLog {
+	diff := pb.Amount.Copy().Add(&pb.Fee)
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypeWithdraw,
 		RID:       pb.RID,
-		Diff:      pb.Amount,
+		Diff:      *diff,
 		Amount:    bal.Amount,
 		Memo:      pb.Memo,
 	}
@@ -166,6 +169,18 @@ func NewBalanceWithPruneLog(bal *Balance, amount Amount, Start, End string) *Bal
 	}
 }
 
+// NewBalanceLogTypePruneFee creates new BalanceLog of type BalanceLogTypePruneFee
+func NewBalanceLogTypePruneFee(bal *Balance, amount Amount, Start, End string) *BalanceLog {
+	return &BalanceLog{
+		DOCTYPEID:    bal.DOCTYPEID,
+		Type:         BalanceLogTypePruneFee,
+		Diff:         amount,
+		Amount:       bal.Amount,
+		PruneStartID: Start,
+		PruneEndID:   End,
+	}
+}
+
 // PendingBalanceType _
 type PendingBalanceType int8
 
@@ -183,13 +198,14 @@ type PendingBalance struct {
 	Account     string             `json:"account"` // account ID (address)
 	RID         string             `json:"rid"`     // relative ID - account or contract
 	Amount      Amount             `json:"amount"`
+	Fee         Amount             `json:"fee,omitempty"`
 	Memo        string             `json:"memo"`
 	CreatedTime *txtime.Time       `json:"created_time,omitempty"`
 	PendingTime *txtime.Time       `json:"pending_time,omitempty"`
 }
 
 // NewPendingBalance _
-func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount Amount, memo string, pTime *txtime.Time) *PendingBalance {
+func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount, fee Amount, memo string, pTime *txtime.Time) *PendingBalance {
 	ptype := PendingBalanceTypeAccount
 	if _, ok := rel.(*contract.Contract); ok {
 		ptype = PendingBalanceTypeContract
@@ -200,6 +216,7 @@ func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount A
 		Account:     owner.GetID(),
 		RID:         rel.GetID(),
 		Amount:      amount,
+		Fee:         fee,
 		Memo:        memo,
 		PendingTime: pTime,
 	}

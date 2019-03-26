@@ -98,7 +98,17 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the sender's balance")
 	}
-	if sBal.Amount.Cmp(amount) < 0 {
+
+	fb := NewFeeStub(stub)
+	feeAmount, err := fb.CalcFee(sAddr, "transfer", *amount)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the fee amount")
+	}
+
+	applied := amount.Copy().Add(feeAmount)
+
+	if sBal.Amount.Cmp(applied) < 0 {
 		return shim.Error("not enough balance")
 	}
 
@@ -182,13 +192,13 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return shim.Error(err.Error())
 		}
 		// pending balance
-		log, err = bb.Deposit(pbID, sBal, con, *amount, memo)
+		log, err = bb.Deposit(pbID, sBal, con, *amount, *feeAmount, memo)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to create the pending balance")
 		}
 	} else { // instant sending
-		log, err = bb.Transfer(sBal, rBal, *amount, memo, pendingTime)
+		log, err = bb.Transfer(sBal, rBal, *amount, *feeAmount, memo, pendingTime)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to transfer")

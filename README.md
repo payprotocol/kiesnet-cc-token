@@ -99,6 +99,19 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 > invoke __`balance/pending/withdraw`__ [pending_balance_id] {_"kiesnet-id/pin"_}
 - Withdraw the balance
 
+> query __`fee/list`__ [token_code, _bookmark_, _fetch_size_, _starttime_, _endtime_]
+- Get fee list of token
+- [_fetch_size_] : max 200, if it is less than 1, default size will be used (20)
+- [_starttime_] : __time(seconds)__ represented by int64
+- [_endtime_] : __time(seconds)__ represented by int64
+
+> invoke __`fee/prune`__ [token_code, ten_minutes_flag, _endtime_] {_"kiesnet-id/pin"_}
+- prune the fees from last fee time to end_time. if end_time is not provided, prune to 10 mins lesser than current time(if ten_minutes_flag is set to true).
+- Only holder of FeePolicy.TargetAddress is able to prune.
+- [ten_minutes_flag] : __Boolean__ if set to true, the end_time can't be greater than current time minus 10 minutes.
+- [_end_time_]: to time for pruning
+- __`has_more`__ field is __true__ in the response json string, it means there are more fees to prune given time period.
+
 > invoke __`token/burn`__ [token_code, amount] {_"kiesnet-id/pin"_}
 - Get the burnable amount and burn the amount.
 - [amount] : big int
@@ -118,8 +131,12 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [amount] : big int
 - If genesis account holders are more than 1, it creates a contract.
 
-> query __`token/refresh`__ [token_code]
-- Refresh cached fee policy of the token
+> invoke __`token/update`__ [token_code, fee_policy_string, _target_address_string_]
+- **NOTE** This fucntion is called only by token meta chaincode(e.g. knt-cc-pci) via ChaincodeStubInterface.invokeChaincode().
+- Update fee policy of given token.
+- [token_code] : issued token code. If the token is not issued, this function does nothing and returns success.
+- [fee_policy_string] : formatted string which has to be parsed and saved.
+- [_target_address_string_] : The address which will receive fees of this token.
 
 > invoke __`transfer`__ [sender, receiver, amount, _memo_, _pending_time_, _expiry_, _extra-signers..._] {_"kiesnet-id/pin"_}
 - Transfer the amount of the token or create a contract

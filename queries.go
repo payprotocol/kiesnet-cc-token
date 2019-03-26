@@ -208,3 +208,60 @@ const QueryPayByOrderID = `{
 func CreateQueryPayByOrderID(orderID string) string {
 	return fmt.Sprintf(QueryPayByOrderID, orderID)
 }
+
+// QueryPruneFee _
+//TODO check sort, use_index
+const QueryPruneFee = `{
+	"selector":{
+		"@fee":"%s",
+		"created_time":{"$gt":"%s"},
+		"created_time":{"$lte":"%s"}
+	},
+	"sort":["created_time"],
+	"use_index":["fee","list"]
+}`
+
+// CreateQueryPruneFee generates query string to fetch fee list of tokenCode from stime to etime.
+func CreateQueryPruneFee(tokenCode string, stime, etime *txtime.Time) string {
+	return fmt.Sprintf(QueryPruneFee, tokenCode, stime, etime)
+}
+
+// QueryFeesByCodeAndTime _
+//TODO check sort, use_index
+const QueryFeesByCodeAndTime = `{
+	"selector":{
+		"@fee":"%s",
+		"$and":[
+			{"created_time":{"$gte":"%s"}},
+			{"created_time":{"$lte":"%s"}}
+		]
+	},
+	"sort":[{"@fee":"desc"},{"created_time":"desc"}],
+	"use_index":["fee","list"]
+}`
+
+// CreateQueryFeesByCodeAndTimes _
+func CreateQueryFeesByCodeAndTimes(tokenCode string, stime, etime *txtime.Time) string {
+	if nil == stime {
+		stime = txtime.Unix(0, 0)
+	}
+	if nil == etime {
+		etime = txtime.Unix(253402300799, 999999999) // 9999-12-31 23:59:59.999999999
+	}
+	return fmt.Sprintf(QueryFeesByCodeAndTime, tokenCode, stime, etime)
+}
+
+// QueryFeesByCode _
+//TODO check sort, use_index
+const QueryFeesByCode = `{
+	"selector":{
+		"@fee":"%s"
+	},
+	"sort":[{"@fee":"desc"},{"created_time":"desc"}],
+	"use_index":["fee","list"]
+}`
+
+// CreateQueryFeesByCode _
+func CreateQueryFeesByCode(tokenCode string) string {
+	return fmt.Sprintf(QueryFeesByCode, tokenCode)
+}
