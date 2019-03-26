@@ -237,19 +237,20 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, m
 	if err = bb.PutBalance(sender); err != nil {
 		return nil, err
 	}
+	sbl := NewBalanceTransferLog(sender, receiver, *applied, memo)
+	sbl.CreatedTime = ts
+	if err = bb.PutBalanceLog(sbl); err != nil {
+		return nil, err
+	}
 
-	// Do not create Fee if the amount is 0 (that means, the fee payer is the target address of fee policy).
+	// Do not create Fee if the amount is 0.
+	// That means, the fee payer is the target address of fee policy,
+	// or transfer fee policy is not set.
 	if fee.Int64() != 0 {
 		sAddr, _ := ParseAddress(sender.DOCTYPEID)
 		if _, err := NewFeeStub(bb.stub).CreateFee(sAddr, fee); err != nil {
 			return nil, err
 		}
-	}
-
-	sbl := NewBalanceTransferLog(sender, receiver, *applied, memo)
-	sbl.CreatedTime = ts
-	if err = bb.PutBalanceLog(sbl); err != nil {
-		return nil, err
 	}
 
 	return sbl, nil
@@ -284,7 +285,9 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 		}
 	}
 
-	// Do not create Fee if the amount is 0 (that means, the fee payer is the target address of fee policy).
+	// Do not create Fee if the amount is 0.
+	// That means, the fee payer is the target address of fee policy,
+	// or transfer fee policy is not set.
 	if pb.Fee.Int64() != 0 {
 		sAddr, _ := ParseAddress(pb.Account)
 		if _, err := NewFeeStub(bb.stub).CreateFee(sAddr, pb.Fee); err != nil {

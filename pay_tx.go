@@ -418,10 +418,12 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to update balance")
 	}
 
-	fb := NewFeeStub(stub)
-	_, err = fb.CreateFee(addr, *paySum.Fee)
-	if err != nil {
-		return shim.Error(err.Error())
+	// Do not create Fee if the amount is 0.
+	if paySum.Fee.Int64() != 0 {
+		_, err = NewFeeStub(stub).CreateFee(addr, *paySum.Fee)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
 	}
 
 	// balance log

@@ -13,8 +13,10 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
-// ISSUE : token/fee/list?
-// ISSUE : Only genesis account holder should be able to query fee list?
+// Get fee list of token
+// ISSUE : Shoud this be in token_tx.go? And should route name be token/fee/list?
+// ISSUE : Should only target address holder be able to query fee list?
+// ISSUE : Should we have to add “since_last_prune” parameter?
 // params[0] : token code
 // params[1] : optional. bookmark
 // params[2] : optional. fetch size (if less than 1, default size. max 200)
@@ -107,8 +109,10 @@ func feeList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// ISSUE : token/fee/prune?
-// Only holder of fee policy target account is able to prune fee list.
+// prune the fees from last fee time to end_time.
+// if end_time is not provided, prune to 10 mins lesser than current time(if ten_minutes_flag is set to true).
+// Only holder of FeePolicy.TargetAddress is able to prune.
+// ISSUE : Shoud this be in token_tx.go? And should route name be token/fee/prune?
 // params[0] : token code
 // params[1] : 10 minutes limit flag. if the value is true, 10 minutes check is activated.
 // params[2] : optional. end time
@@ -245,47 +249,5 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if nil != err {
 		return shim.Error(err.Error())
 	}
-	return shim.Success(data)
-}
-
-func feeMock(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if len(params) < 2 {
-		return shim.Error("incorrect number of parameters. expecting 2")
-	}
-
-	// authentication
-	kid, err := kid.GetID(stub, false)
-	if nil != err {
-		return shim.Error(err.Error())
-	}
-
-	var addr *Address
-	code, err := ValidateTokenCode(params[0])
-	if nil == err { // by token code
-		addr = NewAddress(code, AccountTypePersonal, kid)
-	} else { // by address
-		addr, err = ParseAddress(params[0])
-		if err != nil {
-			return responseError(err, "failed to get the account")
-		}
-	}
-
-	amount, err := NewAmount(params[1])
-	if nil != err {
-		return shim.Error(err.Error())
-	}
-
-	fb := NewFeeStub(stub)
-	fee, err := fb.CreateFee(addr, *amount)
-	if nil != err {
-		return shim.Error("failed to create fee")
-	}
-
-	data, err := json.Marshal(fee)
-	if nil != err {
-		logger.Debug(err.Error())
-		return shim.Error("failed to marshal the fee")
-	}
-
 	return shim.Success(data)
 }

@@ -38,7 +38,9 @@ func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amo
 	if feePolicy != nil && len(feePolicy.TargetAddress) == 0 {
 		feePolicy.TargetAddress = account.GetID()
 	} else {
-		// ISSUE : Should we check account existence here?
+		if _, err := ab.GetAccountState(feePolicy.TargetAddress); err != nil {
+			return nil, err
+		}
 	}
 
 	// initial mint

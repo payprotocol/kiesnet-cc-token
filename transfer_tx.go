@@ -99,9 +99,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("failed to get the sender's balance")
 	}
 
-	// Kyle TODO: FeePolicy, FeeRate 가져와서 더한 후에 amount 계산
 	fb := NewFeeStub(stub)
-
 	feeAmount, err := fb.CalcFee(sAddr, "transfer", *amount)
 	if err != nil {
 		logger.Debug(err.Error())
@@ -109,9 +107,6 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	applied := amount.Copy().Add(feeAmount)
-
-	// feePolicy.TargetAddress // genesis account
-	// Kyle TODO: FeePolicy, FeeRate 가져와서 더한 후에 amount 계산
 
 	if sBal.Amount.Cmp(applied) < 0 {
 		return shim.Error("not enough balance")

@@ -14,6 +14,7 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/contract"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
+	"github.com/key-inside/kiesnet-ccpkg/txtime"
 	"github.com/pkg/errors"
 )
 
@@ -354,6 +355,9 @@ func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 			return shim.Error(err.Error())
 		}
 		if len(targetAddress) > 0 {
+			if _, err := NewAccountStub(stub, code).GetAccountState(targetAddress); err != nil {
+				return responseError(err, "failed to set a target address")
+			}
 			policy.TargetAddress = targetAddress
 		} else { // No new target address input. Do not edit current value.
 			if token.FeePolicy == nil {
@@ -380,6 +384,11 @@ func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		}
 	}
 	if update {
+		ts, err := txtime.GetTime(stub)
+		if err != nil {
+			return responseError(err, "failed to get the timestamp")
+		}
+		token.UpdatedTime = ts
 		err = tb.PutToken(token)
 		if err != nil {
 			return shim.Error(err.Error())
