@@ -231,8 +231,10 @@ func CreateQueryPruneFee(tokenCode string, stime, etime *txtime.Time) string {
 const QueryFeesByCodeAndTime = `{
 	"selector":{
 		"@fee":"%s",
-		"created_time":{"$gte":"%s"},
-		"created_time":{"$lte":"%s"},
+		"$and":[
+			{"created_time":{"$gte":"%s"}},
+			{"created_time":{"$lte":"%s"}}
+		]
 	},
 	"sort":[{"@fee":"desc"},{"created_time":"desc"}],
 	"use_index":["fee","list"]
