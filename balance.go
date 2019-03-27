@@ -169,8 +169,8 @@ func NewBalancePrunePayLog(bal *Balance, amount Amount, Start, End string) *Bala
 	}
 }
 
-// NewBalanceLogTypePruneFeeLog creates new BalanceLog of type BalanceLogTypePruneFee
-func NewBalanceLogTypePruneFeeLog(bal *Balance, amount Amount, Start, End string) *BalanceLog {
+// NewBalancePruneFeeLog creates new BalanceLog of type BalanceLogTypePruneFee
+func NewBalancePruneFeeLog(bal *Balance, amount Amount, Start, End string) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID:    bal.DOCTYPEID,
 		Type:         BalanceLogTypePruneFee,
