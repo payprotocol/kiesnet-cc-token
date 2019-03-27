@@ -25,6 +25,11 @@ func NewAmount(val string) (*Amount, error) {
 	return a, nil
 }
 
+// NewAmountWithBigInt _
+func NewAmountWithBigInt(bigInt *big.Int) *Amount {
+	return &Amount{Int: *bigInt}
+}
+
 // Add override
 func (a *Amount) Add(x *Amount) *Amount {
 	a.Int.Add(&a.Int, &x.Int)

@@ -13,6 +13,7 @@ import (
 )
 
 // FeePruneSize is number of fee utxo that one prune request can handle.
+// XXX *** StateDB fetch limit MUST be greater than FeePruneSize
 const FeePruneSize = 900
 
 // FeeFetchSize _
@@ -150,7 +151,7 @@ func (fb *FeeStub) GetFeeSumByTime(tokenCode string, stime, etime *txtime.Time) 
 		if 1 == cnt {
 			feeSum.Start = fee.FeeID
 		}
-		if FeePruneSize+1 == cnt {
+		if cnt > FeePruneSize {
 			feeSum.HasMore = true
 			cnt--
 			break
@@ -171,28 +172,28 @@ func (fb *FeeStub) CalcFee(payer *Address, fn string, amount Amount) (*Amount, e
 	}
 	// The amount is 0 if policy does't exist.
 	if token.FeePolicy == nil {
-		return &Amount{Int: *big.NewInt(0)}, nil
+		return NewAmount("0")
 	}
 	if valid := isValidFn(fn); !valid {
 		return nil, errors.New("invalid fee rate type")
 	}
 	// The amount is 0 if the fee payer is the target address of fee policy on transfer.
 	if token.FeePolicy.TargetAddress == payer.String() {
-		return &Amount{Int: *big.NewInt(0)}, nil
+		return NewAmount("0")
 	}
 	feeRate, ok := token.FeePolicy.Rates[fn]
 	if !ok { // no such fn
-		return &Amount{Int: *big.NewInt(0)}, nil
+		return NewAmount("0")
 	}
 	// We've already checked validity of Rate on GetFeePolicy()
 	feeRateRat, _ := new(big.Rat).SetString(feeRate.Rate)
 	// feeAmount = amount * rate
-	feeAmount := &Amount{Int: *new(big.Int).Div(new(big.Int).Mul(&amount.Int, feeRateRat.Num()), feeRateRat.Denom())}
+	feeAmount := NewAmountWithBigInt(new(big.Int).Div(new(big.Int).Mul(&amount.Int, feeRateRat.Num()), feeRateRat.Denom()))
 	if feeRate.MaxAmount == 0 { // unlimited fee
 		return feeAmount, nil
 	}
 	// limited to MaxAmount
-	maxAmount := &Amount{Int: *big.NewInt(feeRate.MaxAmount)}
+	maxAmount := NewAmountWithBigInt(big.NewInt(feeRate.MaxAmount))
 	if feeAmount.Cmp(maxAmount) > 0 { // feeAmount is gt.
 		return maxAmount, nil
 	}

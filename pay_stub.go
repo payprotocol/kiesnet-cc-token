@@ -12,6 +12,7 @@ import (
 )
 
 // PaysPruneSize _
+// XXX *** StateDB fetch limit MUST be greater than PaysPruneSize
 const PaysPruneSize = 900
 
 // PaysFetchSize _
@@ -129,7 +130,7 @@ func (pb *PayStub) Pay(sender *Balance, receiver string, amount, fee Amount, ord
 	}
 
 	var sbl *BalanceLog
-	sbl = NewBalanceWithPayLog(sender, pay)
+	sbl = NewBalancePayLog(sender, pay)
 	sbl.CreatedTime = ts
 	if err = NewBalanceStub(pb.stub).PutBalanceLog(sbl); err != nil {
 		return nil, errors.Wrap(err, "failed to update sender balance log")
@@ -169,7 +170,7 @@ func (pb *PayStub) Refund(sender, receiver *Balance, amount, fee Amount, memo st
 	}
 
 	var rbl *BalanceLog
-	rbl = NewBalanceWithRefundLog(receiver, pay)
+	rbl = NewBalanceRefundLog(receiver, pay)
 	rbl.CreatedTime = ts
 
 	if err = NewBalanceStub(pb.stub).PutBalanceLog(rbl); err != nil {
@@ -210,8 +211,7 @@ func (pb *PayStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PaySu
 			cs.Start = c.PayID
 		}
 
-		//get the next pay key ( +1 pay after the threshhold)
-		if cnt == PaysPruneSize+1 {
+		if cnt > PaysPruneSize {
 			cs.HasMore = true
 			cnt--
 			break
@@ -225,7 +225,6 @@ func (pb *PayStub) GetPaySumByTime(id string, stime, etime *txtime.Time) (*PaySu
 	cs.Fee = fee
 
 	return cs, nil
-
 }
 
 // GetPaysByTime _

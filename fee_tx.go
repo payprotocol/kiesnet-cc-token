@@ -238,7 +238,7 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	// balance log
-	pruneLog := NewBalanceLogTypePruneFee(bal, *feeSum.Sum, feeSum.Start, feeSum.End)
+	pruneLog := NewBalanceLogTypePruneFeeLog(bal, *feeSum.Sum, feeSum.Start, feeSum.End)
 	pruneLog.CreatedTime = ts
 	err = bb.PutBalanceLog(pruneLog)
 	if nil != err {

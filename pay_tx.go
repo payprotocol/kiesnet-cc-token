@@ -427,7 +427,7 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	// balance log
-	rbl := NewBalanceWithPruneLog(bal, *applied, paySum.Start, paySum.End)
+	rbl := NewBalancePrunePayLog(bal, *applied, paySum.Start, paySum.End)
 	rbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(rbl); err != nil {
 		return shim.Error(err.Error())

@@ -41,8 +41,8 @@ const (
 	BalanceLogTypePay
 	// BalanceLogTypeRefund refund amount of balance
 	BalanceLogTypeRefund
-	// BalanceLogTypePrune the amount of pruned payments
-	BalanceLogTypePrune
+	// BalanceLogTypePrunePay the amount of pruned payments
+	BalanceLogTypePrunePay
 	// BalanceLogTypePruneFee is created when fee utxos are pruned to genesis account.
 	BalanceLogTypePruneFee
 )
@@ -130,8 +130,8 @@ func NewBalanceWithdrawLog(bal *Balance, pb *PendingBalance) *BalanceLog {
 	}
 }
 
-// NewBalanceWithPayLog _
-func NewBalanceWithPayLog(bal *Balance, pay *Pay) *BalanceLog {
+// NewBalancePayLog _
+func NewBalancePayLog(bal *Balance, pay *Pay) *BalanceLog {
 	diff := pay.Amount.Copy().Neg()
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
@@ -144,8 +144,8 @@ func NewBalanceWithPayLog(bal *Balance, pay *Pay) *BalanceLog {
 	}
 }
 
-// NewBalanceWithRefundLog _
-func NewBalanceWithRefundLog(bal *Balance, pay *Pay) *BalanceLog {
+// NewBalanceRefundLog _
+func NewBalanceRefundLog(bal *Balance, pay *Pay) *BalanceLog {
 	diff := pay.Amount.Copy().Neg()
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
@@ -157,11 +157,11 @@ func NewBalanceWithRefundLog(bal *Balance, pay *Pay) *BalanceLog {
 	}
 }
 
-// NewBalanceWithPruneLog No need RID
-func NewBalanceWithPruneLog(bal *Balance, amount Amount, Start, End string) *BalanceLog {
+// NewBalancePrunePayLog No need RID
+func NewBalancePrunePayLog(bal *Balance, amount Amount, Start, End string) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID:    bal.DOCTYPEID,
-		Type:         BalanceLogTypePrune,
+		Type:         BalanceLogTypePrunePay,
 		Diff:         amount,
 		Amount:       bal.Amount,
 		PruneStartID: Start,
@@ -169,8 +169,8 @@ func NewBalanceWithPruneLog(bal *Balance, amount Amount, Start, End string) *Bal
 	}
 }
 
-// NewBalanceLogTypePruneFee creates new BalanceLog of type BalanceLogTypePruneFee
-func NewBalanceLogTypePruneFee(bal *Balance, amount Amount, Start, End string) *BalanceLog {
+// NewBalanceLogTypePruneFeeLog creates new BalanceLog of type BalanceLogTypePruneFee
+func NewBalanceLogTypePruneFeeLog(bal *Balance, amount Amount, Start, End string) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID:    bal.DOCTYPEID,
 		Type:         BalanceLogTypePruneFee,

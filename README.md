@@ -79,7 +79,8 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
     - 0x05 : withdraw (from the pending balance)
     - 0x06 : pay
     - 0x07 : refund
-    - 0x08 : prune
+    - 0x08 : prune pay
+    - 0x09 : prune fee
 
 > query __`balance/pending/get`__ [pending_balance_id]
 - Get the pending balance
