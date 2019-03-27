@@ -227,7 +227,6 @@ func CreateQueryPruneFee(tokenCode string, stime, etime *txtime.Time) string {
 }
 
 // QueryFeesByCodeAndTime _
-//TODO check sort, use_index
 const QueryFeesByCodeAndTime = `{
 	"selector":{
 		"@fee":"%s",
@@ -252,7 +251,6 @@ func CreateQueryFeesByCodeAndTimes(tokenCode string, stime, etime *txtime.Time) 
 }
 
 // QueryFeesByCode _
-//TODO check sort, use_index
 const QueryFeesByCode = `{
 	"selector":{
 		"@fee":"%s"
