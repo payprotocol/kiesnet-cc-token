@@ -233,7 +233,7 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		token.LastPrunedFeeID = feeSum.End
 		err = tb.PutToken(token)
 		if nil != err {
-			return responseError(err, "failed to update token")
+			return responseError(err, "failed to update the token")
 		}
 	}
 
