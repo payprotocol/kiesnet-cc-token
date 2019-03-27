@@ -132,12 +132,9 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [amount] : big int
 - If genesis account holders are more than 1, it creates a contract.
 
-> invoke __`token/update`__ [token_code, fee_policy_string, _target_address_string_]
-- **NOTE** This fucntion is called only by token meta chaincode(e.g. knt-cc-pci) via ChaincodeStubInterface.invokeChaincode().
-- Update fee policy of given token.
+> invoke __`token/update`__ [token_code] {_"kiesnet-id/pin"_}
+- // Get updated information from the token meta chaincode(e.g. knt-cc-pci) and save it to the ledger.
 - [token_code] : issued token code. If the token is not issued, this function does nothing and returns success.
-- [fee_policy_string] : formatted string which has to be parsed and saved.
-- [_target_address_string_] : The address which will receive fees of this token.
 
 > invoke __`transfer`__ [sender, receiver, amount, _memo_, _pending_time_, _expiry_, _extra-signers..._] {_"kiesnet-id/pin"_}
 - Transfer the amount of the token or create a contract

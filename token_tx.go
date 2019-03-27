@@ -10,7 +10,6 @@ import (
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
-	"github.com/key-inside/kiesnet-ccpkg/ccid"
 	"github.com/key-inside/kiesnet-ccpkg/contract"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
@@ -304,71 +303,41 @@ func tokenMint(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	return shim.Success(data)
 }
 
+// Get updated information from the token meta chaincode(e.g. knt-cc-pci) and save it to the ledger.
 // params[0] : token code
-// params[1] : fee policy string
-// params[2] : target address string
 func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	if len(params) < 2 {
-		return shim.Error("incorrect number of parameters. expecting 2+")
+	if len(params) != 1 {
+		return shim.Error("incorrect number of parameters. expecting 1")
 	}
 
-	code := params[0]
-	fee := params[1]
-
-	targetAddress := ""
-	if len(params) > 2 {
-		targetAddress = params[2]
-	}
-
-	// MUST be invoked by knt
-	ccid, err := ccid.GetID(stub)
+	code, err := ValidateTokenCode(params[0])
 	if err != nil {
-		return shim.Error("failed to get ccid")
-	}
-	logger.Debugf("ccid: %s", ccid)
-	kntCCid := strings.ToLower(code)
-	if os.Getenv("DEV_CHANNEL_NAME") != "" {
-		kntCCid = "knt-cc-" + kntCCid
-	} else {
-		kntCCid = "knt-" + kntCCid
-	}
-	logger.Debugf("kntCCid: %s", kntCCid)
-	if ccid != "lscc" && kntCCid != ccid {
-		return shim.Error("invalid access")
+		return shim.Error(err.Error())
 	}
 
-	// Just return success if token is not issued.
+	// authentication
+	// ISSUE: only genesis account holders ?
+	_, err = kid.GetID(stub, true)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// check issued token
 	tb := NewTokenStub(stub)
 	token, err := tb.GetToken(code)
 	if err != nil {
-		if _, ok := err.(NotIssuedTokenError); ok {
-			return shim.Success(nil)
-		}
+		return responseError(err, "failed to get the token")
+	}
+
+	// get token meta
+	_, _, _, policy, err := getValidatedTokenMeta(stub, code)
+	if err != nil {
 		return shim.Error(err.Error())
 	}
 
 	// Update token state.
 	var update bool
-	if len(fee) > 0 {
-		policy, err := ParseFeePolicy(fee)
-		if err != nil {
-			return shim.Error(err.Error())
-		}
-		if len(targetAddress) > 0 {
-			if _, err := NewAccountStub(stub, code).GetAccountState(targetAddress); err != nil {
-				return responseError(err, "failed to set a target address")
-			}
-			policy.TargetAddress = targetAddress
-		} else { // No new target address input. Do not edit current value.
-			if token.FeePolicy == nil {
-				policy.TargetAddress = token.GenesisAccount
-			} else {
-				policy.TargetAddress = token.FeePolicy.TargetAddress
-			}
-		}
-		token.FeePolicy = policy
-		update = true
-	} else {
+	if policy == nil {
 		// Ignore knt target address if knt fee is empty.
 		if token.FeePolicy == nil {
 			// knt fee is empty, also token.FeePolicy is nil
@@ -382,6 +351,20 @@ func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 			token.FeePolicy.Rates = map[string]FeeRate{}
 			update = true
 		}
+	} else {
+		if len(policy.TargetAddress) > 0 {
+			if _, err := NewAccountStub(stub, code).GetAccountState(policy.TargetAddress); err != nil {
+				return responseError(err, "failed to set a target address")
+			}
+		} else { // No new target address input. Do not edit current value.
+			if token.FeePolicy == nil {
+				policy.TargetAddress = token.GenesisAccount
+			} else {
+				policy.TargetAddress = token.FeePolicy.TargetAddress
+			}
+		}
+		token.FeePolicy = policy
+		update = true
 	}
 	if update {
 		ts, err := txtime.GetTime(stub)
@@ -391,10 +374,15 @@ func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		token.UpdatedTime = ts
 		err = tb.PutToken(token)
 		if err != nil {
-			return shim.Error(err.Error())
+			return responseError(err, "failed to update the token")
 		}
 	}
-	return shim.Success(nil)
+
+	data, err := json.Marshal(token)
+	if err != nil {
+		return responseError(err, "failed to marshal the token")
+	}
+	return shim.Success(data)
 }
 
 // helpers
