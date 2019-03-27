@@ -35,11 +35,13 @@ func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amo
 		return nil, errors.Wrap(err, "failed to create the genesis account")
 	}
 
-	if feePolicy != nil && len(feePolicy.TargetAddress) == 0 {
-		feePolicy.TargetAddress = account.GetID()
-	} else {
-		if _, err := ab.GetAccountState(feePolicy.TargetAddress); err != nil {
-			return nil, err
+	if feePolicy != nil {
+		if len(feePolicy.TargetAddress) > 0 {
+			if _, err := ab.GetAccountState(feePolicy.TargetAddress); err != nil {
+				return nil, err
+			}
+		} else {
+			feePolicy.TargetAddress = account.GetID()
 		}
 	}
 
