@@ -239,7 +239,7 @@ func (ab *AccountStub) SuspendAccount(kid string) (*Account, error) {
 	pac.SuspendedTime = ts
 	pac.UpdatedTime = ts
 	if err = ab.PutAccount(pac); err != nil {
-		return nil, errors.Wrap(err, "failed to update an account")
+		return nil, errors.Wrap(err, "failed to update the account")
 	}
 	return pac, nil
 }
@@ -263,7 +263,7 @@ func (ab *AccountStub) UnsuspendAccount(kid string) (*Account, error) {
 	pac.SuspendedTime = nil
 	pac.UpdatedTime = ts
 	if err = ab.PutAccount(pac); err != nil {
-		return nil, errors.Wrap(err, "failed to update an account")
+		return nil, errors.Wrap(err, "failed to update the account")
 	}
 	return pac, nil
 }

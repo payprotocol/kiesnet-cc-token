@@ -38,7 +38,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 	if amount.Sign() <= 0 {
-		return shim.Error("invalid amount. amount must be larger than 0")
+		return shim.Error("invalid amount. must be greater than 0")
 	}
 
 	// addresses
