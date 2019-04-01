@@ -159,7 +159,7 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	ab := NewAccountStub(stub, code)
 	account, err := ab.GetAccount(addr)
 	if nil != err {
-		return responseError(err, "failed to get the genesis account")
+		return responseError(err, "failed to get the target account")
 	}
 	if !account.HasHolder(kid) { // authority
 		return shim.Error("no authority")
@@ -171,19 +171,19 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		//TODO check fee id parsing logic
 		s, err := strconv.ParseInt(token.LastPrunedFeeID[0:10], 10, 64)
 		if nil != err {
-			return responseError(err, "failed to get timestamp of last pruned fee")
+			return responseError(err, "failed to get seconds from timestamp")
 		}
 		//TODO check fee id parsing logic
 		n, err := strconv.ParseInt(token.LastPrunedFeeID[10:19], 10, 64)
 		if nil != err {
-			return responseError(err, "failed to get nanoseconds of last pruned fee")
+			return responseError(err, "failed to get nanoseconds from timestamp")
 		}
 		stime = txtime.Unix(s, n)
 	}
 
 	ts, err := txtime.GetTime(stub)
 	if nil != err {
-		return responseError(err, "failed to get tx timestamp")
+		return responseError(err, "failed to get the timestamp")
 	}
 
 	var etime *txtime.Time
@@ -199,7 +199,7 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	safely, err := strconv.ParseBool(params[1])
 	if nil != err {
-		return shim.Error("malformed boolean flag")
+		return shim.Error("invalid boolean flag")
 	}
 
 	if safely {
@@ -220,7 +220,7 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	bb := NewBalanceStub(stub)
 	bal, err := bb.GetBalance(account.GetID())
 	if nil != err {
-		return responseError(err, "failed to get the genesis account balance")
+		return responseError(err, "failed to get the target account balance")
 	}
 
 	if feeSum.Count > 0 {
