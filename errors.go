@@ -113,7 +113,7 @@ type NotExistedFeeError struct {
 // Error implements error interface
 func (e NotExistedFeeError) Error() string {
 	if len(e.id) > 0 {
-		return fmt.Sprintf("the fee id '%s' does not exist", e.id)
+		return fmt.Sprintf("the fee id [%s] does not exist", e.id)
 	}
 	return "the fee does not exist"
 }
