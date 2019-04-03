@@ -146,34 +146,30 @@ func (pb *PayStub) Refund(sender, receiver *Balance, amount, fee Amount, memo st
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
-	// Here fee is negative, so it will be returned to the merchant.
-	pay := NewPay(sender.GetID(), payid, amount, fee, receiver.GetID(), parentPay.PayID, "", memo, ts)
-
+	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID()) //TODO: fee neg
+	pay := NewPay(sender.GetID(), payid, *amount.Copy().Neg(), *fee.Copy().Neg(), receiver.GetID(), parentPay.PayID, "", memo, ts)
 	if err = pb.PutPay(pay); nil != err {
-		return nil, errors.Wrap(err, "failed to put new pay")
-	}
-
-	receiver.Amount.Add(amount.Copy().Neg())
-	receiver.UpdatedTime = ts
-
-	if err = NewBalanceStub(pb.stub).PutBalance(receiver); nil != err {
-		return nil, errors.Wrap(err, "failed to update receiver balance")
+		return nil, errors.Wrap(err, "failed to put new refund")
 	}
 
 	//update the total refund amount to the parent pay
-	parentPay.TotalRefund = *parentPay.TotalRefund.Add(amount.Copy().Neg())
-
-	err = pb.PutParentPay(pb.CreateKey(parentPay.PayID), parentPay)
-	if err != nil {
+	parentPay.TotalRefund = *parentPay.TotalRefund.Add(&amount)
+	if err = pb.PutParentPay(pb.CreateKey(parentPay.PayID), parentPay); err != nil {
 		return nil, errors.Wrap(err, "failed to update parent pay")
 	}
 
-	var rbl *BalanceLog
-	rbl = NewBalanceRefundLog(receiver, pay)
-	rbl.CreatedTime = ts
+	// refund
+	bb := NewBalanceStub(pb.stub)
 
-	if err = NewBalanceStub(pb.stub).PutBalanceLog(rbl); err != nil {
+	receiver.Amount.Add(&amount)
+	receiver.UpdatedTime = ts
+	if err = bb.PutBalance(receiver); nil != err {
+		return nil, errors.Wrap(err, "failed to update receiver balance")
+	}
+
+	rbl := NewBalanceRefundLog(receiver, pay)
+	rbl.CreatedTime = ts
+	if err = bb.PutBalanceLog(rbl); err != nil {
 		return nil, errors.Wrap(err, "failed to update receiver's balance log")
 	}
 
@@ -251,7 +247,7 @@ func (pb *PayStub) GetPaysByTime(id, sortOrder, bookmark string, stime, etime *t
 }
 
 // PayPendingBalance _
-func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, merchant, memo, orderID string) error {
+func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, fee Amount, merchant, memo, orderID string) error {
 	ts, err := txtime.GetTime(pb.stub)
 	if nil != err {
 		return err
@@ -260,7 +256,7 @@ func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, merchant, memo, o
 	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
 
 	// Put pay
-	pay := NewPay(merchant, payid, pbalance.Amount, pbalance.Fee, pbalance.Account, "", orderID, memo, ts)
+	pay := NewPay(merchant, payid, pbalance.Amount, fee, pbalance.Account, "", orderID, memo, ts)
 	if err = pb.PutPay(pay); nil != err {
 		return errors.Wrap(err, "failed to put new pay")
 	}

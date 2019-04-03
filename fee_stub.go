@@ -36,8 +36,8 @@ func (fb *FeeStub) CreateKey(id string) string {
 
 // CreateFee creates new fee utxo of given amount and puts the state.
 // If give amount is zero, it puts nothing and returns nil.
-func (fb *FeeStub) CreateFee(payer *Address, amount Amount) (*Fee, error) {
-	if amount.Int.Cmp(big.NewInt(0)) == 0 {
+func (fb *FeeStub) CreateFee(addr string, amount Amount) (*Fee, error) {
+	if amount.Sign() != 0 {
 		return nil, nil
 	}
 
@@ -46,13 +46,14 @@ func (fb *FeeStub) CreateFee(payer *Address, amount Amount) (*Fee, error) {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	fee := &Fee{}
-	fee.DOCTYPEID = payer.Code
-	fee.FeeID = fmt.Sprintf("%d%s", ts.UnixNano(), fb.stub.GetTxID())
-	fee.Account = payer.String()
-	fee.Amount = amount
-	fee.CreatedTime = ts
-
+	code, _ := ParseCode(addr)
+	fee := &Fee{
+		DOCTYPEID:   code,
+		FeeID:       fmt.Sprintf("%d%s", ts.UnixNano(), fb.stub.GetTxID()),
+		Account:     addr,
+		Amount:      amount,
+		CreatedTime: ts,
+	}
 	err = fb.PutFee(fee)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to create fee")
@@ -60,34 +61,6 @@ func (fb *FeeStub) CreateFee(payer *Address, amount Amount) (*Fee, error) {
 
 	return fee, nil
 }
-
-//ISSUE : Do we have to fetch individual Fee via chaincode call?
-// // GetFee _
-// func (fb *FeeStub) GetFee(id string) (*Fee, error) {
-// 	data, err := fb.GetFeeState(id)
-// 	if nil != err {
-// 		return nil, err
-// 	}
-// 	// data is not nil
-// 	fee := &Fee{}
-// 	err = json.Unmarshal(data, fee)
-// 	if nil != err {
-// 		return nil, errors.Wrap(err, "failed to unmarshal the fee")
-// 	}
-// 	return fee, nil
-// }
-
-// // GetFeeState _
-// func (fb *FeeStub) GetFeeState(id string) ([]byte, error) {
-// 	data, err := fb.stub.GetState(fb.CreateKey(id))
-// 	if nil != err {
-// 		return nil, errors.Wrap(err, "failed to get the fee state")
-// 	}
-// 	if data != nil {
-// 		return data, nil
-// 	}
-// 	return nil, NotExistedFeeError{id: id}
-// }
 
 // PutFee _
 func (fb *FeeStub) PutFee(fee *Fee) error {
@@ -136,7 +109,7 @@ func (fb *FeeStub) GetFeeSumByTime(tokenCode string, stime, etime *txtime.Time) 
 	feeSum := &FeeSum{HasMore: false}
 	fee := &Fee{}
 	cnt := 0
-	sum, _ := NewAmount("0")
+	sum := ZeroAmount()
 
 	for iter.HasNext() {
 		cnt++
@@ -170,33 +143,30 @@ func (fb *FeeStub) CalcFee(payer *Address, fn string, amount Amount) (*Amount, e
 	if err != nil {
 		return nil, err
 	}
-	// The amount is 0 if policy does't exist.
-	if token.FeePolicy == nil {
-		return NewAmount("0")
-	}
-	if valid := isValidFn(fn); !valid {
-		return nil, errors.New("invalid fee rate type")
-	}
-	// The amount is 0 if the fee payer is the target address of fee policy on transfer.
-	if token.FeePolicy.TargetAddress == payer.String() {
-		return NewAmount("0")
-	}
-	feeRate, ok := token.FeePolicy.Rates[fn]
-	if !ok { // no such fn
-		return NewAmount("0")
-	}
-	// We've already checked validity of Rate on GetFeePolicy()
-	feeRateRat, _ := new(big.Rat).SetString(feeRate.Rate)
-	// feeAmount = amount * rate
-	feeAmount := NewAmountWithBigInt(new(big.Int).Div(new(big.Int).Mul(&amount.Int, feeRateRat.Num()), feeRateRat.Denom()))
-	if feeRate.MaxAmount == 0 { // unlimited fee
-		return feeAmount, nil
-	}
-	// limited to MaxAmount
-	maxAmount := NewAmountWithBigInt(big.NewInt(feeRate.MaxAmount))
-	if feeAmount.Cmp(maxAmount) > 0 { // feeAmount is gt.
-		return maxAmount, nil
-	}
-	// maxAmount is gte.
-	return feeAmount, nil
+
+	if token.FeePolicy != nil {
+		feeRate, ok := token.FeePolicy.Rates[fn]
+		if ok {
+			// no fee if the payer is the target address of fee policy.
+			if token.FeePolicy.TargetAddress != payer.String() {
+				feeRateRat, _ := new(big.Rat).SetString(feeRate.Rate)
+				// amount * rate
+				rat := new(big.Rat).SetInt(&amount.Int)
+				rat.Mul(rat, feeRateRat)
+				if rat.Sign() < 0 { // fee must be zero or positive
+					return ZeroAmount(), nil
+				}
+				feeAmount, _ := NewAmount(rat.FloatString(0))
+				if feeRate.MaxAmount > 0 { // fee limit
+					maxAmount := NewAmountWithBigInt(big.NewInt(feeRate.MaxAmount))
+					if feeAmount.Cmp(maxAmount) > 0 { // feeAmount is gt.
+						return maxAmount, nil
+					}
+				}
+				return feeAmount, nil
+			}
+		} // else no such fn
+	} // else policy does't exist
+
+	return ZeroAmount(), nil
 }

@@ -148,12 +148,10 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		// pending balance
 		// Cannot calculate fee amount now.
 		// Fee amount must be calculated when the contract gets all of its approval.
-		feeAmount, _ := NewAmount("0")
-		log, err = bb.Deposit(pbID, sBal, con, *amount, *feeAmount, memo)
+		log, err = bb.Deposit(pbID, sBal, con, *amount, nil, memo)
 		if err != nil {
 			return responseError(err, "failed to create the pending balance")
 		}
-
 	} else {
 		fb := NewFeeStub(stub)
 		feeAmount, err := fb.CalcFee(rAddr, "pay", *amount)
@@ -285,21 +283,23 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		}
 	}
 
-	feeAmount := *parentPay.Fee.Copy()      // total refund
+	// fee refund
+	var feeAmount *Amount
 	if amount.Cmp(&parentPay.Amount) != 0 { // partial refund
 		// Apply rate at the time of payment.
 		// Some of total fee amount(which the merchant could receive) may be lost
 		// because below logic discards the precision, but it doesn't matter.
 		// feeAmount = amount * parentPay.Fee / parentPay.Amount
-		feeAmount.Int = *big.NewInt(1).Div(big.NewInt(1).Mul(&amount.Int, &parentPay.Fee.Int), &parentPay.Amount.Int)
+		// feeAmount.Int = *big.NewInt(1).Div(big.NewInt(1).Mul(&amount.Int, &parentPay.Fee.Int), &parentPay.Amount.Int)
+		rat := new(big.Rat).SetFrac(&amount.Int, &parentPay.Amount.Int)
+		rat.Mul(rat, new(big.Rat).SetInt(&parentPay.Fee.Int))
+		feeAmount, _ = NewAmount(rat.FloatString(0))
+	} else { // total refund
+		feeAmount = parentPay.Fee.Copy()
 	}
 
 	var log *BalanceLog
-	//TODO amount를 그대로 넣도록 바꿔야 한다.
-	// 수수료 환급/추가과금 여부(= feeAmount의 Sign)는 CalcFee() 내부에서 결정되어 나와야 한다
-	// 여기에서는 amount와 같은 형태로(Neg 안취할거면 둘다 안하는걸로) 들어가야 한다.
-	log, err = pb.Refund(sBal, rBal, *amount.Neg(), *feeAmount.Neg(), memo, parentPay)
-
+	log, err = pb.Refund(sBal, rBal, *amount, *feeAmount, memo, parentPay)
 	if err != nil {
 		return responseError(err, "failed to pay")
 	}
@@ -418,12 +418,8 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return responseError(err, "failed to update balance")
 	}
 
-	// Do not create Fee if the amount is 0.
-	if paySum.Fee.Int64() != 0 {
-		_, err = NewFeeStub(stub).CreateFee(addr, *paySum.Fee)
-		if err != nil {
-			return shim.Error(err.Error())
-		}
+	if _, err = NewFeeStub(stub).CreateFee(account.GetID(), *paySum.Fee); err != nil {
+		return shim.Error(err.Error())
 	}
 
 	// balance log
@@ -435,7 +431,7 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	data, err := json.Marshal(paySum)
 	if nil != err {
-		return shim.Error(err.Error())
+		return responseError(err, "failed to marshal the pay prune result")
 	}
 	return shim.Success(data)
 }
@@ -570,7 +566,7 @@ func payGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 // doc: ["pay", pending-balance-ID, sender-ID, receiver-ID, amount, order-ID, memo]
 func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
-	if len(doc) < 6 {
+	if len(doc) < 7 {
 		return shim.Error("invalid contract document")
 	}
 
@@ -591,10 +587,8 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 	if err != nil {
 		return responseError(err, "failed to get the fee amount")
 	}
-	pb.Fee = *feeAmount
-
 	// ISSUE: check accounts ? (suspended) Business...
-	if err = NewPayStub(stub).PayPendingBalance(pb, doc[3].(string), doc[5].(string), doc[6].(string)); err != nil {
+	if err = NewPayStub(stub).PayPendingBalance(pb, *feeAmount, doc[3].(string), doc[5].(string), doc[6].(string)); err != nil {
 		return responseError(err, "failed to pay a pending balance")
 	}
 

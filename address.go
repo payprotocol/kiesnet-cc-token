@@ -63,6 +63,16 @@ func ParseAddress(addr string) (*Address, error) {
 	return _addr, nil
 }
 
+// ParseCode parses the token code.
+func ParseCode(addr string) (string, error) {
+	l := len(addr)
+	if l < 50 {
+		return "", InvalidAccountAddrError{reason: "length"}
+	}
+	i := l - 50 // start index of hex
+	return strings.ToUpper(addr[0:i]), nil
+}
+
 // ID _
 func (addr *Address) ID() string {
 	return hex.EncodeToString(addr.Hash[:20])

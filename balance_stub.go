@@ -211,8 +211,7 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, m
 	}
 
 	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
-		pbfee, _ := NewAmount("0")
-		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, amount, *pbfee, memo, pendingTime)
+		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, amount, nil, memo, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
 			return nil, err
@@ -223,40 +222,35 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, m
 		if err = bb.PutBalance(receiver); err != nil {
 			return nil, err
 		}
-		rbl := NewBalanceTransferLog(sender, receiver, amount, memo)
+		rbl := NewBalanceTransferLog(sender, receiver, amount, nil, memo)
 		rbl.CreatedTime = ts
 		if err = bb.PutBalanceLog(rbl); err != nil {
 			return nil, err
 		}
 	}
 
-	applied := amount.Copy().Add(&fee)
-	applied.Neg()              // -
-	sender.Amount.Add(applied) // withdraw
+	amount.Neg()                        // -
+	sender.Amount.Add(&amount)          // withdraw
+	sender.Amount.Add(fee.Copy().Neg()) // fee
 	sender.UpdatedTime = ts
 	if err = bb.PutBalance(sender); err != nil {
 		return nil, err
 	}
-	sbl := NewBalanceTransferLog(sender, receiver, *applied, memo)
+	sbl := NewBalanceTransferLog(sender, receiver, amount, &fee, memo)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
 		return nil, err
 	}
 
-	// Do not create Fee if the amount is 0.
-	// That means, the fee payer is the target address of fee policy,
-	// or transfer fee policy is not set.
-	if fee.Int64() != 0 {
-		sAddr, _ := ParseAddress(sender.DOCTYPEID)
-		if _, err := NewFeeStub(bb.stub).CreateFee(sAddr, fee); err != nil {
-			return nil, err
-		}
+	// fee
+	if _, err := NewFeeStub(bb.stub).CreateFee(sender.GetID(), fee); err != nil {
+		return nil, err
 	}
 
 	return sbl, nil
 }
 
-// TransferPendingBalance _
+// TransferPendingBalance transfers the sender's pending balance. (multi-sig contract)
 func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Balance, pendingTime *txtime.Time) error {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
@@ -266,8 +260,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 	sender := &Balance{DOCTYPEID: pb.Account} // proxy
 
 	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
-		feeAmount, _ := NewAmount("0")
-		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, pb.Amount, *feeAmount, pb.Memo, pendingTime)
+		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, pb.Amount, nil, pb.Memo, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
 			return err
@@ -278,19 +271,16 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 		if err = bb.PutBalance(receiver); err != nil {
 			return err
 		}
-		rbl := NewBalanceTransferLog(sender, receiver, pb.Amount, pb.Memo)
+		rbl := NewBalanceTransferLog(sender, receiver, pb.Amount, nil, pb.Memo)
 		rbl.CreatedTime = ts
 		if err = bb.PutBalanceLog(rbl); err != nil {
 			return err
 		}
 	}
 
-	// Do not create Fee if the amount is 0.
-	// That means, the fee payer is the target address of fee policy,
-	// or transfer fee policy is not set.
-	if pb.Fee.Int64() != 0 {
-		sAddr, _ := ParseAddress(pb.Account)
-		if _, err := NewFeeStub(bb.stub).CreateFee(sAddr, pb.Fee); err != nil {
+	// fee
+	if pb.Fee != nil {
+		if _, err := NewFeeStub(bb.stub).CreateFee(pb.Account, *pb.Fee); err != nil {
 			return err
 		}
 	}
@@ -305,7 +295,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, receiver *Bala
 
 // Deposit _
 // It does not validate pending time!
-func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contract, amount, fee Amount, memo string) (*BalanceLog, error) {
+func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contract, amount Amount, fee *Amount, memo string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
@@ -323,7 +313,7 @@ func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contrac
 	}
 
 	// applied = -(amount + fee)
-	applied := amount.Copy().Add(&fee).Neg()
+	applied := amount.Copy().Add(fee).Neg()
 	sender.Amount.Add(applied)
 	sender.UpdatedTime = ts
 	if err = bb.PutBalance(sender); err != nil {
@@ -350,7 +340,10 @@ func (bb *BalanceStub) Withdraw(pb *PendingBalance) (*BalanceLog, error) {
 	if err != nil {
 		return nil, err
 	}
-	applied := pb.Amount.Copy().Add(&pb.Fee)
+	applied := pb.Amount.Copy()
+	if pb.Fee != nil {
+		applied = applied.Add(pb.Fee)
+	}
 	bal.Amount.Add(applied)
 	bal.UpdatedTime = ts
 	if err = bb.PutBalance(bal); err != nil {

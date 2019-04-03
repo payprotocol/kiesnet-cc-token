@@ -53,6 +53,7 @@ type BalanceLog struct {
 	Type         BalanceLogType `json:"type"`
 	RID          string         `json:"rid"` // relative ID
 	Diff         Amount         `json:"diff"`
+	Fee          *Amount        `json:"fee,omitempty"`
 	Amount       Amount         `json:"amount"`
 	Memo         string         `json:"memo"`
 	CreatedTime  *txtime.Time   `json:"created_time,omitempty"`
@@ -83,13 +84,14 @@ func NewBalanceSupplyLog(bal *Balance, diff Amount) *BalanceLog {
 }
 
 // NewBalanceTransferLog _
-func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, memo string) *BalanceLog {
+func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, fee *Amount, memo string) *BalanceLog {
 	if diff.Sign() < 0 { // sender log
 		return &BalanceLog{
 			DOCTYPEID: sender.DOCTYPEID,
 			Type:      BalanceLogTypeSend,
 			RID:       receiver.DOCTYPEID,
 			Diff:      diff,
+			Fee:       fee,
 			Amount:    sender.Amount,
 			Memo:      memo,
 		}
@@ -106,12 +108,12 @@ func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, memo string) 
 
 // NewBalanceDepositLog _
 func NewBalanceDepositLog(bal *Balance, pb *PendingBalance) *BalanceLog {
-	diff := pb.Amount.Copy().Add(&pb.Fee).Neg()
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypeDeposit,
 		RID:       pb.RID,
-		Diff:      *diff,
+		Diff:      pb.Amount,
+		Fee:       pb.Fee,
 		Amount:    bal.Amount,
 		Memo:      pb.Memo,
 	}
@@ -119,7 +121,10 @@ func NewBalanceDepositLog(bal *Balance, pb *PendingBalance) *BalanceLog {
 
 // NewBalanceWithdrawLog _
 func NewBalanceWithdrawLog(bal *Balance, pb *PendingBalance) *BalanceLog {
-	diff := pb.Amount.Copy().Add(&pb.Fee)
+	diff := pb.Amount.Copy()
+	if pb.Fee != nil {
+		diff = diff.Add(pb.Fee)
+	}
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypeWithdraw,
@@ -154,6 +159,7 @@ func NewBalanceRefundLog(bal *Balance, pay *Pay) *BalanceLog {
 		Diff:      *diff,
 		Amount:    bal.Amount,
 		Memo:      pay.Memo,
+		// PayID ?
 	}
 }
 
@@ -198,14 +204,14 @@ type PendingBalance struct {
 	Account     string             `json:"account"` // account ID (address)
 	RID         string             `json:"rid"`     // relative ID - account or contract
 	Amount      Amount             `json:"amount"`
-	Fee         Amount             `json:"fee,omitempty"`
+	Fee         *Amount            `json:"fee,omitempty"`
 	Memo        string             `json:"memo"`
 	CreatedTime *txtime.Time       `json:"created_time,omitempty"`
 	PendingTime *txtime.Time       `json:"pending_time,omitempty"`
 }
 
 // NewPendingBalance _
-func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount, fee Amount, memo string, pTime *txtime.Time) *PendingBalance {
+func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount Amount, fee *Amount, memo string, pTime *txtime.Time) *PendingBalance {
 	ptype := PendingBalanceTypeAccount
 	if _, ok := rel.(*contract.Contract); ok {
 		ptype = PendingBalanceTypeContract

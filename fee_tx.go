@@ -45,18 +45,6 @@ func feeList(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 
-	// genesis account
-	// addr, _ := ParseAddress(token.GenesisAccount) // err is nil
-	// ab := NewAccountStub(stub, code)
-	// account, err := ab.GetAccount(addr)
-	// if nil != err {
-	// 	return responseError(err, "failed to get the genesis account")
-	// }
-	// if !account.HasHolder(kid) { // authority
-	// 	return shim.Error("no authority")
-	// }
-	// genesis account is never suspended
-
 	bookmark := ""
 	fetchSize := 0
 	var stime, etime *txtime.Time
@@ -148,7 +136,7 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 		data, err := json.Marshal(feeSum)
 		if nil != err {
-			return shim.Error(err.Error())
+			return responseError(err, "failed to marshal the fee prune result")
 		}
 		return shim.Success(data)
 	}
@@ -247,7 +235,7 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	data, err := json.Marshal(feeSum)
 	if nil != err {
-		return shim.Error(err.Error())
+		return responseError(err, "failed to marshal the fee prune result")
 	}
 	return shim.Success(data)
 }

@@ -30,6 +30,11 @@ func NewAmountWithBigInt(bigInt *big.Int) *Amount {
 	return &Amount{Int: *bigInt}
 }
 
+// ZeroAmount _
+func ZeroAmount() *Amount {
+	return &Amount{}
+}
+
 // Add override
 func (a *Amount) Add(x *Amount) *Amount {
 	a.Int.Add(&a.Int, &x.Int)

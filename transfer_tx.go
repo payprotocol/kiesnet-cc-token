@@ -100,13 +100,13 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	fb := NewFeeStub(stub)
-	feeAmount, err := fb.CalcFee(sAddr, "transfer", *amount)
+	fee, err := fb.CalcFee(sAddr, "transfer", *amount)
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the fee amount")
 	}
 
-	applied := amount.Copy().Add(feeAmount)
+	applied := amount.Copy().Add(fee)
 
 	if sBal.Amount.Cmp(applied) < 0 {
 		return shim.Error("not enough balance")
@@ -181,7 +181,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		if pendingTime != nil {
 			ptStr = params[4]
 		}
-		doc := []string{"transfer", pbID, sender.GetID(), receiver.GetID(), amount.String(), memo, ptStr}
+		doc := []string{"transfer", pbID, sender.GetID(), receiver.GetID(), amount.String(), fee.String(), memo, ptStr}
 		docb, err := json.Marshal(doc)
 		if err != nil {
 			logger.Debug(err.Error())
@@ -192,13 +192,13 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return shim.Error(err.Error())
 		}
 		// pending balance
-		log, err = bb.Deposit(pbID, sBal, con, *amount, *feeAmount, memo)
+		log, err = bb.Deposit(pbID, sBal, con, *amount, fee, memo)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to create the pending balance")
 		}
 	} else { // instant sending
-		log, err = bb.Transfer(sBal, rBal, *amount, *feeAmount, memo, pendingTime)
+		log, err = bb.Transfer(sBal, rBal, *amount, *fee, memo, pendingTime)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to transfer")
@@ -217,7 +217,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 // contract callbacks
 
-// doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, memo, pending-time]
+// doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, fee, memo, pending-time]
 func cancelTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	if len(doc) < 2 {
 		return shim.Error("invalid contract document")
@@ -246,9 +246,9 @@ func cancelTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interfac
 	return shim.Success(nil)
 }
 
-// doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, memo, pending-time]
+// doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, fee, memo, pending-time]
 func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
-	if len(doc) < 7 {
+	if len(doc) < 8 {
 		return shim.Error("invalid contract document")
 	}
 
@@ -274,7 +274,7 @@ func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interfa
 	}
 
 	// pending time
-	ptStr := doc[6].(string)
+	ptStr := doc[7].(string)
 	var pendingTime *txtime.Time
 	if ptStr != "" && ptStr != "0" {
 		seconds, err := strconv.ParseInt(ptStr, 10, 64)
