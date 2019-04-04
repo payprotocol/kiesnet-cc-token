@@ -58,6 +58,13 @@ func (a *Amount) Neg() *Amount {
 	return a
 }
 
+// MulRat _
+func (a *Amount) MulRat(r *big.Rat) *Amount {
+	// floor
+	a.Int.Div(a.Int.Mul(&a.Int, r.Num()), r.Denom())
+	return a
+}
+
 // MarshalJSON override
 func (a *Amount) MarshalJSON() ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{'"'})

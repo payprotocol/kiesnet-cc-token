@@ -149,14 +149,13 @@ func (fb *FeeStub) CalcFee(payer *Address, fn string, amount Amount) (*Amount, e
 		if ok {
 			// no fee if the payer is the target address of fee policy.
 			if token.FeePolicy.TargetAddress != payer.String() {
+				// We've already checked validity of Rate on GetFeePolicy()
 				feeRateRat, _ := new(big.Rat).SetString(feeRate.Rate)
-				// amount * rate
-				rat := new(big.Rat).SetInt(&amount.Int)
-				rat.Mul(rat, feeRateRat)
-				if rat.Sign() < 0 { // fee must be zero or positive
+				// feeAmount = amount * rate
+				feeAmount := amount.Copy().MulRat(feeRateRat)
+				if feeAmount.Sign() < 0 { // fee must be zero or positive
 					return ZeroAmount(), nil
 				}
-				feeAmount, _ := NewAmount(rat.FloatString(0))
 				if feeRate.MaxAmount > 0 { // fee limit
 					maxAmount := NewAmountWithBigInt(big.NewInt(feeRate.MaxAmount))
 					if feeAmount.Cmp(maxAmount) > 0 { // feeAmount is gt.

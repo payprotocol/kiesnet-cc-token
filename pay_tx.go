@@ -290,10 +290,8 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 		// Some of total fee amount(which the merchant could receive) may be lost
 		// because below logic discards the precision, but it doesn't matter.
 		// feeAmount = amount * parentPay.Fee / parentPay.Amount
-		// feeAmount.Int = *big.NewInt(1).Div(big.NewInt(1).Mul(&amount.Int, &parentPay.Fee.Int), &parentPay.Amount.Int)
-		rat := new(big.Rat).SetFrac(&amount.Int, &parentPay.Amount.Int)
-		rat.Mul(rat, new(big.Rat).SetInt(&parentPay.Fee.Int))
-		feeAmount, _ = NewAmount(rat.FloatString(0))
+		rat := new(big.Rat).SetFrac(&parentPay.Fee.Int, &parentPay.Amount.Int)
+		feeAmount = amount.Copy().MulRat(rat)
 	} else { // total refund
 		feeAmount = parentPay.Fee.Copy()
 	}
