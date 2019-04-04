@@ -37,7 +37,7 @@ func (fb *FeeStub) CreateKey(id string) string {
 // CreateFee creates new fee utxo of given amount and puts the state.
 // If give amount is zero, it puts nothing and returns nil.
 func (fb *FeeStub) CreateFee(addr string, amount Amount) (*Fee, error) {
-	if amount.Sign() != 0 {
+	if amount.Sign() == 0 {
 		return nil, nil
 	}
 
