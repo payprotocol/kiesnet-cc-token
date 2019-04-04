@@ -108,11 +108,12 @@ func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, fee *Amount, 
 
 // NewBalanceDepositLog _
 func NewBalanceDepositLog(bal *Balance, pb *PendingBalance) *BalanceLog {
+	diff := pb.Amount.Copy().Neg()
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypeDeposit,
 		RID:       pb.RID,
-		Diff:      pb.Amount,
+		Diff:      *diff,
 		Fee:       pb.Fee,
 		Amount:    bal.Amount,
 		Memo:      pb.Memo,
