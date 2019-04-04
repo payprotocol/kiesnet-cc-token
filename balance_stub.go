@@ -313,8 +313,11 @@ func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contrac
 	}
 
 	// applied = -(amount + fee)
-	applied := amount.Copy().Add(fee).Neg()
-	sender.Amount.Add(applied)
+	applied := amount.Copy()
+	if fee != nil {
+		applied.Add(fee).Neg()
+	}
+	sender.Amount.Add(applied.Neg())
 	sender.UpdatedTime = ts
 	if err = bb.PutBalance(sender); err != nil {
 		return nil, err

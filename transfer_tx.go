@@ -106,6 +106,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("failed to get the fee amount")
 	}
 
+	// fee is not nil
 	applied := amount.Copy().Add(fee)
 
 	if sBal.Amount.Cmp(applied) < 0 {
