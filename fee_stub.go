@@ -147,8 +147,9 @@ func (fb *FeeStub) CalcFee(payer *Address, fn string, amount Amount) (*Amount, e
 	if token.FeePolicy != nil {
 		feeRate, ok := token.FeePolicy.Rates[fn]
 		if ok {
-			// no fee if the payer is the target address of fee policy.
-			if token.FeePolicy.TargetAddress != payer.String() {
+			payerAddr := payer.String()
+			// no fee if the payer is the target account of fee policy or the genesis account.
+			if token.GenesisAccount != payerAddr && token.FeePolicy.TargetAddress != payerAddr {
 				// We've already checked validity of Rate on GetFeePolicy()
 				feeRateRat, _ := new(big.Rat).SetString(feeRate.Rate)
 				// feeAmount = amount * rate
