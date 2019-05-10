@@ -312,12 +312,12 @@ func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contrac
 		return nil, errors.Wrap(err, "failed to create the pending balance")
 	}
 
-	// applied = -(amount + fee)
+	// applied = (amount + fee)
 	applied := amount.Copy()
 	if fee != nil {
-		applied.Add(fee).Neg()
+		applied.Add(fee)
 	}
-	sender.Amount.Add(applied.Neg())
+	sender.Amount.Add(applied.Neg())	// -applied
 	sender.UpdatedTime = ts
 	if err = bb.PutBalance(sender); err != nil {
 		return nil, err
