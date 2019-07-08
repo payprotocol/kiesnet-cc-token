@@ -154,6 +154,11 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [_memo_] : max 1024 charactors
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
 
+> query __`pay/get`__ [pay_id, _order_id_]
+- Get the pay (unspent token)
+- [pay_id] : pay ID
+- [_order_id_] : order ID (vendor specific)
+
 > invoke __`pay/refund`__ [original_pay_key, amount(+), _memo_ ] {_"kiesnet-id/pin"_}
 - refund the amount of token the based on original_pay_key 
 - [original_pay_key] : original_pay_key 
