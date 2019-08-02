@@ -59,6 +59,8 @@ var routes = map[string]TxFunc{
 	"token/update":             tokenUpdate,
 	"transfer":                 transfer,
 	"ver":                      ver,
+	// This func rolls back the state caused by the malfunction of fee prune logic. It must be executed one and only one time.
+	"rollback_all_feeprune_20190805": rollbackAllFeePrune20190805,
 }
 
 func ver(stub shim.ChaincodeStubInterface, params []string) peer.Response {

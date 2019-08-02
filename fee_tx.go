@@ -219,6 +219,7 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return responseError(err, "failed to update genesis account balance")
 		}
 		token.LastPrunedFeeID = feeSum.End
+		//TODO set token.UpdatedTime
 		err = tb.PutToken(token)
 		if nil != err {
 			return responseError(err, "failed to update the token")
