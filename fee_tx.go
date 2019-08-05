@@ -224,19 +224,23 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		if nil != err {
 			return responseError(err, "failed to update the token")
 		}
+
+		// balance log
+		pruneLog := NewBalancePruneFeeLog(bal, *feeSum.Sum, feeSum.Start, feeSum.End)
+		pruneLog.CreatedTime = ts
+		err = bb.PutBalanceLog(pruneLog)
+		if nil != err {
+			return responseError(err, "failed to save balance log")
+		}
+
+		data, err := json.Marshal(feeSum)
+		if nil != err {
+			return responseError(err, "failed to marshal the fee prune result")
+		}
+		return shim.Success(data)
 	}
 
-	// balance log
-	pruneLog := NewBalancePruneFeeLog(bal, *feeSum.Sum, feeSum.Start, feeSum.End)
-	pruneLog.CreatedTime = ts
-	err = bb.PutBalanceLog(pruneLog)
-	if nil != err {
-		return responseError(err, "failed to save balance log")
-	}
+	//if there is no fee to prune
+	return shim.Error("found no record to prune.")
 
-	data, err := json.Marshal(feeSum)
-	if nil != err {
-		return responseError(err, "failed to marshal the fee prune result")
-	}
-	return shim.Success(data)
 }
