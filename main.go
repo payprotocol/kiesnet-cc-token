@@ -15,12 +15,6 @@ type Chaincode struct {
 
 // Init implements shim.Chaincode interface.
 func (cc *Chaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
-	// This func rolls back the state caused by the malfunction of fee prune logic.
-	// It must be executed one and only one time.
-	err := rollbackAllFeePrune20190805(stub)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
 	return shim.Success(nil)
 }
 
