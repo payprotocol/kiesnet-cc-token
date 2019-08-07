@@ -437,6 +437,9 @@ func payPrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	//if there is no pay to prune
+	//XXX The error message is parsed to throw Exception at java sdk.
+	// DO NOT EDIT IT.
+	// DO NOT USE THIS MESSAGE ELSEWHERE.
 	return shim.Error("found no record to prune.")
 }
 
