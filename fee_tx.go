@@ -155,23 +155,37 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// ISSUE : What if target account is suspended?
 
 	stime := txtime.Unix(0, 0)
-	if len(token.LastPrunedFeeID) > 0 {
-		//TODO check fee id parsing logic
-		s, err := strconv.ParseInt(token.LastPrunedFeeID[0:10], 10, 64)
-		if nil != err {
-			return responseError(err, "failed to get seconds from timestamp")
-		}
-		//TODO check fee id parsing logic
-		n, err := strconv.ParseInt(token.LastPrunedFeeID[10:19], 10, 64)
-		if nil != err {
-			return responseError(err, "failed to get nanoseconds from timestamp")
-		}
-		stime = txtime.Unix(s, n)
-	}
 
 	ts, err := txtime.GetTime(stub)
 	if nil != err {
 		return responseError(err, "failed to get the timestamp")
+	}
+
+	lb := NewLastPrunedFeeIDStub(stub)
+	lastPrunedFeeID, err := lb.GetLastPrunedFeeID(code)
+	if nil != err {
+		if _, ok := err.(NotInitLastPrunedFeeIDError); ok {
+			// migration
+			lastPrunedFeeID = &LastPrunedFeeID{
+				DOCTYPEID: code,
+				FeeID:     token.LastPrunedFeeID,
+			}
+		}
+		return responseError(err, "failed to get the last pruned fee id")
+	}
+
+	if len(lastPrunedFeeID.FeeID) > 0 {
+		//TODO check fee id parsing logic
+		s, err := strconv.ParseInt(lastPrunedFeeID.FeeID[0:10], 10, 64)
+		if nil != err {
+			return responseError(err, "failed to get seconds from timestamp")
+		}
+		//TODO check fee id parsing logic
+		n, err := strconv.ParseInt(lastPrunedFeeID.FeeID[10:19], 10, 64)
+		if nil != err {
+			return responseError(err, "failed to get nanoseconds from timestamp")
+		}
+		stime = txtime.Unix(s, n)
 	}
 
 	var etime *txtime.Time
@@ -218,11 +232,11 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		if nil != err {
 			return responseError(err, "failed to update genesis account balance")
 		}
-		token.LastPrunedFeeID = feeSum.End
-		//TODO set token.UpdatedTime
-		err = tb.PutToken(token)
+		lastPrunedFeeID.FeeID = feeSum.End
+		lastPrunedFeeID.UpdatedTime = ts
+		err = lb.PutLastPrunedFeeID(lastPrunedFeeID)
 		if nil != err {
-			return responseError(err, "failed to update the token")
+			return responseError(err, "failed to update the last pruned fee id")
 		}
 
 		// balance log
