@@ -170,8 +170,9 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 				DOCTYPEID: code,
 				FeeID:     token.LastPrunedFeeID,
 			}
+		} else {
+			return responseError(err, "failed to get the last pruned fee id")
 		}
-		return responseError(err, "failed to get the last pruned fee id")
 	}
 
 	if len(lastPrunedFeeID.FeeID) > 0 {
