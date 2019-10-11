@@ -164,11 +164,18 @@ func feePrune(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	lb := NewLastPrunedFeeIDStub(stub)
 	lastPrunedFeeID, err := lb.GetLastPrunedFeeID(code)
 	if nil != err {
+		//TODO: unused code block from line 167 to line 180 after v1.2.5 version.
 		if _, ok := err.(NotInitLastPrunedFeeIDError); ok {
 			// migration
 			lastPrunedFeeID = &LastPrunedFeeID{
 				DOCTYPEID: code,
 				FeeID:     token.LastPrunedFeeID,
+			}
+			// this last_pruned_fee_id field will be never used after migration. delete it.
+			token.LastPrunedFeeID = ""
+			err = tb.PutToken(token)
+			if err != nil {
+				return responseError(err, "failed to update token state of removing last_pruned_fee_id")
 			}
 		} else {
 			return responseError(err, "failed to get the last pruned fee id")
