@@ -16,7 +16,7 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
-// params[0] : sender's address or token code
+// params[0] : sender's address or empty string
 // params[1] : receiver's address
 // params[2] : amount(>0)
 // params[3] : optional. order id
