@@ -26,6 +26,7 @@ var ctrRoutes = map[string][]CtrFunc{
 	"token/create":          []CtrFunc{contractVoid, executeTokenCreate},
 	"token/mint":            []CtrFunc{contractVoid, executeTokenMint},
 	"transfer":              []CtrFunc{cancelTransfer, executeTransfer},
+	"wrap":                  []CtrFunc{cancelTransfer, executeWrap},
 }
 
 // fnIdx : 0 = cancel, 1 = execute

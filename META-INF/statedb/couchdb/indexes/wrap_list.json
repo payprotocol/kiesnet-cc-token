@@ -1,0 +1,13 @@
+{
+    "index": {
+        "partial_filter_selector": {
+            "@wrap": {
+                "$exists": true
+            }
+        },
+        "fields": [ "@wrap", "code", "created_time" ]
+    },
+    "ddoc": "wrap",
+    "name": "list",
+    "type": "json"
+}

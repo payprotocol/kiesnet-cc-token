@@ -27,7 +27,7 @@ func (tb *TokenStub) CreateKey(code string) string {
 }
 
 // CreateToken _
-func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amount, feePolicy *FeePolicy, holders *stringset.Set) (*Token, error) {
+func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amount, feePolicy *FeePolicy, wrapInfo *WrapInfo, holders *stringset.Set) (*Token, error) {
 	// create genesis account (joint account)
 	ab := NewAccountStub(tb.stub, code)
 	account, balance, err := ab.CreateJointAccount(holders)
@@ -42,6 +42,17 @@ func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amo
 			}
 		} else {
 			feePolicy.TargetAddress = account.GetID()
+		}
+	}
+
+	//wrap
+	if wrapInfo != nil {
+		if len(wrapInfo.WPCIAddress) > 0 {
+			if _, err := ab.GetAccountState(wrapInfo.WPCIAddress); err != nil {
+				return nil, err
+			}
+		} else {
+			wrapInfo.WPCIAddress = account.GetID()
 		}
 	}
 
@@ -66,6 +77,7 @@ func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amo
 		Supply:         supply,
 		GenesisAccount: account.GetID(),
 		FeePolicy:      feePolicy,
+		WrapInfo:       wrapInfo,
 		CreatedTime:    ts,
 		UpdatedTime:    ts,
 	}

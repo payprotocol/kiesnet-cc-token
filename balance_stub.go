@@ -317,7 +317,7 @@ func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contrac
 	if fee != nil {
 		applied.Add(fee)
 	}
-	sender.Amount.Add(applied.Neg())	// -applied
+	sender.Amount.Add(applied.Neg()) // -applied
 	sender.UpdatedTime = ts
 	if err = bb.PutBalance(sender); err != nil {
 		return nil, err
@@ -364,4 +364,108 @@ func (bb *BalanceStub) Withdraw(pb *PendingBalance) (*BalanceLog, error) {
 	}
 
 	return log, nil
+}
+
+// Wrap _
+// bCode : bridge token code e.g. WPCI
+func (bb *BalanceStub) Wrap(sender, receiver *Balance, amount Amount, bCode, extID, memo string) (*BalanceLog, error) {
+	ts, err := txtime.GetTime(bb.stub)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the timestamp")
+	}
+
+	rId := sender.GetID()
+	wrapID := GetWrapId(receiver.GetID(), bb.stub.GetTxID())
+
+	wb := NewWrapStub(bb.stub)
+	if err = wb.CreateWrap(NewWrap(wrapID, bCode, amount, rId, extID, ts)); err != nil {
+		logger.Debug("error find")
+		logger.Debug(err.Error())
+		return nil, err
+	}
+
+	amount.Neg()
+	sender.Amount.Add(&amount)
+
+	//sender balance change
+	sender.UpdatedTime = ts
+	if err = bb.PutBalance(sender); err != nil {
+		logger.Debug(err.Error())
+		return nil, err
+	}
+	//sender balance log
+	sbl := NewBalanceWrapLog(sender, receiver, amount, memo, wrapID, extID)
+	sbl.CreatedTime = ts
+	if err = bb.PutBalanceLog(sbl); err != nil {
+		logger.Debug(err.Error())
+		return nil, err
+	}
+
+	return sbl, nil
+}
+
+// UnWrap _
+// bCode : bridge token code e.g. WPCI
+func (bb *BalanceStub) UnWrap(sender, receiver *Balance, amount Amount, bCode, extID, extTxID, memo string) (*BalanceLog, error) {
+	ts, err := txtime.GetTime(bb.stub)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the timestamp")
+	}
+
+	rId := receiver.GetID()
+	wrapID := GetWrapId(sender.GetID(), extTxID)
+
+	wb := NewWrapStub(bb.stub)
+	if err = wb.CreateWrap(NewWrap(wrapID, bCode, amount, rId, extID, ts)); err != nil {
+		logger.Debug("here")
+		return nil, err
+	}
+	logger.Debug("pass")
+
+	//receiver balance change
+	receiver.Amount.Add(&amount)
+	receiver.UpdatedTime = ts
+	if err = bb.PutBalance(receiver); err != nil {
+		return nil, err
+	}
+	//receiver balance log
+	rbl := NewBalanceUnWrapLog(sender, receiver, amount, memo, wrapID, extID, extTxID)
+	rbl.CreatedTime = ts
+	if err = bb.PutBalanceLog(rbl); err != nil {
+		return nil, err
+	}
+
+	return rbl, nil
+}
+
+// WrapPendingBalance wrap the sender's pending balance. (multi-sig contract)
+func (bb *BalanceStub) WrapPendingBalance(pb *PendingBalance, receiver *Balance, bCode, extID string) (*BalanceLog, error) {
+	ts, err := txtime.GetTime(bb.stub)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the timestamp")
+	}
+
+	rId := receiver.GetID()
+	wrapID := GetWrapId(rId, bb.stub.GetTxID())
+
+	wb := NewWrapStub(bb.stub)
+	if err := wb.CreateWrap(NewWrap(wrapID, bCode, pb.Amount, rId, extID, ts)); err != nil {
+		return nil, err
+	}
+
+	sender := &Balance{DOCTYPEID: pb.Account} // proxy
+
+	//receiver balance log
+	sbl := NewBalanceWrapLog(sender, receiver, *pb.Amount.Neg(), pb.Memo, wrapID, extID)
+	sbl.CreatedTime = ts
+	if err = bb.PutBalanceLog(sbl); err != nil {
+		return nil, err
+	}
+
+	// remove pending balance
+	if err = bb.stub.DelState(bb.CreatePendingKey(pb.DOCTYPEID)); err != nil {
+		return nil, errors.Wrap(err, "failed to delete the pending balance")
+	}
+
+	return sbl, nil
 }
