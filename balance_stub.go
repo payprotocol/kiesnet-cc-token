@@ -379,7 +379,6 @@ func (bb *BalanceStub) Wrap(sender, receiver *Balance, amount Amount, bCode, ext
 
 	wb := NewWrapStub(bb.stub)
 	if err = wb.CreateWrap(NewWrap(wrapID, bCode, amount, rId, extID, ts)); err != nil {
-		logger.Debug("error find")
 		logger.Debug(err.Error())
 		return nil, err
 	}
@@ -417,10 +416,8 @@ func (bb *BalanceStub) UnWrap(sender, receiver *Balance, amount Amount, bCode, e
 
 	wb := NewWrapStub(bb.stub)
 	if err = wb.CreateWrap(NewWrap(wrapID, bCode, amount, rId, extID, ts)); err != nil {
-		logger.Debug("here")
 		return nil, err
 	}
-	logger.Debug("pass")
 
 	//receiver balance change
 	receiver.Amount.Add(&amount)

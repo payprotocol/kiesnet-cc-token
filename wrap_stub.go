@@ -26,23 +26,17 @@ func NewWrapStub(stub shim.ChaincodeStubInterface) *WrapStub {
 // CreateWrap
 func (wb *WrapStub) CreateWrap(wrap *Wrap) error {
 	data, err := json.Marshal(wrap)
-	logger.Debug("createWrap")
 	if err != nil {
-		logger.Debug("createWrap-1")
 		return errors.Wrap(err, "failed to marshal the wrap")
 	}
 	ok, err := wb.LoadWrap(wrap.DOCTYPEID)
 	if err != nil {
-		logger.Debug("createWrap-2")
 		return errors.Wrap(err, "failed to retrieve the wrap")
 	}
 	if ok {
-		logger.Debug("createWrap-3")
 		return errors.New("wrap aleady exists")
 	}
-	logger.Debug("createWrap-4")
 	if err = wb.stub.PutState(wrap.DOCTYPEID, data); err != nil {
-		logger.Debug("createWrap-5")
 		return errors.Wrap(err, "failed to put the wrap state")
 	}
 	return nil
