@@ -588,6 +588,13 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 		return shim.Error("invalid pending balance")
 	}
 
+	// sender balance : using response
+	sBal, err := bb.GetBalance(doc[2].(string))
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the sender's balance")
+	}
+
 	fb := NewFeeStub(stub)
 	rAddr, _ := ParseAddress(doc[3].(string)) // merchant
 	feeAmount, err := fb.CalcFee(rAddr, "pay", pb.Amount)
@@ -595,9 +602,15 @@ func executePay(stub shim.ChaincodeStubInterface, cid string, doc []interface{})
 		return responseError(err, "failed to get the fee amount")
 	}
 	// ISSUE: check accounts ? (suspended) Business...
-	if err = NewPayStub(stub).PayPendingBalance(pb, *feeAmount, doc[3].(string), doc[5].(string), doc[6].(string)); err != nil {
+	payResult, err := NewPayStub(stub).PayPendingBalance(pb, sBal, *feeAmount, doc[3].(string), doc[5].(string), doc[6].(string))
+	if err != nil {
 		return responseError(err, "failed to pay a pending balance")
 	}
 
-	return shim.Success(nil)
+	data, err := json.Marshal(payResult)
+	if nil != err {
+		return responseError(err, "failed to marshal the log")
+	}
+
+	return shim.Success(data)
 }

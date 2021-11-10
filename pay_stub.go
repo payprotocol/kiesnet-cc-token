@@ -247,10 +247,10 @@ func (pb *PayStub) GetPaysByTime(id, sortOrder, bookmark string, stime, etime *t
 }
 
 // PayPendingBalance _
-func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, fee Amount, merchant, memo, orderID string) error {
+func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, sender *Balance, fee Amount, merchant, memo, orderID string) (*PayResult, error) {
 	ts, err := txtime.GetTime(pb.stub)
 	if nil != err {
-		return err
+		return nil, err
 	}
 
 	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
@@ -258,12 +258,17 @@ func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, fee Amount, merch
 	// Put pay
 	pay := NewPay(merchant, payid, pbalance.Amount, fee, pbalance.Account, "", orderID, memo, ts)
 	if err = pb.PutPay(pay); nil != err {
-		return errors.Wrap(err, "failed to put new pay")
+		return nil, errors.Wrap(err, "failed to put new pay")
 	}
 
 	// remove pending balance
 	if err := pb.stub.DelState(NewBalanceStub(pb.stub).CreatePendingKey(pbalance.DOCTYPEID)); err != nil {
-		return errors.Wrap(err, "failed to delete the pending balance")
+		return nil, errors.Wrap(err, "failed to delete the pending balance")
 	}
-	return nil
+
+	var sbl *BalanceLog
+	sbl = NewBalancePayLog(sender, pay)
+	sbl.CreatedTime = ts
+
+	return NewPayResult(pay, sbl), nil
 }

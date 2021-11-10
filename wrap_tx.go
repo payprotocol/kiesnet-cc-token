@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -16,12 +15,13 @@ import (
 // params[1] : external token code(wpci, ...)
 // params[2] : external adress(wpci, ...)
 // params[3] : amount (big int string) must bigger than 0
-// params[4] : memo (see MemoMaxLength)
-// params[5] : expiry (duration represented by int64 seconds, multi-sig only)
-// params[6:] : extra signers (personal account addresses)
+// params[4] : fee (big int string) must bigger than 0
+// params[5] : memo (see MemoMaxLength)
+// params[6] : expiry (duration represented by int64 seconds, multi-sig only)
+// params[7:] : extra signers (personal account addresses)
 func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	//1. param check
-	if len(params) < 4 {
+	if len(params) < 5 {
 		return shim.Error("incorrect number of parameters. expecting 3+")
 	}
 
@@ -31,12 +31,8 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 
-	//token code check code must be WPCI
-	extCode, err := ValidateExtTokenCode(params[1])
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
+	//external code
+	extCode := params[1]
 	//external address, need to check validate?
 	extID := params[2]
 
@@ -55,18 +51,21 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("failed to parse the sender's account address")
 	}
 	code, err := ValidateTokenCode(sAddr.Code)
-	if nil != err {
+	if err != nil {
 		return shim.Error(err.Error())
 	}
 
 	// receiver address get
 	tb := NewTokenStub(stub)
 	token, err := tb.GetToken(code)
-	if nil != err {
+	if err != nil {
 		return responseError(err, "failed to get the token")
 	}
-	//if add another brigde token, change this code
-	rAddr, _ := ParseAddress(token.WrapInfo.WPCIAddress)
+	//token code check and get wrap address
+	rAddr, err := ParseWrapAddress(params[1], *token)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
 
 	//sender = receiver
 	if sAddr.Equal(rAddr) {
@@ -109,30 +108,44 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("failed to get the receiver's balance")
 	}
 
+	//fee check
+	fee, err := NewAmount(params[4])
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	if amount.Sign() <= 0 {
+		return shim.Error("invalid fee. must be greater than 0")
+	}
+
+	applied := amount.Copy().Add(fee)
+
 	// asume there's no fee in here
-	if sBal.Amount.Cmp(amount) < 0 {
+	if sBal.Amount.Cmp(applied) < 0 {
 		return shim.Error("not enough balance")
 	}
 
 	memo := ""
 	var expiry int64
 	signers := stringset.New(kid)
-	if len(params) > 4 {
+	if a, ok := sender.(*JointAccount); ok {
+		signers.AppendSet(a.Holders)
+	}
+	if len(params) > 5 {
 		// memo
-		if len(params[4]) > MemoMaxLength { // length limit
-			memo = params[4][:MemoMaxLength]
+		if len(params[5]) > MemoMaxLength { // length limit
+			memo = params[5][:MemoMaxLength]
 		} else {
-			memo = params[4]
+			memo = params[5]
 		}
 		// expiry
-		if len(params) > 5 && len(params[5]) > 0 {
-			expiry, err = strconv.ParseInt(params[5], 10, 64)
+		if len(params) > 6 && len(params[6]) > 0 {
+			expiry, err = strconv.ParseInt(params[6], 10, 64)
 			if err != nil {
 				return shim.Error("invalid expiry: need seconds")
 			}
 			// extra signers
 			if len(params) > 6 {
-				addrs := stringset.New(params[6:]...) // remove duplication
+				addrs := stringset.New(params[7:]...) // remove duplication
 				for addr := range addrs.Map() {
 					kids, err := ab.GetSignableIDs(addr)
 					if err != nil {
@@ -145,15 +158,15 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	var log *BalanceLog // log for response
+	wrapResult := &WrapResult{}
 	if signers.Size() > 1 {
 		//TODO multisig
-		fmt.Printf(fmt.Sprintf("%s", expiry))
 		if signers.Size() > 128 {
 			return shim.Error("too many signers")
 		}
 		// pending balance id
 		pbID := stub.GetTxID()
-		doc := []string{"wrap", pbID, sender.GetID(), receiver.GetID(), amount.String(), extCode, extID, memo}
+		doc := []string{"wrap", pbID, sender.GetID(), receiver.GetID(), extCode, extID, amount.String(), fee.String(), memo}
 		docb, err := json.Marshal(doc)
 		if err != nil {
 			logger.Debug(err.Error())
@@ -164,20 +177,24 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return shim.Error(err.Error())
 		}
 		// pending balance
-		log, err = bb.Deposit(pbID, sBal, con, *amount, nil, memo)
+		log, err = bb.Deposit(pbID, sBal, con, *amount, fee, memo)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to create the pending balance")
 		}
 	} else {
-		log, err = bb.Wrap(sBal, rBal, *amount, extCode, extID, memo)
+		wb := NewWrapStub(stub)
+		wrapResult, err = wb.Wrap(sBal, rBal, *amount, *fee, extID, memo)
 		if err != nil {
 			return shim.Error("failed to wrap")
 		}
 	}
 
-	// log is not nil
-	data, err := json.Marshal(log)
+	if wrapResult.BalanceLog == nil {
+		wrapResult.BalanceLog = log
+	}
+
+	data, err := json.Marshal(wrapResult)
 	if err != nil {
 		return shim.Error("failed to marshal the log")
 	}
@@ -204,12 +221,6 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error(err.Error())
 	}
 
-	//token code check code must be WPCI
-	extCode, err := ValidateExtTokenCode(params[1])
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
 	//external address, txId, need to check validate?
 	extID := params[2]
 	extTxID := params[3]
@@ -229,18 +240,21 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("failed to parse the sender's account address")
 	}
 	code, err := ValidateTokenCode(rAddr.Code)
-	if nil != err {
+	if err != nil {
 		return shim.Error(err.Error())
 	}
 
 	// receiver address get
 	tb := NewTokenStub(stub)
 	token, err := tb.GetToken(code)
-	if nil != err {
+	if err != nil {
 		return responseError(err, "failed to get the token")
 	}
-	//if add another brigde token, change this code
-	sAddr, _ := ParseAddress(token.WrapInfo.WPCIAddress)
+	//check wrap address with external code
+	sAddr, err := ParseWrapAddress(params[1], *token)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
 
 	//sender = receiver
 	if sAddr.Equal(rAddr) {
@@ -292,13 +306,13 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 	}
 
-	log, err := bb.UnWrap(sBal, rBal, *amount, extCode, extID, extTxID, memo)
+	wb := NewWrapStub(stub)
+	wrapResult, err := wb.UnWrap(sBal, rBal, *amount, extID, extTxID, memo)
 	if err != nil {
 		return shim.Error("failed to unwrap")
 	}
 
-	// log is not nil
-	data, err := json.Marshal(log)
+	data, err := json.Marshal(wrapResult)
 	if err != nil {
 		return shim.Error("failed to marshal the log")
 	}
@@ -306,10 +320,10 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// doc: ["wrap", pending-balance-ID, sender-ID, receiver-ID, amount, bridge-Code, bridge-ID, memo]
+// doc: ["wrap", pending-balance-ID, sender-ID, receiver-ID, external-Code, external-adress, amount, fee, memo]
 func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	// param check
-	if len(doc) < 8 {
+	if len(doc) < 9 {
 		return shim.Error("invalid contract document")
 	}
 
@@ -325,19 +339,24 @@ func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}
 		return shim.Error("invalid pending balance")
 	}
 
+	// sender balance
+	sBal, err := bb.GetBalance(doc[3].(string))
+	if err != nil {
+		return shim.Error("failed to get the sender's balance")
+	}
+
 	// receiver balance
 	rBal, err := bb.GetBalance(doc[3].(string))
 	if err != nil {
 		return shim.Error("failed to get the receiver's balance")
 	}
 
-	log, err := bb.WrapPendingBalance(pb, rBal, doc[5].(string), doc[6].(string))
+	wrapResult, err := NewWrapStub(stub).WrapPendingBalance(pb, sBal, rBal, doc[5].(string))
 	if err != nil {
 		return shim.Error("failed to wrap")
 	}
 
-	// log is not nil
-	data, err := json.Marshal(log)
+	data, err := json.Marshal(wrapResult)
 	if err != nil {
 		return shim.Error("failed to marshal the log")
 	}

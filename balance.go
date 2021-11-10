@@ -65,8 +65,6 @@ type BalanceLog struct {
 	PruneEndID   string         `json:"prune_end_id,omitempty"`   // used for pruned balance log
 	PayID        string         `json:"pay_id,omitempty"`         // used for pay balance log
 	WrapID       string         `json:"wrap_id,omitempty"`        // used for wrap/unwrap balance log
-	ExtID        string         `json:"ext_id,omitempty"`         // used for wrap/unwrap balance log
-	ExtTxID      string         `json:"ext_tx_id,omitempty"`      // used for unwrap balance log
 }
 
 // MemoMaxLength is used to limit memo field length (BalanceLog, PendingBalance, Pay)
@@ -195,20 +193,20 @@ func NewBalancePruneFeeLog(bal *Balance, amount Amount, Start, End string) *Bala
 	}
 }
 
-func NewBalanceWrapLog(sender, receiver *Balance, diff Amount, memo, wrapID, extID string) *BalanceLog {
+func NewBalanceWrapLog(sender, receiver *Balance, diff Amount, fee *Amount, memo, wrapID string) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID: sender.DOCTYPEID,
 		Type:      BalanceLogTypeWrap,
 		RID:       receiver.DOCTYPEID,
 		Diff:      diff,
 		Amount:    sender.Amount,
+		Fee:       fee,
 		Memo:      memo,
 		WrapID:    wrapID,
-		ExtID:     extID,
 	}
 }
 
-func NewBalanceUnWrapLog(sender, receiver *Balance, diff Amount, memo, wrapID, extID, extTxID string) *BalanceLog {
+func NewBalanceUnWrapLog(sender, receiver *Balance, diff Amount, memo, wrapID string) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID: receiver.DOCTYPEID,
 		Type:      BalanceLogTypeUnWrap,
@@ -217,8 +215,6 @@ func NewBalanceUnWrapLog(sender, receiver *Balance, diff Amount, memo, wrapID, e
 		Amount:    receiver.Amount,
 		Memo:      memo,
 		WrapID:    wrapID,
-		ExtID:     extID,
-		ExtTxID:   extTxID,
 	}
 }
 

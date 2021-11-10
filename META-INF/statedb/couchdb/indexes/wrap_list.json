@@ -5,7 +5,7 @@
                 "$exists": true
             }
         },
-        "fields": [ "@wrap", "code", "created_time" ]
+        "fields": [ "@wrap", "type", "created_time" ]
     },
     "ddoc": "wrap",
     "name": "list",

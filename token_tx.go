@@ -490,11 +490,17 @@ func executeTokenBurn(stub shim.ChaincodeStubInterface, cid string, doc []interf
 		return responseError(err, "failed to get the genesis account balance")
 	}
 
-	if _, _, err = tb.Burn(token, bal, *amount); err != nil {
+	token, log, err := tb.Burn(token, bal, *amount)
+	if err != nil {
 		return responseError(err, "failed to burn")
 	}
 
-	return shim.Success(nil)
+	payload := &TokenResult{Token: token, BalanceLog: log}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return responseError(err, "failed to marshal payload")
+	}
+	return shim.Success(data)
 }
 
 // doc: ["token/create", code, [co-holders...]]
@@ -558,9 +564,15 @@ func executeTokenMint(stub shim.ChaincodeStubInterface, cid string, doc []interf
 		return responseError(err, "failed to get the genesis account balance")
 	}
 
-	if _, _, err = tb.Mint(token, bal, *amount); err != nil {
+	token, log, err := tb.Mint(token, bal, *amount)
+	if err != nil {
 		return responseError(err, "failed to mint")
 	}
 
-	return shim.Success(nil)
+	payload := &TokenResult{Token: token, BalanceLog: log}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return responseError(err, "failed to marshal payload")
+	}
+	return shim.Success(data)
 }

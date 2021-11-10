@@ -267,6 +267,13 @@ func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interfa
 
 	// ISSUE: check accounts ? (suspended)
 
+	// sender balance : using response
+	sBal, err := bb.GetBalance(doc[2].(string))
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the sender's balance")
+	}
+
 	// receiver balance
 	rBal, err := bb.GetBalance(doc[3].(string))
 	if err != nil {
@@ -286,10 +293,18 @@ func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interfa
 	}
 
 	// transfer
-	if err = bb.TransferPendingBalance(pb, rBal, pendingTime); err != nil {
+	log, err := bb.TransferPendingBalance(pb, sBal, rBal, pendingTime)
+	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to transfer a pending balance")
 	}
 
-	return shim.Success(nil)
+	// log is not nil
+	data, err := json.Marshal(log)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to marshal the log")
+	}
+
+	return shim.Success(data)
 }
