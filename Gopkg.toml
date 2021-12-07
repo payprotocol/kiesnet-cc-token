@@ -24,6 +24,11 @@
 #   go-tests = true
 #   unused-packages = true
 
+[[constraint]]
+  name = "github.com/key-inside/kiesnet-ccpkg"
+  branch = "master"
+  source = "src/github.com/key-inside/chaincode/kiesnet-ccpkg"
+
 ignored = [
   "github.com/hyperledger/fabric/core/chaincode/shim",
   "github.com/hyperledger/fabric/protos/*"

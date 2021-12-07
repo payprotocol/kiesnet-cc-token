@@ -95,7 +95,7 @@ type NotExistedAccountError struct {
 // Error implements error interface
 func (e NotExistedAccountError) Error() string {
 	if len(e.addr) > 0 {
-		return fmt.Sprintf("the account [%s] doest not exist", e.addr)
+		return fmt.Sprintf("the account [%s] does not exist", e.addr)
 	}
 	return "the account does not exist"
 }
@@ -126,4 +126,24 @@ func (e NotExistedFeeError) Error() string {
 		return fmt.Sprintf("the fee id [%s] does not exist", e.id)
 	}
 	return "the fee does not exist"
+}
+
+// DuplicateWrapError occurs when CreateWrap() has duplcate key
+type DuplicateWrapError struct {
+	ResponsibleErrorImpl
+}
+
+// Error implements error interface
+func (e DuplicateWrapError) Error() string {
+	return "the wrap id already exists"
+}
+
+// PutWrapError occurs when CreateWrap() conflict
+type PutWrapError struct {
+	ResponsibleErrorImpl
+}
+
+// Error implements error interface
+func (e PutWrapError) Error() string {
+	return "the wrap id failed to put the wrap state"
 }

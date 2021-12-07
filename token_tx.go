@@ -330,7 +330,7 @@ func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	}
 
 	// get token meta
-	_, _, _, policy, wrapInfo, err := getValidatedTokenMeta(stub, code)
+	_, _, _, policy, wrapBridge, err := getValidatedTokenMeta(stub, code)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -367,19 +367,19 @@ func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		update = true
 	}
 
-	if wrapInfo != nil {
-		if len(wrapInfo.WPCIAddress) > 0 {
-			if _, err := NewAccountStub(stub, code).GetAccountState(wrapInfo.WPCIAddress); err != nil {
+	if wrapBridge != nil {
+		if len(wrapBridge.WPCIAddress) > 0 {
+			if _, err := NewAccountStub(stub, code).GetAccountState(wrapBridge.WPCIAddress); err != nil {
 				return responseError(err, "failed to set a target address")
 			}
 		} else { // No new target address input. Do not edit current value.
-			if len(token.WrapInfo.WPCIAddress) == 0 {
-				wrapInfo.WPCIAddress = token.GenesisAccount
+			if len(token.WrapBridge.WPCIAddress) == 0 {
+				wrapBridge.WPCIAddress = token.GenesisAccount
 			} else {
-				wrapInfo.WPCIAddress = token.WrapInfo.WPCIAddress
+				wrapBridge.WPCIAddress = token.WrapBridge.WPCIAddress
 			}
 		}
-		token.WrapInfo = wrapInfo
+		token.WrapBridge = wrapBridge
 		update = true
 	}
 
@@ -423,7 +423,7 @@ func invokeKNT(stub shim.ChaincodeStubInterface, code string, params []string) (
 	return nil, errors.New(res.GetMessage())
 }
 
-func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, *Amount, *Amount, *FeePolicy, *WrapInfo, error) {
+func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, *Amount, *Amount, *FeePolicy, *WrapBridge, error) {
 	// get token meta
 	meta, err := invokeKNT(stub, code, []string{"token"})
 	if err != nil {
@@ -457,9 +457,9 @@ func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, 
 		policy.TargetAddress = metaMap["target_address"]
 	}
 
-	wrapInfo := NewWrapInfo(metaMap["wpci_address"])
+	wrapBridge := NewWrapInfo(metaMap["wpci_address"])
 
-	return decimal, maxSupply, supply, policy, wrapInfo, nil
+	return decimal, maxSupply, supply, policy, wrapBridge, nil
 }
 
 // contract callbacks
