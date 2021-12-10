@@ -7,7 +7,6 @@ import (
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/peer"
-	"github.com/key-inside/kiesnet-ccpkg/bridge"
 	"github.com/key-inside/kiesnet-ccpkg/contract"
 	"github.com/key-inside/kiesnet-ccpkg/kid"
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
@@ -17,13 +16,12 @@ import (
 // params[1] : external token code(wpci, ...)
 // params[2] : external adress(wpci, ...)
 // params[3] : amount (big int string) must bigger than 0
-// params[4] : fee (big int string) must bigger than 0
-// params[5] : memo (see MemoMaxLength)
-// params[6] : expiry (duration represented by int64 seconds, multi-sig only)
-// params[7:] : extra signers (personal account addresses)
+// params[4] : memo (see MemoMaxLength)
+// params[5] : expiry (duration represented by int64 seconds, multi-sig only)
+// params[6:] : extra signers (personal account addresses)
 func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	//1. param check
-	if len(params) < 5 {
+	if len(params) < 4 {
 		return shim.Error("incorrect number of parameters. expecting 3+")
 	}
 
@@ -36,7 +34,7 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	//external code
 	extCode := strings.ToUpper(params[1])
 	//external address
-	extID, err := bridge.NormalizeAddress(params[2])
+	extID, err := NormalizeExtAddress(params[2])
 	if err != nil {
 		return shim.Error("invalid ext address")
 	}
@@ -109,14 +107,13 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	//fee check
-	fee, err := NewAmount(params[4])
+	fb := NewFeeStub(stub)
+	fee, err := fb.CalcFee(sAddr, "wrap", *amount)
 	if err != nil {
-		return shim.Error(err.Error())
+		logger.Debug(err.Error())
+		return shim.Error("failed to get the fee amount")
 	}
-	if amount.Sign() < 0 {
-		return shim.Error("invalid fee. must be greater than 0")
-	}
-
+	logger.Debug(fee)
 	applied := amount.Copy().Add(fee)
 
 	// asume there's no fee in here
@@ -130,22 +127,22 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if a, ok := sender.(*JointAccount); ok {
 		signers.AppendSet(a.Holders)
 	}
-	if len(params) > 5 {
+	if len(params) > 4 {
 		// memo
-		if len(params[5]) > MemoMaxLength { // length limit
-			memo = params[5][:MemoMaxLength]
+		if len(params[4]) > MemoMaxLength { // length limit
+			memo = params[4][:MemoMaxLength]
 		} else {
-			memo = params[5]
+			memo = params[4]
 		}
 		// expiry
-		if len(params) > 6 && len(params[6]) > 0 {
-			expiry, err = strconv.ParseInt(params[6], 10, 64)
+		if len(params) > 5 && len(params[5]) > 0 {
+			expiry, err = strconv.ParseInt(params[5], 10, 64)
 			if err != nil {
 				return shim.Error("invalid expiry: need seconds")
 			}
 			// extra signers
 			if len(params) > 6 {
-				addrs := stringset.New(params[7:]...) // remove duplication
+				addrs := stringset.New(params[6:]...) // remove duplication
 				for addr := range addrs.Map() {
 					kids, err := ab.GetSignableIDs(addr)
 					if err != nil {
@@ -165,7 +162,7 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 		// pending balance id
 		pbID := stub.GetTxID()
-		doc := []string{"wrap", pbID, sender.GetID(), extCode, extID, amount.String(), fee.String(), memo}
+		doc := []string{"wrap", pbID, sender.GetID(), amount.String(), fee.String(), extCode, extID, memo}
 		docb, err := json.Marshal(doc)
 		if err != nil {
 			logger.Debug(err.Error())
@@ -220,7 +217,7 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	extCode := strings.ToUpper(params[1])
 
 	//external address
-	extID, err := bridge.NormalizeAddress(params[2])
+	extID, err := NormalizeExtAddress(params[2])
 	if err != nil {
 		return shim.Error("invalid ext address")
 	}
@@ -321,10 +318,10 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// doc: ["wrap", pending-balance-ID, sender-ID, external-Code, external-adress, amount, fee, memo]
+// doc: ["wrap", pending-balance-ID, sender-ID, amount, fee, external-Code, external-adress, memo]
 func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	// param check
-	if len(doc) < 8 {
+	if len(doc) < 7 {
 		return shim.Error("invalid contract document")
 	}
 
@@ -346,7 +343,7 @@ func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}
 		return shim.Error("failed to get the sender's balance")
 	}
 
-	log, err := NewWrapStub(stub).WrapPendingBalance(pb, sBal, doc[3].(string), doc[4].(string))
+	log, err := NewWrapStub(stub).WrapPendingBalance(pb, sBal, doc[5].(string), doc[6].(string))
 	if err != nil {
 		return shim.Error("failed to wrap")
 	}

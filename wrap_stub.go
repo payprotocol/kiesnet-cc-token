@@ -99,10 +99,11 @@ func (wb *WrapStub) Wrap(sender *Balance, amount, fee Amount, tokenCode, extID, 
 		return nil, err
 	}
 
-	// fee if need remove this comment
-	// if _, err := NewFeeStub(wb.stub).CreateFee(sender.GetID(), fee); err != nil {
-	// 	return nil, err
-	// }
+	_, err = NewFeeStub(wb.stub).CreateFee(sender.GetID(), fee)
+	if err != nil {
+		logger.Debug(err.Error())
+		return nil, err
+	}
 
 	return sbl, nil
 }
@@ -151,12 +152,12 @@ func (wb *WrapStub) WrapPendingBalance(pb *PendingBalance, sender *Balance, toke
 	sender.Amount.Add(&pb.Amount)
 	sender.UpdatedTime = ts
 
-	// fee if needed remove this comment
-	// if pb.Fee != nil {
-	// 	if _, err := NewFeeStub(wb.stub).CreateFee(pb.Account, *pb.Fee); err != nil {
-	// 		return nil, err
-	// 	}
-	// }
+	//fee gen
+	if pb.Fee != nil {
+		if _, err := NewFeeStub(wb.stub).CreateFee(pb.Account, *pb.Fee); err != nil {
+			return nil, err
+		}
+	}
 
 	//sender balance log
 	sbl := NewBalanceWrapLog(sender, pb.Amount, pb.Fee, pb.Memo, tokenCode, extID)

@@ -145,6 +145,8 @@ func (fb *FeeStub) CalcFee(payer *Address, fn string, amount Amount) (*Amount, e
 	}
 
 	if token.FeePolicy != nil {
+		logger.Debug("not nil")
+		logger.Debug(token.FeePolicy)
 		feeRate, ok := token.FeePolicy.Rates[fn]
 		if ok {
 			payerAddr := payer.String()

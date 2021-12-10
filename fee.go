@@ -31,7 +31,9 @@ func isValidFn(fn string) bool {
 	switch fn {
 	case "transfer":
 		fallthrough
-	case "pay": // All valid fee rate type case should fallthrough here, the last one.
+	case "pay":
+		fallthrough
+	case "wrap": // All valid fee rate type case should fallthrough here, the last one.
 		return true
 	}
 	return false
