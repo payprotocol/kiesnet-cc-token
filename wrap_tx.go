@@ -112,10 +112,9 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the fee amount")
 	}
-	logger.Debug(fee)
-	applied := amount.Copy().Add(fee)
 
-	// asume there's no fee in here
+	// banlance must bigger than amount+fee
+	applied := amount.Copy().Add(fee)
 	if sBal.Amount.Cmp(applied) < 0 {
 		return shim.Error("not enough balance")
 	}
@@ -321,7 +320,7 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // doc: ["wrap", pending-balance-ID, sender-ID, amount, fee, external-Code, external-adress, memo]
 func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	// param check
-	if len(doc) < 7 {
+	if len(doc) < 8 {
 		return shim.Error("invalid contract document")
 	}
 
