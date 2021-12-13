@@ -14,39 +14,39 @@ type WrapStub struct {
 	stub shim.ChaincodeStubInterface
 }
 
-// GetUnWrapId
-func GetUnWrapId(txID string) string {
-	return fmt.Sprintf("UNWRAP_%s", txID)
-}
-
 // NewWrapStub
 func NewWrapStub(stub shim.ChaincodeStubInterface) *WrapStub {
 	return &WrapStub{stub}
 }
 
-// CreateWrap
-func (wb *WrapStub) CreateWrap(wrapID string) error {
+// GetUnWrapId
+func GetUnWrapId(txID string) string {
+	return fmt.Sprintf("UNWRAP_%s", txID)
+}
+
+// createUnWrap
+func (wb *WrapStub) createUnWrap(wrapID string) error {
 	data, err := json.Marshal(&Wrap{})
 	if err != nil {
-		return errors.Wrap(err, "failed to marshal wrap")
+		return errors.Wrap(err, "failed to marshal unwrap")
 	}
-	ok, err := wb.LoadWrap(wrapID)
+	ok, err := wb.loadUnWrap(wrapID)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve the wrap")
+		return errors.Wrap(err, "failed to retrieve the unwrap")
 	}
 	if ok {
 		return DuplicateWrapError{}
 	}
 	if err = wb.stub.PutState(wrapID, data); err != nil {
-		return DuplicateWrapError{}
+		return errors.Wrap(err, "failed to create unwrap")
 	}
 	return nil
 }
 
-// LoadWrap _ ok means exists
-func (wb *WrapStub) LoadWrap(id string) (ok bool, err error) {
+// loadUnWrap _ ok means exists
+func (wb *WrapStub) loadUnWrap(id string) (ok bool, err error) {
 	ok = false
-	data, err := wb.GetWrapState(id)
+	data, err := wb.getWrapState(id)
 	if err != nil {
 		return
 	}
@@ -60,8 +60,8 @@ func (wb *WrapStub) LoadWrap(id string) (ok bool, err error) {
 	return
 }
 
-// GetWrapState
-func (wb *WrapStub) GetWrapState(id string) ([]byte, error) {
+// getWrapState
+func (wb *WrapStub) getWrapState(id string) ([]byte, error) {
 	data, err := wb.stub.GetState(id)
 	if err != nil {
 		logger.Debug(err.Error())
@@ -85,13 +85,13 @@ func (wb *WrapStub) Wrap(sender *Balance, amount, fee Amount, tokenCode, extID, 
 	sender.Amount.Add(&amount)
 	sender.Amount.Add(fee.Copy().Neg())
 
-	//sender balance change
+	// sender balance change
 	sender.UpdatedTime = ts
 	if err = NewBalanceStub(wb.stub).PutBalance(sender); err != nil {
 		logger.Debug(err.Error())
 		return nil, err
 	}
-	//sender balance log
+	// sender balance log
 	sbl := NewBalanceWrapLog(sender, amount, &fee, memo, tokenCode, extID)
 	sbl.CreatedTime = ts
 	if err = NewBalanceStub(wb.stub).PutBalanceLog(sbl); err != nil {
@@ -118,19 +118,19 @@ func (wb *WrapStub) UnWrap(receiver *Balance, amount Amount, tokenCode, extID, e
 
 	wrapID := GetUnWrapId(extTxID)
 
-	if err = wb.CreateWrap(wrapID); err != nil {
+	if err = wb.createUnWrap(wrapID); err != nil {
 		logger.Debug(err.Error())
 		return nil, err
 	}
 
-	//receiver balance change
+	// receiver balance change
 	receiver.Amount.Add(&amount)
 	receiver.UpdatedTime = ts
 	if err = NewBalanceStub(wb.stub).PutBalance(receiver); err != nil {
 		logger.Debug(err.Error())
 		return nil, err
 	}
-	//receiver balance log
+	// receiver balance log
 	rbl := NewBalanceUnWrapLog(receiver, amount, memo, tokenCode, extID, extTxID)
 	rbl.CreatedTime = ts
 	if err = NewBalanceStub(wb.stub).PutBalanceLog(rbl); err != nil {
@@ -152,14 +152,14 @@ func (wb *WrapStub) WrapPendingBalance(pb *PendingBalance, sender *Balance, toke
 	sender.Amount.Add(&pb.Amount)
 	sender.UpdatedTime = ts
 
-	//fee gen
+	// fee gen
 	if pb.Fee != nil {
 		if _, err := NewFeeStub(wb.stub).CreateFee(pb.Account, *pb.Fee); err != nil {
 			return nil, err
 		}
 	}
 
-	//sender balance log
+	// sender balance log
 	sbl := NewBalanceWrapLog(sender, pb.Amount, pb.Fee, pb.Memo, tokenCode, extID)
 	sbl.CreatedTime = ts
 	if err = NewBalanceStub(wb.stub).PutBalanceLog(sbl); err != nil {

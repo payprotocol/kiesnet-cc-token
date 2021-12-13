@@ -45,14 +45,12 @@ func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amo
 		}
 	}
 
-	//wrap
-	if wrapBridge != nil {
-		if len(wrapBridge.WPCIAddress) > 0 {
-			if _, err := ab.GetAccountState(wrapBridge.WPCIAddress); err != nil {
+	// wrap
+	if wrapBridge != nil && wrapBridge.Policy != nil {
+		for _, policy := range wrapBridge.Policy {
+			if _, err := ab.GetAccountState(policy.WrapAddress); err != nil {
 				return nil, err
 			}
-		} else {
-			wrapBridge.WPCIAddress = account.GetID()
 		}
 	}
 

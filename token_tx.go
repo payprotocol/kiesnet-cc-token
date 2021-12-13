@@ -367,16 +367,11 @@ func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 		update = true
 	}
 
-	if wrapBridge != nil {
-		if len(wrapBridge.WPCIAddress) > 0 {
-			if _, err := NewAccountStub(stub, code).GetAccountState(wrapBridge.WPCIAddress); err != nil {
-				return responseError(err, "failed to set a target address")
-			}
-		} else { // No new target address input. Do not edit current value.
-			if len(token.WrapBridge.WPCIAddress) == 0 {
-				wrapBridge.WPCIAddress = token.GenesisAccount
-			} else {
-				wrapBridge.WPCIAddress = token.WrapBridge.WPCIAddress
+	// wrap
+	if wrapBridge != nil && wrapBridge.Policy != nil {
+		for _, policy := range wrapBridge.Policy {
+			if _, err := NewAccountStub(stub, code).GetAccountState(policy.WrapAddress); err != nil {
+				return responseError(err, "failed to get wrap account")
 			}
 		}
 		token.WrapBridge = wrapBridge
@@ -424,40 +419,55 @@ func invokeKNT(stub shim.ChaincodeStubInterface, code string, params []string) (
 }
 
 func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, *Amount, *Amount, *FeePolicy, *WrapBridge, error) {
+
 	// get token meta
 	meta, err := invokeKNT(stub, code, []string{"token"})
 	if err != nil {
 		return 0, nil, nil, nil, nil, errors.Wrap(err, "failed to get the token meta")
 	}
-	metaMap := map[string]string{}
+	metaMap := make(map[string]interface{})
 	if err = json.Unmarshal(meta, &metaMap); err != nil {
 		return 0, nil, nil, nil, nil, errors.Wrap(err, "failed to unmarshal the token meta")
 	}
 
 	// validate meta
-	decimal, err := strconv.Atoi(metaMap["decimal"])
+	decimal, err := strconv.Atoi(metaMap["decimal"].(string))
 	if err != nil || decimal < 0 || decimal > 18 {
 		return 0, nil, nil, nil, nil, errors.New("decimal must be integer between 0 and 18")
 	}
-	maxSupply, err := NewAmount(metaMap["max_supply"])
+	maxSupply, err := NewAmount(metaMap["max_supply"].(string))
 	if err != nil || maxSupply.Sign() < 0 {
 		return 0, nil, nil, nil, nil, errors.New("max supply must be positive integer")
 	}
-	supply, err := NewAmount(metaMap["initial_supply"])
+	supply, err := NewAmount(metaMap["initial_supply"].(string))
 	if err != nil || supply.Sign() < 0 || supply.Cmp(maxSupply) > 0 {
 		return 0, nil, nil, nil, nil, errors.New("initial supply must be positive integer and less(or equal) than max supply")
 	}
-	fee := metaMap["fee"]
+	fee := metaMap["fee"].(string)
 	var policy *FeePolicy
 	if len(fee) > 0 {
 		policy, err = ParseFeePolicy(fee)
 		if err != nil {
 			return 0, nil, nil, nil, nil, err
 		}
-		policy.TargetAddress = metaMap["target_address"]
+		if metaMap["target_address"] != nil {
+			policy.TargetAddress = metaMap["target_address"].(string)
+		}
 	}
 
-	wrapBridge := NewWrapInfo(metaMap["wpci_address"])
+	//wrapBridge
+	var wrapBridge *WrapBridge
+	if metaMap["wrap_bridge"] != nil {
+		wb, ok := metaMap["wrap_bridge"].(map[string]interface{})
+		if !ok {
+			return 0, nil, nil, nil, nil, errors.New("cannot type casting wrap_bridge to map[string]interface")
+		}
+
+		wrapBridge, err = NewWrapBridge(wb)
+		if err != nil {
+			return 0, nil, nil, nil, nil, err
+		}
+	}
 
 	return decimal, maxSupply, supply, policy, wrapBridge, nil
 }

@@ -14,31 +14,31 @@ import (
 
 // params[0] : sender address (not empty)
 // params[1] : external token code(wpci, ...)
-// params[2] : external adress(wpci, ...)
+// params[2] : external adress(EOA)
 // params[3] : amount (big int string) must bigger than 0
 // params[4] : memo (see MemoMaxLength)
 // params[5] : expiry (duration represented by int64 seconds, multi-sig only)
 // params[6:] : extra signers (personal account addresses)
 func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	//1. param check
+	// param check
 	if len(params) < 4 {
 		return shim.Error("incorrect number of parameters. expecting 3+")
 	}
 
-	//authentication
+	// authentication
 	kid, err := kid.GetID(stub, true)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	//external code
+	// external code
 	extCode := strings.ToUpper(params[1])
-	//external address
+	// external address
 	extID, err := NormalizeExtAddress(params[2])
 	if err != nil {
 		return shim.Error("invalid ext address")
 	}
-	//amount check
+	// amount check
 	amount, err := NewAmount(params[3])
 	if err != nil {
 		return shim.Error(err.Error())
@@ -47,7 +47,7 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("invalid amount. must be greater than 0")
 	}
 
-	//sender address check
+	// sender address check
 	sAddr, err := ParseAddress(params[0])
 	if err != nil {
 		return shim.Error("failed to parse the sender's account address")
@@ -63,15 +63,15 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if err != nil {
 		return responseError(err, "failed to get the token")
 	}
-	//token code check and get wrap address
-	rAddr, err := ParseWrapAddress(params[1], *token)
+	// token code check and get wrap address
+	wAddr, err := ParseWrapAddress(params[1], *token)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	//sender = receiver
-	if sAddr.Equal(rAddr) {
-		return shim.Error("can't wrap to self")
+	// sender = receiver
+	if sAddr.Equal(wAddr) {
+		return shim.Error("wrap address cannot wrap self")
 	}
 
 	// account check
@@ -89,14 +89,14 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("the sender account is suspended")
 	}
 
-	// receiver
-	receiver, err := ab.GetAccount(rAddr)
+	// wrapper(wrap account)
+	wrapper, err := ab.GetAccount(wAddr)
 	if err != nil {
-		return responseError(err, "failed to get the target account")
+		return responseError(err, "failed to get the wrap account")
 	}
 	// can be suspended?
-	if receiver.IsSuspended() {
-		return shim.Error("the receiver account is suspended")
+	if wrapper.IsSuspended() {
+		return shim.Error("the wrap account is suspended")
 	}
 
 	// balance check
@@ -106,9 +106,8 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("failed to get the sender's balance")
 	}
 
-	//fee check
-	fb := NewFeeStub(stub)
-	fee, err := fb.CalcFee(sAddr, "wrap", *amount)
+	// fee check
+	fee, err := ParseWrapFee(params[1], *token)
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the fee amount")
@@ -156,7 +155,7 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	var log *BalanceLog // log for response
 	if signers.Size() > 1 {
-		//TODO multisig
+		// multisig
 		if signers.Size() > 128 {
 			return shim.Error("too many signers")
 		}
@@ -202,30 +201,30 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[4] : amount (big int string) must bigger than 0
 // params[5] : memo (see MemoMaxLength)
 func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	//1. param check
-	if len(params) < 4 {
+	// param check
+	if len(params) < 5 {
 		return shim.Error("incorrect number of parameters. expecting 3+")
 	}
 
-	//authentication
+	// authentication
 	kid, err := kid.GetID(stub, true)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	//extCode
+	// external code
 	extCode := strings.ToUpper(params[1])
 
-	//external address
+	// external address
 	extID, err := NormalizeExtAddress(params[2])
 	if err != nil {
 		return shim.Error("invalid ext address")
 	}
 
-	//txId, need to check validate?
+	// txid, need to check validate?
 	extTxID := params[3]
 
-	//amount check
+	// amount check
 	amount, err := NewAmount(params[4])
 	if err != nil {
 		return shim.Error(err.Error())
@@ -237,51 +236,52 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	var rAddr *Address
 	code, err := ValidateTokenCode(params[0])
 	if err != nil { // by address
-		// reciever address check
+		// receiver address check
 		rAddr, err = ParseAddress(params[0])
 		if err != nil {
-			return responseError(err, "failed to parse the target account address")
+			return responseError(err, "failed to parse the receiver account address")
 		}
 		code, err = ValidateTokenCode(rAddr.Code)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
 	}
-	//get token
+
+	// get token
 	token, err := NewTokenStub(stub).GetToken(code)
 	if err != nil {
 		return responseError(err, "failed to get the token")
 	}
 
-	//check wrap address with external code
-	sAddr, err := ParseWrapAddress(extCode, *token)
+	// check wrap address with external code
+	wAddr, err := ParseWrapAddress(extCode, *token)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	//unwrap address get amount
+	// unwrap address get amount
 	if rAddr == nil {
-		rAddr = sAddr
+		rAddr = wAddr
 	}
 
 	// account check
 	ab := NewAccountStub(stub, code)
-	// sender(wrap account)
-	sender, err := ab.GetAccount(sAddr)
+	// wrapper(wrap account)
+	wrapper, err := ab.GetAccount(wAddr)
 	if err != nil {
-		return shim.Error("failed to get the sender account")
+		return shim.Error("failed to get the wrap account")
 	}
-	if !sender.HasHolder(kid) {
+	if !wrapper.HasHolder(kid) {
 		return shim.Error("invoker is not holder")
 	}
-	if sender.IsSuspended() { //need suspend check?
-		return shim.Error("the sender account is suspended")
+	if wrapper.IsSuspended() { //need suspend check?
+		return shim.Error("the wrap account is suspended")
 	}
 
 	// receiver
 	receiver, err := ab.GetAccount(rAddr)
 	if err != nil {
-		return responseError(err, "failed to get the target account")
+		return responseError(err, "failed to get the receiver account")
 	}
 	if receiver.IsSuspended() {
 		return shim.Error("the receiver account is suspended")

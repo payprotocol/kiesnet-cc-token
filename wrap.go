@@ -10,26 +10,62 @@ import (
 
 type Wrap struct{}
 
-type WrapBridge struct {
-	WPCIAddress string `json:"wpci_address"`
+type WrapPolicy struct {
+	WrapAddress string `json:"wrap_address"`
+	ExtChain    string `json:"ext_chain"`
+	Fee         string `json:"fee"`
 }
 
-// NewWrapResult _
-func NewWrapInfo(addr string) *WrapBridge {
-	return &WrapBridge{
-		WPCIAddress: addr,
+type WrapBridge struct {
+	Policy map[string]*WrapPolicy `json:"policy"`
+}
+
+// NewWrapBridge _
+func NewWrapBridge(data map[string]interface{}) (*WrapBridge, error) {
+	wb := &WrapBridge{
+		Policy: make(map[string]*WrapPolicy),
 	}
+
+	for key, element := range data {
+		kv := strings.Split(element.(string), ";")
+
+		if len(kv) == 3 {
+			wrapAddress := kv[0]
+			extChain := kv[1]
+			fee := kv[2]
+
+			wb.Policy[strings.ToUpper(key)] = &WrapPolicy{
+				WrapAddress: wrapAddress,
+				ExtChain:    extChain,
+				Fee:         fee,
+			}
+		} else {
+			return nil, errors.New("failed to parse wrap bridge")
+		}
+	}
+	return wb, nil
 }
 
 // ParseWrapAddress _
 func ParseWrapAddress(code string, token Token) (*Address, error) {
 	code = strings.ToUpper(code)
-	switch code {
-	case
-		"WPCI":
-		return ParseAddress(token.WrapBridge.WPCIAddress)
+	if token.WrapBridge != nil && token.WrapBridge.Policy != nil {
+		if policy, ok := token.WrapBridge.Policy[code]; ok {
+			return ParseAddress(policy.WrapAddress)
+		}
 	}
 	return nil, errors.New("there is no wrap address. check token code")
+}
+
+// ParseWrapFee _
+func ParseWrapFee(code string, token Token) (*Amount, error) {
+	code = strings.ToUpper(code)
+	if token.WrapBridge != nil && token.WrapBridge.Policy != nil {
+		if policy, ok := token.WrapBridge.Policy[code]; ok {
+			return NewAmount(policy.Fee)
+		}
+	}
+	return nil, errors.New("cannot get wrap fee. check token code")
 }
 
 // NormalizeExtAddress _
