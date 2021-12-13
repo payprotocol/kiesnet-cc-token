@@ -75,7 +75,7 @@ func (wb *WrapStub) getWrapState(id string) ([]byte, error) {
 
 // Wrap _
 // bCode : bridge token code e.g. WPCI
-func (wb *WrapStub) Wrap(sender *Balance, amount, fee Amount, tokenCode, extID, memo string) (*BalanceLog, error) {
+func (wb *WrapStub) Wrap(sender *Balance, amount, fee Amount, tokenCode, extID string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(wb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
@@ -92,7 +92,7 @@ func (wb *WrapStub) Wrap(sender *Balance, amount, fee Amount, tokenCode, extID, 
 		return nil, err
 	}
 	// sender balance log
-	sbl := NewBalanceWrapLog(sender, amount, &fee, memo, tokenCode, extID)
+	sbl := NewBalanceWrapLog(sender, amount, &fee, tokenCode, extID)
 	sbl.CreatedTime = ts
 	if err = NewBalanceStub(wb.stub).PutBalanceLog(sbl); err != nil {
 		logger.Debug(err.Error())
@@ -110,7 +110,7 @@ func (wb *WrapStub) Wrap(sender *Balance, amount, fee Amount, tokenCode, extID, 
 
 // UnWrap _
 // bCode : bridge token code e.g. WPCI
-func (wb *WrapStub) UnWrap(receiver *Balance, amount Amount, tokenCode, extID, extTxID, memo string) (*BalanceLog, error) {
+func (wb *WrapStub) UnWrap(receiver *Balance, amount Amount, tokenCode, extID, extTxID string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(wb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
@@ -131,7 +131,7 @@ func (wb *WrapStub) UnWrap(receiver *Balance, amount Amount, tokenCode, extID, e
 		return nil, err
 	}
 	// receiver balance log
-	rbl := NewBalanceUnWrapLog(receiver, amount, memo, tokenCode, extID, extTxID)
+	rbl := NewBalanceUnWrapLog(receiver, amount, tokenCode, extID, extTxID)
 	rbl.CreatedTime = ts
 	if err = NewBalanceStub(wb.stub).PutBalanceLog(rbl); err != nil {
 		logger.Debug(err.Error())
@@ -160,7 +160,7 @@ func (wb *WrapStub) WrapPendingBalance(pb *PendingBalance, sender *Balance, toke
 	}
 
 	// sender balance log
-	sbl := NewBalanceWrapLog(sender, pb.Amount, pb.Fee, pb.Memo, tokenCode, extID)
+	sbl := NewBalanceWrapLog(sender, pb.Amount, pb.Fee, tokenCode, extID)
 	sbl.CreatedTime = ts
 	if err = NewBalanceStub(wb.stub).PutBalanceLog(sbl); err != nil {
 		return nil, err

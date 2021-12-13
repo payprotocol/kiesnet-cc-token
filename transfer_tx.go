@@ -193,7 +193,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return shim.Error(err.Error())
 		}
 		// pending balance
-		log, err = bb.Deposit(pbID, sBal, con, *amount, fee, memo)
+		log, err = bb.Deposit(pbID, sBal, con, *amount, fee, &memo)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to create the pending balance")

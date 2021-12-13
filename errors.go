@@ -137,13 +137,3 @@ type DuplicateWrapError struct {
 func (e DuplicateWrapError) Error() string {
 	return "the wrap id already exists"
 }
-
-// PutWrapError occurs when CreateWrap() conflict
-type PutWrapError struct {
-	ResponsibleErrorImpl
-}
-
-// Error implements error interface
-func (e PutWrapError) Error() string {
-	return "the wrap id failed to put the wrap state"
-}

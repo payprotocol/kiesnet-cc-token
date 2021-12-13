@@ -16,9 +16,8 @@ import (
 // params[1] : external token code(wpci, ...)
 // params[2] : external adress(EOA)
 // params[3] : amount (big int string) must bigger than 0
-// params[4] : memo (see MemoMaxLength)
-// params[5] : expiry (duration represented by int64 seconds, multi-sig only)
-// params[6:] : extra signers (personal account addresses)
+// params[4] : expiry (duration represented by int64 seconds, multi-sig only)
+// params[5:] : extra signers (personal account addresses)
 func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// param check
 	if len(params) < 4 {
@@ -119,28 +118,21 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("not enough balance")
 	}
 
-	memo := ""
 	var expiry int64
 	signers := stringset.New(kid)
 	if a, ok := sender.(*JointAccount); ok {
 		signers.AppendSet(a.Holders)
 	}
-	if len(params) > 4 {
-		// memo
-		if len(params[4]) > MemoMaxLength { // length limit
-			memo = params[4][:MemoMaxLength]
-		} else {
-			memo = params[4]
-		}
+	if len(params) > 3 {
 		// expiry
-		if len(params) > 5 && len(params[5]) > 0 {
-			expiry, err = strconv.ParseInt(params[5], 10, 64)
+		if len(params) > 4 && len(params[4]) > 0 {
+			expiry, err = strconv.ParseInt(params[4], 10, 64)
 			if err != nil {
 				return shim.Error("invalid expiry: need seconds")
 			}
 			// extra signers
-			if len(params) > 6 {
-				addrs := stringset.New(params[6:]...) // remove duplication
+			if len(params) > 5 {
+				addrs := stringset.New(params[5:]...) // remove duplication
 				for addr := range addrs.Map() {
 					kids, err := ab.GetSignableIDs(addr)
 					if err != nil {
@@ -171,14 +163,14 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return shim.Error(err.Error())
 		}
 		// pending balance
-		log, err = bb.Deposit(pbID, sBal, con, *amount, fee, memo)
+		log, err = bb.Deposit(pbID, sBal, con, *amount, fee, nil)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to create the pending balance")
 		}
 	} else {
 		wb := NewWrapStub(stub)
-		log, err = wb.Wrap(sBal, *amount, *fee, extCode, extID, memo)
+		log, err = wb.Wrap(sBal, *amount, *fee, extCode, extID)
 		if err != nil {
 			return shim.Error("failed to wrap")
 		}
@@ -198,7 +190,6 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[2] : external adress(wpci, ...)
 // params[3] : external token txid
 // params[4] : amount (big int string) must bigger than 0
-// params[5] : memo (see MemoMaxLength)
 func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// param check
 	if len(params) < 5 {
@@ -293,18 +284,8 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("failed to get the receiver's balance")
 	}
 
-	memo := ""
-	if len(params) > 5 {
-		// memo
-		if len(params[5]) > MemoMaxLength { // length limit
-			memo = params[5][:MemoMaxLength]
-		} else {
-			memo = params[5]
-		}
-	}
-
 	wb := NewWrapStub(stub)
-	log, err := wb.UnWrap(rBal, *amount, extCode, extID, extTxID, memo)
+	log, err := wb.UnWrap(rBal, *amount, extCode, extID, extTxID)
 	if err != nil {
 		return responseError(err, "failed to unwrap")
 	}
