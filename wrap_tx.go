@@ -22,7 +22,7 @@ import (
 func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// param check
 	if len(params) < 4 {
-		return shim.Error("incorrect number of parameters. expecting 3+")
+		return shim.Error("incorrect number of parameters. expecting 4+")
 	}
 
 	// authentication
@@ -160,7 +160,7 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 		// pending balance id
 		pbID := stub.GetTxID()
-		doc := []string{"wrap", pbID, sender.GetID(), amount.String(), fee.String(), extCode, extID, memo}
+		doc := []string{"wrap", pbID, sender.GetID(), amount.String(), extCode, extID}
 		docb, err := json.Marshal(doc)
 		if err != nil {
 			logger.Debug(err.Error())
@@ -202,7 +202,7 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// param check
 	if len(params) < 5 {
-		return shim.Error("incorrect number of parameters. expecting 3+")
+		return shim.Error("incorrect number of parameters. expecting 5+")
 	}
 
 	// authentication
@@ -317,10 +317,10 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// doc: ["wrap", pending-balance-ID, sender-ID, amount, fee, external-Code, external-adress, memo]
+// doc: ["wrap", pending-balance-ID, sender-ID, amount, external-Code, external-adress]
 func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	// param check
-	if len(doc) < 8 {
+	if len(doc) < 6 {
 		return shim.Error("invalid contract document")
 	}
 
@@ -342,7 +342,7 @@ func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}
 		return shim.Error("failed to get the sender's balance")
 	}
 
-	log, err := NewWrapStub(stub).WrapPendingBalance(pb, sBal, doc[5].(string), doc[6].(string))
+	log, err := NewWrapStub(stub).WrapPendingBalance(pb, sBal, doc[4].(string), doc[5].(string))
 	if err != nil {
 		return shim.Error("failed to wrap")
 	}
