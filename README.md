@@ -181,24 +181,22 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [_starttime_] : __time(seconds)__ represented by int64
 - [_endtime_] : __time(seconds)__ represented by int64
 
-> invoke __`wrap`__ [sender, ext_token_code, ext_address, amount(+), _memo_, _expiry_, _extra-signers..._]
+> invoke __`wrap`__ [sender, ext_token_code, ext_address, amount(+), _expiry_, _extra-signers..._]
 - Wrap the amount of the token or create a contract
 - [sender]: an account address
 - [ext_token_code] : external token code (eg. wpci)
 - [ext_address] : external address(EOA)
 - [amount] : big int(+)
-- [_memo_] : max 1024 charactors
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
 - [_extra-signers..._] : PAOTs (exclude invoker, max 127)
 
-> invoke __`unwrap`__ [token_code|address, ext_token_code, ext_address, ext_txid, amount(+), _memo_]
+> invoke __`unwrap`__ [token_code|address, ext_token_code, ext_address, ext_txid, amount(+)]
 - Unwrap the amount of the token
 - If the 1st parameter is token code, send amount to wrap address.
 - [ext_token_code] : external token code (eg. wpci)
 - [ext_address] : external address(EOA)
 - [ext_txid] : external transaction id, for handling duplicate check
 - [amount] : big int(+)
-- [_memo_] : max 1024 charactors
 
 > query __`ver`__
 - Get version
