@@ -211,7 +211,7 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, m
 	}
 
 	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
-		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, amount, nil, &memo, pendingTime)
+		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, amount, nil, memo, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
 			return nil, err
@@ -269,7 +269,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, sender, receiv
 		if err = bb.PutBalance(receiver); err != nil {
 			return nil, err
 		}
-		rbl := NewBalanceTransferLog(sender, receiver, pb.Amount, nil, *pb.Memo)
+		rbl := NewBalanceTransferLog(sender, receiver, pb.Amount, nil, pb.Memo)
 		rbl.CreatedTime = ts
 		if err = bb.PutBalanceLog(rbl); err != nil {
 			return nil, err
@@ -284,7 +284,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, sender, receiv
 	}
 
 	// only for response
-	sbl := NewBalanceTransferLog(sender, receiver, *pb.Amount.Neg(), pb.Fee, *pb.Memo)
+	sbl := NewBalanceTransferLog(sender, receiver, *pb.Amount.Neg(), pb.Fee, pb.Memo)
 	sbl.CreatedTime = ts
 
 	// remove pending balance
@@ -297,7 +297,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, sender, receiv
 
 // Deposit _
 // It does not validate pending time!
-func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contract, amount Amount, fee *Amount, memo *string) (*BalanceLog, error) {
+func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contract, amount Amount, fee *Amount, memo string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
