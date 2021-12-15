@@ -181,16 +181,16 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [_starttime_] : __time(seconds)__ represented by int64
 - [_endtime_] : __time(seconds)__ represented by int64
 
-> invoke __`wrap`__ [sender, ext_token_code, ext_address, amount(+), _expiry_, _extra-signers..._]
+> invoke __`wrap`__ [token_code|sender, ext_token_code, ext_address, amount(+), _expiry_, _extra-signers..._]
 - Wrap the amount of the token or create a contract
-- [sender]: an account address
+- [sender]: an account address, __TOKENCODE = PAOT__
 - [ext_token_code] : external token code (eg. wpci)
 - [ext_address] : external address(EOA)
 - [amount] : big int(+)
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
 - [_extra-signers..._] : PAOTs (exclude invoker, max 127)
 
-> invoke __`unwrap`__ [token_code|address, ext_token_code, ext_address, ext_txid, amount(+)]
+> invoke __`unwrap`__ [token_code|receiver, ext_token_code, ext_address, ext_txid, amount(+)]
 - Unwrap the amount of the token
 - If the 1st parameter is token code, send amount to wrap address.
 - [ext_token_code] : external token code (eg. wpci)

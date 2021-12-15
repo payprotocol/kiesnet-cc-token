@@ -12,7 +12,7 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/stringset"
 )
 
-// params[0] : sender address (not empty)
+// params[0] : sender address | token code
 // params[1] : external token code(wpci, ...)
 // params[2] : external adress(EOA)
 // params[3] : amount (big int string) must bigger than 0
@@ -47,14 +47,32 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	// sender address check
-	sAddr, err := ParseAddress(params[0])
-	if err != nil {
-		return shim.Error("failed to parse the sender's account address")
+	// sAddr, err := ParseAddress(params[0])
+	// if err != nil {
+	// 	return shim.Error("failed to parse the sender's account address")
+	// }
+	// code, err := ValidateTokenCode(sAddr.Code)
+	// if err != nil {
+	// 	return shim.Error(err.Error())
+	// }
+
+	//
+	var sAddr *Address
+	code, err := ValidateTokenCode(params[0])
+	if err != nil { // by address
+		// receiver address check
+		sAddr, err = ParseAddress(params[0])
+		if err != nil {
+			return responseError(err, "failed to parse the receiver account address")
+		}
+		code, err = ValidateTokenCode(sAddr.Code)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+	} else {
+		sAddr = NewAddress(code, AccountTypePersonal, kid)
 	}
-	code, err := ValidateTokenCode(sAddr.Code)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
+	//
 
 	// receiver address get
 	tb := NewTokenStub(stub)

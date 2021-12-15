@@ -148,10 +148,6 @@ func (wb *WrapStub) WrapPendingBalance(pb *PendingBalance, sender *Balance, toke
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	pb.Amount.Neg()
-	sender.Amount.Add(&pb.Amount)
-	sender.UpdatedTime = ts
-
 	// fee gen
 	if pb.Fee != nil {
 		if _, err := NewFeeStub(wb.stub).CreateFee(pb.Account, *pb.Fee); err != nil {
