@@ -156,7 +156,7 @@ func (wb *WrapStub) WrapPendingBalance(pb *PendingBalance, sender *Balance, toke
 	}
 
 	// sender balance log
-	sbl := NewBalanceWrapLog(sender, pb.Amount, pb.Fee, tokenCode, extID)
+	sbl := NewBalanceWrapLog(sender, *pb.Amount.Copy().Neg(), pb.Fee, tokenCode, extID)
 	sbl.CreatedTime = ts
 	if err = NewBalanceStub(wb.stub).PutBalanceLog(sbl); err != nil {
 		return nil, err
