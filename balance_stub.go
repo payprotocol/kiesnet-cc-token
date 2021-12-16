@@ -284,7 +284,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, sender, receiv
 	}
 
 	// only for response
-	sbl := NewBalanceTransferLog(sender, receiver, *pb.Amount.Neg(), pb.Fee, pb.Memo)
+	sbl := NewBalanceTransferLog(sender, receiver, *pb.Amount.Copy().Neg(), pb.Fee, pb.Memo)
 	sbl.CreatedTime = ts
 
 	// remove pending balance

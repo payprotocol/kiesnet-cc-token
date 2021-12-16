@@ -14,7 +14,7 @@ import (
 
 // params[0] : sender address | token code
 // params[1] : external token code(wpci, ...)
-// params[2] : external adress(EOA)
+// params[2] : external address(EOA)
 // params[3] : amount (big int string) must bigger than 0
 // params[4] : expiry (duration represented by int64 seconds, multi-sig only)
 // params[5:] : extra signers (personal account addresses)
@@ -130,7 +130,7 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("failed to get the fee amount")
 	}
 
-	// banlance must bigger than amount+fee
+	// balance must bigger than amount+fee
 	applied := amount.Copy().Add(fee)
 	if sBal.Amount.Cmp(applied) < 0 {
 		return shim.Error("not enough balance")
