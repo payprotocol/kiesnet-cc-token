@@ -148,11 +148,11 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
 - [_extra-signers..._] : PAOTs (exclude invoker, max 127)
 
-> invoke __`pay`__ [sender, receiver, amount(+), _memo_, _expiry_] {_"kiesnet-id/pin"_}
+> invoke __`pay`__ [sender, receiver, amount, _memo_, _expiry_] {_"kiesnet-id/pin"_}
 - pay the amount of **positive** token to the receiver or creaete a pay contract
 - [sender]: an account address, __TOKENCODE = PAOT__
 - [receiver] : an account address
-- [amount] : big int(+)
+- [amount] : big int
 - [_memo_] : max 1024 charactors
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
 
@@ -161,7 +161,7 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [pay_id] : pay ID
 - [_order_id_] : order ID (vendor specific)
 
-> invoke __`pay/refund`__ [original_pay_key, amount(+), _memo_ ] {_"kiesnet-id/pin"_}
+> invoke __`pay/refund`__ [original_pay_key, amount, _memo_ ] {_"kiesnet-id/pin"_}
 - refund the amount of token the based on original_pay_key 
 - [original_pay_key] : original_pay_key 
 - [amount]: the amount of token. this value should be lesser than original pay's amount
@@ -181,22 +181,22 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [_starttime_] : __time(seconds)__ represented by int64
 - [_endtime_] : __time(seconds)__ represented by int64
 
-> invoke __`wrap`__ [token_code|sender, ext_token_code, ext_address, amount(+), _expiry_, _extra-signers..._]
+> invoke __`wrap`__ [token_code|sender, ext_token_code, ext_address, amount, _expiry_, _extra-signers..._]
 - Wrap the amount of the token or create a contract
 - [sender]: an account address, __TOKENCODE = PAOT__
 - [ext_token_code] : external token code (eg. wpci)
 - [ext_address] : external address(EOA)
-- [amount] : big int(+)
+- [amount] : big int
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
 - [_extra-signers..._] : PAOTs (exclude invoker, max 127)
 
-> invoke __`unwrap`__ [token_code|receiver, ext_token_code, ext_address, ext_txid, amount(+)]
+> invoke __`unwrap`__ [token_code|receiver, ext_token_code, ext_address, ext_txid, amount]
 - Unwrap the amount of the token
 - If the 1st parameter is token code, send amount to wrap address.
 - [ext_token_code] : external token code (eg. wpci)
 - [ext_address] : external address(EOA)
 - [ext_txid] : external transaction id, for handling duplicate check
-- [amount] : big int(+)
+- [amount] : big int
 
 > query __`ver`__
 - Get version
