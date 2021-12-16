@@ -46,17 +46,6 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("invalid amount. must be greater than 0")
 	}
 
-	// sender address check
-	// sAddr, err := ParseAddress(params[0])
-	// if err != nil {
-	// 	return shim.Error("failed to parse the sender's account address")
-	// }
-	// code, err := ValidateTokenCode(sAddr.Code)
-	// if err != nil {
-	// 	return shim.Error(err.Error())
-	// }
-
-	//
 	var sAddr *Address
 	code, err := ValidateTokenCode(params[0])
 	if err != nil { // by address
@@ -72,7 +61,6 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	} else {
 		sAddr = NewAddress(code, AccountTypePersonal, kid)
 	}
-	//
 
 	// receiver address get
 	tb := NewTokenStub(stub)
@@ -84,11 +72,6 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	wAddr, err := ParseWrapAddress(params[1], *token)
 	if err != nil {
 		return shim.Error(err.Error())
-	}
-
-	// sender = receiver
-	if sAddr.Equal(wAddr) {
-		return shim.Error("wrap address cannot wrap self")
 	}
 
 	// account check
@@ -104,6 +87,11 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 	if sender.IsSuspended() {
 		return shim.Error("the sender account is suspended")
+	}
+
+	// sender = wrap address
+	if sAddr.Equal(wAddr) {
+		return shim.Error("wrap address cannot wrap self")
 	}
 
 	// wrapper(wrap account)
