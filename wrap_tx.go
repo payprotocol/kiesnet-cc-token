@@ -52,7 +52,7 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if err != nil { // by address
 		sAddr, err = ParseAddress(params[0])
 		if err != nil {
-			return responseError(err, "failed to parse the receiver account address")
+			return responseError(err, "failed to parse the sender's account address")
 		}
 		code, err = ValidateTokenCode(sAddr.Code)
 		if err != nil {
@@ -232,7 +232,7 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if err != nil { // by address
 		rAddr, err = ParseAddress(params[0])
 		if err != nil {
-			return responseError(err, "failed to parse the receiver account address")
+			return responseError(err, "failed to parse the receiver's account address")
 		}
 		code, err = ValidateTokenCode(rAddr.Code)
 		if err != nil {
