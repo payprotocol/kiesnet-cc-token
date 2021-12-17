@@ -368,8 +368,8 @@ func tokenUpdate(stub shim.ChaincodeStubInterface, params []string) peer.Respons
 	}
 
 	// wrap
-	if wrapBridge != nil && wrapBridge.Policy != nil {
-		for _, policy := range wrapBridge.Policy {
+	if wrapBridge != nil {
+		for _, policy := range wrapBridge {
 			if _, err := NewAccountStub(stub, code).GetAccountState(policy.WrapAddress); err != nil {
 				return responseError(err, "failed to get wrap account")
 			}
@@ -418,7 +418,7 @@ func invokeKNT(stub shim.ChaincodeStubInterface, code string, params []string) (
 	return nil, errors.New(res.GetMessage())
 }
 
-func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, *Amount, *Amount, *FeePolicy, *WrapBridge, error) {
+func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, *Amount, *Amount, *FeePolicy, map[string]*WrapPolicy, error) {
 
 	// get token meta
 	meta, err := invokeKNT(stub, code, []string{"token"})
@@ -456,7 +456,7 @@ func getValidatedTokenMeta(stub shim.ChaincodeStubInterface, code string) (int, 
 	}
 
 	//wrapBridge
-	var wrapBridge *WrapBridge
+	var wrapBridge map[string]*WrapPolicy
 	if metaMap["wrap_bridge"] != nil {
 		wb, ok := metaMap["wrap_bridge"].(map[string]interface{})
 		if !ok {

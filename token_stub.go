@@ -27,7 +27,7 @@ func (tb *TokenStub) CreateKey(code string) string {
 }
 
 // CreateToken _
-func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amount, feePolicy *FeePolicy, wrapBridge *WrapBridge, holders *stringset.Set) (*Token, error) {
+func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amount, feePolicy *FeePolicy, wrapBridge map[string]*WrapPolicy, holders *stringset.Set) (*Token, error) {
 	// create genesis account (joint account)
 	ab := NewAccountStub(tb.stub, code)
 	account, balance, err := ab.CreateJointAccount(holders)
@@ -46,11 +46,9 @@ func (tb *TokenStub) CreateToken(code string, decimal int, maxSupply, supply Amo
 	}
 
 	// wrap
-	if wrapBridge != nil && wrapBridge.Policy != nil {
-		for _, policy := range wrapBridge.Policy {
-			if _, err := ab.GetAccountState(policy.WrapAddress); err != nil {
-				return nil, err
-			}
+	for _, policy := range wrapBridge {
+		if _, err := ab.GetAccountState(policy.WrapAddress); err != nil {
+			return nil, err
 		}
 	}
 

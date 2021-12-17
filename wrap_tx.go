@@ -32,11 +32,13 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// external code
 	extCode := strings.ToUpper(params[1])
+
 	// external address
 	extID, err := NormalizeExtAddress(params[2])
 	if err != nil {
 		return shim.Error("invalid ext address")
 	}
+
 	// amount check
 	amount, err := NewAmount(params[3])
 	if err != nil {
@@ -49,29 +51,24 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// addresses
 	var sAddr *Address
 	code, err := ValidateTokenCode(params[0])
-	if err != nil { // by address
+	if err == nil { // by token code
+		sAddr = NewAddress(code, AccountTypePersonal, kid)
+	} else { // by address
 		sAddr, err = ParseAddress(params[0])
 		if err != nil {
 			return responseError(err, "failed to parse the sender's account address")
 		}
-		code, err = ValidateTokenCode(sAddr.Code)
-		if err != nil {
-			return shim.Error(err.Error())
-		}
-	} else {
-		sAddr = NewAddress(code, AccountTypePersonal, kid)
 	}
-	tb := NewTokenStub(stub)
-	token, err := tb.GetToken(code)
+	token, err := NewTokenStub(stub).GetToken(sAddr.Code)
 	if err != nil {
 		return responseError(err, "failed to get the token")
 	}
-	wAddr, err := ParseWrapAddress(params[1], *token)
+	wAddr, err := token.GetWrapAddress(extCode)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	ab := NewAccountStub(stub, code)
+	ab := NewAccountStub(stub, sAddr.Code)
 
 	// sender
 	sender, err := ab.GetAccount(sAddr)
@@ -109,7 +106,7 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	// fee check
-	fee, err := ParseWrapFee(params[1], *token)
+	fee, err := token.GetWrapFee(extCode)
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to get the fee amount")
@@ -234,16 +231,13 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		if err != nil {
 			return responseError(err, "failed to parse the receiver's account address")
 		}
-		code, err = ValidateTokenCode(rAddr.Code)
-		if err != nil {
-			return shim.Error(err.Error())
-		}
+		code = rAddr.Code
 	}
 	token, err := NewTokenStub(stub).GetToken(code)
 	if err != nil {
 		return responseError(err, "failed to get the token")
 	}
-	wAddr, err := ParseWrapAddress(extCode, *token)
+	wAddr, err := token.GetWrapAddress(extCode)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -283,7 +277,7 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	wb := NewWrapStub(stub)
-	log, err := wb.UnWrap(rBal, *amount, extCode, extID, extTxID)
+	log, err := wb.Unwrap(rBal, *amount, extCode, extID, extTxID)
 	if err != nil {
 		return responseError(err, "failed to unwrap")
 	}
