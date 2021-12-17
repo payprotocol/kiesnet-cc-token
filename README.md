@@ -14,7 +14,7 @@ An account/balance based token
 ## Terms
 
 - PAOT : personal(main) account of the token
-- EOA : Externall Owned Accounts
+- EOA : Externally Owned Accounts
 #
 
 ## API
@@ -81,8 +81,8 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
     - 0x07 : refund
     - 0x08 : prune pay
     - 0x09 : prune fee
-    - 0x10 : wrap
-    - 0x11 : unwrap
+    - 0x0a : wrap
+    - 0x0b : unwrap
 
 > query __`balance/pending/get`__ [pending_balance_id]
 - Get the pending balance
@@ -164,7 +164,7 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 > invoke __`pay/refund`__ [original_pay_key, amount, _memo_ ] {_"kiesnet-id/pin"_}
 - refund the amount of token the based on original_pay_key 
 - [original_pay_key] : original_pay_key 
-- [amount]: the amount of token. this value should be lesser than original pay's amount
+- [amount]: the amount of token to refund. This value cannot be acculumated more than the original pay amount.
 - [_memo_]: max 1024 charactors
 
 > invoke __`pay/prune`__ [token_code|address, ten_minutes_flag, _end_time_] {_"kiesnet-id/pin"_}
