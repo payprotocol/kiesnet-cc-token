@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 	"github.com/pkg/errors"
@@ -11,6 +13,9 @@ type WrapStub struct {
 	stub shim.ChaincodeStubInterface
 }
 
+// Unwrap
+type Unwrap struct{}
+
 // NewWrapStub
 func NewWrapStub(stub shim.ChaincodeStubInterface) *WrapStub {
 	return &WrapStub{stub}
@@ -19,6 +24,41 @@ func NewWrapStub(stub shim.ChaincodeStubInterface) *WrapStub {
 // CreateUnwrapKey
 func (wb *WrapStub) CreateUnwrapKey(txID string) string {
 	return "UNWRAP_" + txID
+}
+
+func (wb *WrapStub) createUnWrap(wrapID string) error {
+	data, err := json.Marshal(&Unwrap{})
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal unwrap")
+	}
+	ok, err := wb.loadUnWrap(wrapID)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve the unwrap")
+	}
+	if ok {
+		return DuplicateUnwrapError{}
+	}
+	if err = wb.stub.PutState(wrapID, data); err != nil {
+		return errors.Wrap(err, "failed to create unwrap")
+	}
+	return nil
+}
+
+// loadUnWrap _ ok means exists(handling mvcc conflict)
+func (wb *WrapStub) loadUnWrap(id string) (ok bool, err error) {
+	ok = false
+	data, err := wb.stub.GetState(id)
+	if err != nil {
+		return
+	}
+	wrap := &Unwrap{}
+	if data != nil {
+		if err = json.Unmarshal(data, wrap); err != nil {
+			return
+		}
+		ok = true
+	}
+	return
 }
 
 // Wrap _
@@ -65,15 +105,9 @@ func (wb *WrapStub) Unwrap(receiver *Balance, amount Amount, tokenCode, extID, e
 	}
 
 	key := wb.CreateUnwrapKey(extTxID)
-	data, err := wb.stub.GetState(key)
+	err = wb.createUnWrap(key)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to retrieve the unwrap")
-	}
-	if data != nil {
-		return nil, DuplicateUnwrapError{}
-	}
-	if err = wb.stub.PutState(key, []byte{}); err != nil {
-		return nil, errors.Wrap(err, "failed to create unwrap")
+		return nil, err
 	}
 
 	bb := NewBalanceStub(wb.stub)

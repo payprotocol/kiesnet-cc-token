@@ -135,5 +135,5 @@ type DuplicateUnwrapError struct {
 
 // Error implements error interface
 func (e DuplicateUnwrapError) Error() string {
-	return "the unwrap id already invoked"
+	return "the wrap id already exists"
 }
