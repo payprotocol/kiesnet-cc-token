@@ -8,6 +8,18 @@ import (
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
 )
 
+// CreateQueryDocumentByID _
+const QueryDocumentById = `{
+	"selector": {
+	   "_id": "%s"
+	}
+ }`
+
+// CreateQueryDocumentByID _
+func CreateQueryDocumentByID(id string) string {
+	return fmt.Sprintf(QueryDocumentById, id)
+}
+
 // QueryBalanceLogsByID _
 const QueryBalanceLogsByID = `{
 	"selector": {

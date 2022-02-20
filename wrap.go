@@ -8,10 +8,19 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// UnwrapType _
+type UnwrapType int8
+
+const (
+	// UnwrapTypeDefault _ default type for unwrapper bridge
+	UnwrapTypeDefault UnwrapType = iota
+	// UnwrapTypeFee _ fee type for wrapper bridge
+	UnwrapTypeFee
+)
+
 type WrapPolicy struct {
 	WrapAddress string `json:"wrap_address"`
 	ExtChain    string `json:"ext_chain"`
-	Fee         string `json:"fee"`
 }
 
 // NewWrapBridge _
@@ -19,11 +28,10 @@ func NewWrapBridge(data map[string]interface{}) (map[string]*WrapPolicy, error) 
 	wb := make(map[string]*WrapPolicy)
 	for extCode, rawPolicy := range data {
 		values := strings.Split(rawPolicy.(string), ";")
-		if len(values) == 3 {
+		if len(values) == 2 {
 			wb[strings.ToUpper(extCode)] = &WrapPolicy{
 				WrapAddress: values[0],
 				ExtChain:    values[1],
-				Fee:         values[2],
 			}
 		} else {
 			return nil, errors.New("failed to parse wrap bridge")

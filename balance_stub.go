@@ -79,6 +79,34 @@ func (bb *BalanceStub) GetBalanceState(id string) ([]byte, error) {
 	return nil, errors.New("balance is not exists")
 }
 
+// GetQueryBalaceLogByDocumentID
+func (bb *BalanceStub) GetQueryBalaceLogByDocumentID(id string) (*BalanceLog, error) {
+	query := CreateQueryDocumentByID(id)
+	iter, err := bb.stub.GetQueryResult(query)
+	if err != nil {
+		return nil, err
+	}
+	bl := &BalanceLog{}
+	cnt := 0
+	for iter.HasNext() {
+		cnt++
+		if cnt > 1 {
+			return nil, errors.New("duplicate balancelog _id")
+		}
+		kv, err := iter.Next()
+		if nil != err {
+			return nil, err
+		}
+		err = json.Unmarshal(kv.Value, bl)
+		if nil != err {
+			return nil, err
+		}
+		return bl, nil
+	}
+	defer iter.Close()
+	return nil, errors.New("balance is not exists")
+}
+
 // GetQueryBalanceLogs _
 func (bb *BalanceStub) GetQueryBalanceLogs(id, typeStr, bookmark string, fetchSize int, stime, etime *txtime.Time) (*QueryResult, error) {
 	if fetchSize < 1 {

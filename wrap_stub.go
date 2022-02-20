@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/key-inside/kiesnet-ccpkg/txtime"
@@ -13,45 +14,46 @@ type WrapStub struct {
 	stub shim.ChaincodeStubInterface
 }
 
-// Unwrap
-type Unwrap struct{}
+// WrapTx
+type WrapTx struct{}
 
 // NewWrapStub
 func NewWrapStub(stub shim.ChaincodeStubInterface) *WrapStub {
 	return &WrapStub{stub}
 }
 
-// CreateUnwrapKey
-func (wb *WrapStub) CreateUnwrapKey(txID string) string {
-	return "UNWRAP_" + txID
+// CreateWrapTxKey
+func (wb *WrapStub) CreateWrapTxKey(prefix, txID string) string {
+	return fmt.Sprintf("%s_%s", prefix, txID)
 }
 
-func (wb *WrapStub) createUnWrap(wrapID string) error {
-	data, err := json.Marshal(&Unwrap{})
+// createWrapTx
+func (wb *WrapStub) createWrapTx(wrapID string) error {
+	data, err := json.Marshal(&WrapTx{})
 	if err != nil {
-		return errors.Wrap(err, "failed to marshal unwrap")
+		return errors.Wrap(err, "failed to marshal wrap tx")
 	}
-	ok, err := wb.loadUnWrap(wrapID)
+	ok, err := wb.loadWrapTx(wrapID)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve the unwrap")
+		return errors.Wrap(err, "failed to retrieve the wrap tx")
 	}
 	if ok {
-		return DuplicateUnwrapError{}
+		return DuplicateWrapTxError{}
 	}
 	if err = wb.stub.PutState(wrapID, data); err != nil {
-		return errors.Wrap(err, "failed to create unwrap")
+		return errors.Wrap(err, "failed to create wrap tx")
 	}
 	return nil
 }
 
-// loadUnWrap _ ok means exists(handling mvcc conflict)
-func (wb *WrapStub) loadUnWrap(id string) (ok bool, err error) {
+// loadWrapTx _ ok means exists(handling mvcc conflict)
+func (wb *WrapStub) loadWrapTx(id string) (ok bool, err error) {
 	ok = false
 	data, err := wb.stub.GetState(id)
 	if err != nil {
 		return
 	}
-	wrap := &Unwrap{}
+	wrap := &WrapTx{}
 	if data != nil {
 		if err = json.Unmarshal(data, wrap); err != nil {
 			return
@@ -62,8 +64,7 @@ func (wb *WrapStub) loadUnWrap(id string) (ok bool, err error) {
 }
 
 // Wrap _
-// bCode : bridge token code e.g. WPCI
-func (wb *WrapStub) Wrap(sender *Balance, amount, fee Amount, tokenCode, extID string) (*BalanceLog, error) {
+func (wb *WrapStub) Wrap(sender *Balance, amount Amount, tokenCode, extID, memo string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(wb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
@@ -73,21 +74,59 @@ func (wb *WrapStub) Wrap(sender *Balance, amount, fee Amount, tokenCode, extID s
 
 	amount.Neg()
 	sender.Amount.Add(&amount)
-	sender.Amount.Add(fee.Copy().Neg())
 	sender.UpdatedTime = ts
 	if err = bb.PutBalance(sender); err != nil {
 		logger.Debug(err.Error())
 		return nil, err
 	}
 
-	sbl := NewBalanceWrapLog(sender, amount, &fee, tokenCode, extID)
+	sbl := NewBalanceWrapLog(sender, amount, tokenCode, extID, memo)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
 		logger.Debug(err.Error())
 		return nil, err
 	}
 
-	_, err = NewFeeStub(wb.stub).CreateFee(sender.GetID(), fee)
+	return sbl, nil
+}
+
+// WrapComplete _
+func (wb *WrapStub) WrapComplete(wrapper *Balance, amount, fee Amount, tokenCode, extID, txID string) (*BalanceLog, error) {
+	ts, err := txtime.GetTime(wb.stub)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the timestamp")
+	}
+
+	key := wb.CreateWrapTxKey("WRAP_COMPL", txID)
+	err = wb.createWrapTx(key)
+	if err != nil {
+		return nil, err
+	}
+
+	bb := NewBalanceStub(wb.stub)
+
+	diff := amount.Copy()
+	diff.Neg()
+	diff.Add(fee.Copy().Neg())
+	if diff.Cmp(ZeroAmount()) < 0 { // diff is less than 0
+		return nil, errors.New("wrap amount is less than fee")
+	}
+
+	wrapper.Amount.Add(diff)
+	wrapper.UpdatedTime = ts
+	if err = bb.PutBalance(wrapper); err != nil {
+		logger.Debug(err.Error())
+		return nil, err
+	}
+
+	sbl := NewBalanceWrapCompleteLog(wrapper, *diff, tokenCode, extID)
+	sbl.CreatedTime = ts
+	if err = bb.PutBalanceLog(sbl); err != nil {
+		logger.Debug(err.Error())
+		return nil, err
+	}
+
+	_, err = NewFeeStub(wb.stub).CreateFee(wrapper.GetID(), fee)
 	if err != nil {
 		logger.Debug(err.Error())
 		return nil, err
@@ -97,15 +136,14 @@ func (wb *WrapStub) Wrap(sender *Balance, amount, fee Amount, tokenCode, extID s
 }
 
 // Unwrap _
-// bCode : bridge token code e.g. WPCI
-func (wb *WrapStub) Unwrap(receiver *Balance, amount Amount, tokenCode, extID, extTxID string) (*BalanceLog, error) {
+func (wb *WrapStub) Unwrap(wrapper, receiver *Balance, amount Amount, tokenCode, extID, extTxID string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(wb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	key := wb.CreateUnwrapKey(extTxID)
-	err = wb.createUnWrap(key)
+	key := wb.CreateWrapTxKey("UNWRAP", extTxID)
+	err = wb.createWrapTx(key)
 	if err != nil {
 		return nil, err
 	}
@@ -126,25 +164,54 @@ func (wb *WrapStub) Unwrap(receiver *Balance, amount Amount, tokenCode, extID, e
 		return nil, err
 	}
 
+	amount.Neg()
+	wrapper.Amount.Add(&amount)
+	wrapper.UpdatedTime = ts
+	if err = bb.PutBalance(wrapper); err != nil {
+		return nil, err
+	}
+	wbl := NewBalanceUnWrapCompleteLog(wrapper, amount, tokenCode, extID, extTxID)
+	wbl.CreatedTime = ts
+	if err = bb.PutBalanceLog(wbl); err != nil {
+		logger.Debug(err.Error())
+		return nil, err
+	}
 	return rbl, nil
 }
 
-// WrapPendingBalance wrap the sender's pending balance. (multi-sig contract)
-func (wb *WrapStub) WrapPendingBalance(pb *PendingBalance, sender *Balance, tokenCode, extID string) (*BalanceLog, error) {
+// UnwrapComplete _
+func (wb *WrapStub) UnwrapComplete(wrapper *Balance, tokenCode, extID, extTxID string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(wb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	if pb.Fee != nil {
-		if _, err := NewFeeStub(wb.stub).CreateFee(pb.Account, *pb.Fee); err != nil {
-			return nil, err
-		}
+	key := wb.CreateWrapTxKey("UNWRAP", extTxID)
+	err = wb.createWrapTx(key)
+	if err != nil {
+		return nil, err
+	}
+
+	bb := NewBalanceStub(wb.stub)
+	wbl := NewBalanceUnWrapCompleteLog(wrapper, *ZeroAmount(), tokenCode, extID, extTxID)
+	wbl.CreatedTime = ts
+	if err = bb.PutBalanceLog(wbl); err != nil {
+		logger.Debug(err.Error())
+		return nil, err
+	}
+	return wbl, nil
+}
+
+// WrapPendingBalance wrap the sender's pending balance. (multi-sig contract)
+func (wb *WrapStub) WrapPendingBalance(pb *PendingBalance, sender *Balance, tokenCode, extID, memo string) (*BalanceLog, error) {
+	ts, err := txtime.GetTime(wb.stub)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	bb := NewBalanceStub(wb.stub)
 
-	sbl := NewBalanceWrapLog(sender, *pb.Amount.Copy().Neg(), pb.Fee, tokenCode, extID)
+	sbl := NewBalanceWrapLog(sender, *pb.Amount.Copy().Neg(), tokenCode, extID, memo)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
 		return nil, err

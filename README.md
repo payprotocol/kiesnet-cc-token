@@ -181,14 +181,24 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [_starttime_] : __time(seconds)__ represented by int64
 - [_endtime_] : __time(seconds)__ represented by int64
 
-> invoke __`wrap`__ [token_code|sender, ext_token_code, ext_address, amount, _expiry_, _extra-signers..._]
+> invoke __`wrap`__ [token_code|sender, ext_token_code, ext_address, amount, _memo_, _expiry_, _extra-signers..._]
 - Wrap the amount of the token or create a contract
 - [sender]: an account address, __TOKENCODE = PAOT__
 - [ext_token_code] : external token code (eg. wpci)
 - [ext_address] : external address(EOA)
 - [amount] : big int
+- [_memo_]: max 1024 charactors
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
 - [_extra-signers..._] : PAOTs (exclude invoker, max 127)
+
+> invoke __`wrap/complete`__ [token_code, ext_token_code, ext_address, hlf_txid, bl_id, fee]
+- When bridge receive wrap event, handling fee
+- [token_code]: __TOKENCODE = PAOT__
+- [ext_token_code] : external token code (eg. wpci)
+- [ext_address] : external address(EOA)
+- [hlf_txid] : wrap transaction id, for handling duplicate check
+- [bl_id] : balance log document id(_id)
+- [fee] : big int
 
 > invoke __`unwrap`__ [token_code|receiver, ext_token_code, ext_address, ext_txid, amount]
 - Unwrap the amount of the token

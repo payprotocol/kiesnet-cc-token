@@ -49,6 +49,10 @@ const (
 	BalanceLogTypeWrap
 	// BalanceLogTypeUnWrap is created when unwrap from bridge.
 	BalanceLogTypeUnWrap
+	// BalanceLogTypeWrapComplete is created when wrap bridge handle fee.
+	BalanceLogTypeWrapComplete
+	// BalanceLogTypeUnWrapComplete unwrap balance from bridge account
+	BalanceLogTypeUnWrapComplete
 )
 
 // BalanceLog _
@@ -194,25 +198,48 @@ func NewBalancePruneFeeLog(bal *Balance, amount Amount, Start, End string) *Bala
 	}
 }
 
-func NewBalanceWrapLog(sender *Balance, diff Amount, fee *Amount, tokenCode, extID string) *BalanceLog {
+func NewBalanceWrapLog(sender *Balance, diff Amount, tokenCode, extID, memo string) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID: sender.DOCTYPEID,
 		Type:      BalanceLogTypeWrap,
 		RID:       extID,
 		Diff:      diff,
 		Amount:    sender.Amount,
-		Fee:       fee,
+		ExtCode:   tokenCode,
+		Memo:      memo,
+	}
+}
+
+func NewBalanceUnWrapLog(bal *Balance, diff Amount, tokenCode, extID, extTxID string) *BalanceLog {
+	return &BalanceLog{
+		DOCTYPEID: bal.DOCTYPEID,
+		Type:      BalanceLogTypeUnWrap,
+		RID:       extID,
+		Diff:      diff,
+		Amount:    bal.Amount,
+		ExtCode:   tokenCode,
+		ExtTxID:   extTxID,
+	}
+}
+
+func NewBalanceWrapCompleteLog(receiver *Balance, diff Amount, tokenCode, extID string) *BalanceLog {
+	return &BalanceLog{
+		DOCTYPEID: receiver.DOCTYPEID,
+		Type:      BalanceLogTypeWrapComplete,
+		RID:       extID,
+		Diff:      diff,
+		Amount:    receiver.Amount,
 		ExtCode:   tokenCode,
 	}
 }
 
-func NewBalanceUnWrapLog(receiver *Balance, diff Amount, tokenCode, extID, extTxID string) *BalanceLog {
+func NewBalanceUnWrapCompleteLog(bal *Balance, diff Amount, tokenCode, extID, extTxID string) *BalanceLog {
 	return &BalanceLog{
-		DOCTYPEID: receiver.DOCTYPEID,
-		Type:      BalanceLogTypeUnWrap,
+		DOCTYPEID: bal.DOCTYPEID,
+		Type:      BalanceLogTypeUnWrapComplete,
 		RID:       extID,
 		Diff:      diff,
-		Amount:    receiver.Amount,
+		Amount:    bal.Amount,
 		ExtCode:   tokenCode,
 		ExtTxID:   extTxID,
 	}

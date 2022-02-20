@@ -56,15 +56,6 @@ func (t *Token) GetWrapAddress(extCode string) (*Address, error) {
 	return ParseAddress(policy.WrapAddress)
 }
 
-// GetWrapFee returns wrap fee amount of given extCode.
-func (t *Token) GetWrapFee(extCode string) (*Amount, error) {
-	policy, err := t.getWrapPolicy(extCode)
-	if err != nil {
-		return nil, err
-	}
-	return NewAmount(policy.Fee)
-}
-
 // TokenResult is response payload of token/burn and token/mint.
 type TokenResult struct {
 	Token      *Token             `json:"token,omitempty"`
