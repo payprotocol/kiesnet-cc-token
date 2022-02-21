@@ -211,7 +211,7 @@ func (wb *WrapStub) WrapPendingBalance(pb *PendingBalance, sender *Balance, extC
 	wrap := &Wrap{
 		DOCTYPEID: wb.stub.GetTxID(),
 		Address:   sender.GetID(),
-		Amount:    pb.Amount,
+		Amount:    *pb.Amount.Copy(),
 		ExtCode:   extCode,
 		ExtID:     extID,
 	}

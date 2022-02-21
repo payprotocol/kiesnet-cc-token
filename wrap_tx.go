@@ -456,7 +456,7 @@ func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}
 	if len(doc) > 6 {
 		memo = doc[6].(string)
 	}
-	log := (struct {
+	log := struct {
 		DOCTYPEID string         `json:"@balance_log"` // address
 		Type      BalanceLogType `json:"type"`
 		RID       string         `json:"rid"` // EOA
@@ -470,9 +470,9 @@ func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}
 		Diff:      wrap.Amount,
 		ExtCode:   wrap.ExtCode,
 		Memo:      memo,
-	}) // hide balance amount
+	} // hide balance amount
 
-	data, err := json.Marshal(log)
+	data, err := json.Marshal(&log) // pass log by reference (diff marshal issue)
 	if err != nil {
 		return shim.Error("failed to marshal the log")
 	}

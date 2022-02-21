@@ -298,7 +298,7 @@ func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interfa
 		return shim.Error("failed to transfer a pending balance")
 	}
 
-	log := (struct {
+	log := struct {
 		DOCTYPEID string         `json:"@balance_log"` // address
 		Type      BalanceLogType `json:"type"`
 		RID       string         `json:"rid"` // EOA
@@ -310,13 +310,13 @@ func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interfa
 		DOCTYPEID: sBal.GetID(),
 		Type:      BalanceLogTypeSend,
 		RID:       rBal.GetID(),
-		Diff:      *pb.Amount.Neg(),
+		Diff:      *pb.Amount.Copy().Neg(),
 		Fee:       pb.Fee,
 		Memo:      pb.Memo,
-	}) // hide balance amount
+	} // hide balance amount
 
 	// log is not nil
-	data, err := json.Marshal(log)
+	data, err := json.Marshal(&log) // pass log by reference (diff marshal issue)
 	if err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to marshal the log")
