@@ -182,7 +182,7 @@ func (wb *WrapStub) Unwrap(wrapper, receiver *Balance, amount Amount, extCode, e
 	if err = bb.PutBalance(wrapper); err != nil {
 		return nil, err
 	}
-	wbl := NewBalanceUnwrapCompleteLog(wrapper, amount, extCode, extID, extTxID)
+	wbl := NewBalanceUnwrapCompleteLog(wrapper, receiver, amount, extCode, extTxID)
 	wbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(wbl); err != nil {
 		return nil, err
@@ -198,7 +198,7 @@ func (wb *WrapStub) UnwrapImpossible(wrapper *Balance, extCode, extID, extTxID s
 	}
 
 	bb := NewBalanceStub(wb.stub)
-	wbl := NewBalanceUnwrapCompleteLog(wrapper, *ZeroAmount(), extCode, extID, extTxID)
+	wbl := NewBalanceUnwrapCompleteLog(wrapper, wrapper, *ZeroAmount(), extCode, extTxID)
 	wbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(wbl); err != nil {
 		return nil, err

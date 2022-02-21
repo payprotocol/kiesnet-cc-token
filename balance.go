@@ -235,13 +235,13 @@ func NewBalanceWrapCompleteLog(bal *Balance, wrap *Wrap, fee *Amount) *BalanceLo
 	}
 }
 
-func NewBalanceUnwrapCompleteLog(bal *Balance, diff Amount, extCode, extID, extTxID string) *BalanceLog {
+func NewBalanceUnwrapCompleteLog(wrapper, receiver *Balance, diff Amount, extCode, extTxID string) *BalanceLog {
 	return &BalanceLog{
-		DOCTYPEID: bal.DOCTYPEID,
+		DOCTYPEID: wrapper.DOCTYPEID,
 		Type:      BalanceLogTypeUnwrapComplete,
-		RID:       extID,
+		RID:       receiver.DOCTYPEID,
 		Diff:      diff,
-		Amount:    bal.Amount,
+		Amount:    wrapper.Amount,
 		ExtCode:   extCode,
 		ExtTxID:   extTxID,
 	}
