@@ -8,6 +8,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// WrapPolicy _
 type WrapPolicy struct {
 	WrapAddress string `json:"wrap_address"`
 	ExtChain    string `json:"ext_chain"`

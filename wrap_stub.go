@@ -106,7 +106,6 @@ func (wb *WrapStub) Wrap(sender *Balance, amount Amount, extCode, extID, memo st
 }
 
 // WrapComplete _
-//func (wb *WrapStub) WrapComplete(wrapKey string, wrapper *Balance, amount, fee Amount, extCode, extID, extTxID string) (*BalanceLog, error) {
 func (wb *WrapStub) WrapComplete(wrap *Wrap, wBal *Balance, fee Amount, extTxID string) (*BalanceLog, error) {
 	if wrap.CompleteTxID != "" {
 		return nil, DuplicateWrapCompleteError{}
