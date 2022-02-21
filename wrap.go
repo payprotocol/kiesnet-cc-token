@@ -8,16 +8,6 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-// UnwrapType _
-type UnwrapType int8
-
-const (
-	// UnwrapTypeDefault _ default type for unwrapper bridge
-	UnwrapTypeDefault UnwrapType = iota
-	// UnwrapTypeFee _ fee type for wrapper bridge
-	UnwrapTypeFee
-)
-
 type WrapPolicy struct {
 	WrapAddress string `json:"wrap_address"`
 	ExtChain    string `json:"ext_chain"`
@@ -38,6 +28,22 @@ func NewWrapBridge(data map[string]interface{}) (map[string]*WrapPolicy, error) 
 		}
 	}
 	return wb, nil
+}
+
+// Wrap _
+type Wrap struct {
+	DOCTYPEID    string `json:"@wrap"` // tx_id
+	Address      string `json:"address"`
+	Amount       Amount `json:"amount"`
+	ExtCode      string `json:"ext_code"`                 // external token code
+	ExtID        string `json:"ext_id"`                   // EOA
+	CompleteTxID string `json:"complete_tx_id,omitempty"` // tx hash (internal or external)
+}
+
+// Unwrap _
+type Unwrap struct {
+	DOCTYPEID    string `json:"@unwrap"`                  // external tx_id
+	CompleteTxID string `json:"complete_tx_id,omitempty"` // internal tx hash
 }
 
 // NormalizeExtAddress _
@@ -84,4 +90,23 @@ func eip55Checksum(unprefix string) string {
 		}
 	}
 	return string(mixed)
+}
+
+// NormalizeExtTxID _
+func NormalizeExtTxID(txid string) (string, error) {
+	txid = strings.ToLower(txid)
+	err := validateExtTxID(txid)
+	if err != nil {
+		return "", err
+	}
+	return txid, nil
+}
+
+var isValidExtTxIDFormat = regexp.MustCompile(`^0x[0-9a-f]{64}$`).MatchString
+
+func validateExtTxID(txid string) error {
+	if !isValidExtTxIDFormat(txid) {
+		return errors.New("txid format error")
+	}
+	return nil
 }

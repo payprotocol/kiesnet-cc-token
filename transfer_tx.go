@@ -293,11 +293,27 @@ func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interfa
 	}
 
 	// transfer
-	log, err := bb.TransferPendingBalance(pb, sBal, rBal, pendingTime)
-	if err != nil {
+	if err := bb.TransferPendingBalance(pb, sBal, rBal, pendingTime); err != nil {
 		logger.Debug(err.Error())
 		return shim.Error("failed to transfer a pending balance")
 	}
+
+	log := (struct {
+		DOCTYPEID string         `json:"@balance_log"` // address
+		Type      BalanceLogType `json:"type"`
+		RID       string         `json:"rid"` // EOA
+		Diff      Amount         `json:"diff"`
+		Fee       *Amount        `json:"fee,omitempty"`
+		ExtCode   string         `json:"ext_code,omitempty"`
+		Memo      string         `json:"memo,omitempty"`
+	}{
+		DOCTYPEID: sBal.GetID(),
+		Type:      BalanceLogTypeSend,
+		RID:       rBal.GetID(),
+		Diff:      *pb.Amount.Neg(),
+		Fee:       pb.Fee,
+		Memo:      pb.Memo,
+	}) // hide balance amount
 
 	// log is not nil
 	data, err := json.Marshal(log)

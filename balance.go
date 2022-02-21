@@ -47,12 +47,12 @@ const (
 	BalanceLogTypePruneFee
 	// BalanceLogTypeWrap is created when wrap to bridge.
 	BalanceLogTypeWrap
-	// BalanceLogTypeUnWrap is created when unwrap from bridge.
-	BalanceLogTypeUnWrap
+	// BalanceLogTypeUnwrap is created when unwrap from bridge.
+	BalanceLogTypeUnwrap
 	// BalanceLogTypeWrapComplete is created when wrap bridge handle fee.
 	BalanceLogTypeWrapComplete
-	// BalanceLogTypeUnWrapComplete unwrap balance from bridge account
-	BalanceLogTypeUnWrapComplete
+	// BalanceLogTypeUnwrapComplete unwrap balance from bridge account
+	BalanceLogTypeUnwrapComplete
 )
 
 // BalanceLog _
@@ -175,72 +175,74 @@ func NewBalanceRefundLog(bal *Balance, pay *Pay) *BalanceLog {
 }
 
 // NewBalancePrunePayLog No need RID
-func NewBalancePrunePayLog(bal *Balance, amount Amount, Start, End string) *BalanceLog {
+func NewBalancePrunePayLog(bal *Balance, amount Amount, startID, endID string) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID:    bal.DOCTYPEID,
 		Type:         BalanceLogTypePrunePay,
 		Diff:         amount,
 		Amount:       bal.Amount,
-		PruneStartID: Start,
-		PruneEndID:   End,
+		PruneStartID: startID,
+		PruneEndID:   endID,
 	}
 }
 
 // NewBalancePruneFeeLog creates new BalanceLog of type BalanceLogTypePruneFee
-func NewBalancePruneFeeLog(bal *Balance, amount Amount, Start, End string) *BalanceLog {
+func NewBalancePruneFeeLog(bal *Balance, amount Amount, startID, endID string) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID:    bal.DOCTYPEID,
 		Type:         BalanceLogTypePruneFee,
 		Diff:         amount,
 		Amount:       bal.Amount,
-		PruneStartID: Start,
-		PruneEndID:   End,
+		PruneStartID: startID,
+		PruneEndID:   endID,
 	}
 }
 
-func NewBalanceWrapLog(sender *Balance, diff Amount, tokenCode, extID, memo string) *BalanceLog {
+func NewBalanceWrapLog(bal *Balance, diff Amount, extCode, extID, memo string) *BalanceLog {
 	return &BalanceLog{
-		DOCTYPEID: sender.DOCTYPEID,
+		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypeWrap,
 		RID:       extID,
 		Diff:      diff,
-		Amount:    sender.Amount,
-		ExtCode:   tokenCode,
+		Amount:    bal.Amount,
+		ExtCode:   extCode,
 		Memo:      memo,
 	}
 }
 
-func NewBalanceUnWrapLog(bal *Balance, diff Amount, tokenCode, extID, extTxID string) *BalanceLog {
+func NewBalanceUnwrapLog(bal *Balance, diff Amount, extCode, extID, extTxID string) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
-		Type:      BalanceLogTypeUnWrap,
+		Type:      BalanceLogTypeUnwrap,
 		RID:       extID,
 		Diff:      diff,
 		Amount:    bal.Amount,
-		ExtCode:   tokenCode,
+		ExtCode:   extCode,
 		ExtTxID:   extTxID,
 	}
 }
 
-func NewBalanceWrapCompleteLog(receiver *Balance, diff Amount, tokenCode, extID string) *BalanceLog {
+func NewBalanceWrapCompleteLog(bal *Balance, wrap *Wrap, fee *Amount) *BalanceLog {
 	return &BalanceLog{
-		DOCTYPEID: receiver.DOCTYPEID,
+		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypeWrapComplete,
-		RID:       extID,
-		Diff:      diff,
-		Amount:    receiver.Amount,
-		ExtCode:   tokenCode,
+		RID:       wrap.DOCTYPEID,
+		Diff:      wrap.Amount,
+		Fee:       fee,
+		Amount:    bal.Amount,
+		ExtCode:   wrap.ExtCode,
+		ExtTxID:   wrap.CompleteTxID,
 	}
 }
 
-func NewBalanceUnWrapCompleteLog(bal *Balance, diff Amount, tokenCode, extID, extTxID string) *BalanceLog {
+func NewBalanceUnwrapCompleteLog(bal *Balance, diff Amount, extCode, extID, extTxID string) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
-		Type:      BalanceLogTypeUnWrapComplete,
+		Type:      BalanceLogTypeUnwrapComplete,
 		RID:       extID,
 		Diff:      diff,
 		Amount:    bal.Amount,
-		ExtCode:   tokenCode,
+		ExtCode:   extCode,
 		ExtTxID:   extTxID,
 	}
 }

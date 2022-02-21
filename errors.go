@@ -128,12 +128,22 @@ func (e NotExistedFeeError) Error() string {
 	return "the fee does not exist"
 }
 
-// DuplicateWrapTxError occurs when WrapStub.Unwrap() is already invoked
-type DuplicateWrapTxError struct {
+// DuplicateWrapCompleteError occurs when wrap is already completed
+type DuplicateWrapCompleteError struct {
 	ResponsibleErrorImpl
 }
 
 // Error implements error interface
-func (e DuplicateWrapTxError) Error() string {
-	return "the txId already exists"
+func (e DuplicateWrapCompleteError) Error() string {
+	return "already completed wrap"
+}
+
+// DuplicateUnwrapCompleteError occurs when unwrap is already completed
+type DuplicateUnwrapCompleteError struct {
+	ResponsibleErrorImpl
+}
+
+// Error implements error interface
+func (e DuplicateUnwrapCompleteError) Error() string {
+	return "already completed unwrap"
 }

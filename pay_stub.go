@@ -146,7 +146,7 @@ func (pb *PayStub) Refund(sender, receiver *Balance, amount, fee Amount, memo st
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
-	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID()) //TODO: fee neg
+	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
 	pay := NewPay(sender.GetID(), payid, *amount.Copy().Neg(), *fee.Copy().Neg(), receiver.GetID(), parentPay.PayID, "", memo, ts)
 	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new refund")

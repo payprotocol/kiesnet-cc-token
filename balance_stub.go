@@ -149,11 +149,21 @@ func (bb *BalanceStub) CreateLogKey(id string, seq int64) string {
 
 // PutBalanceLog _
 func (bb *BalanceStub) PutBalanceLog(log *BalanceLog) error {
-	data, err := json.Marshal(log)
+	key := bb.CreateLogKey(log.DOCTYPEID, log.CreatedTime.UnixNano())
+	// check balance log key conflict
+	data, err := bb.stub.GetState(key)
+	if err != nil {
+		return errors.Wrap(err, "failed to get the balance log state")
+	}
+	if data != nil {
+		return errors.New("balance log key conflict")
+	}
+	// put balanc log
+	data, err = json.Marshal(log)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal the balance log")
 	}
-	if err = bb.stub.PutState(bb.CreateLogKey(log.DOCTYPEID, log.CreatedTime.UnixNano()), data); err != nil {
+	if err = bb.stub.PutState(key, data); err != nil {
 		return errors.Wrap(err, "failed to put the balance log state")
 	}
 	return nil
@@ -206,6 +216,14 @@ func (bb *BalanceStub) PutPendingBalance(balance *PendingBalance) error {
 	}
 	if err = bb.stub.PutState(bb.CreatePendingKey(balance.DOCTYPEID), data); err != nil {
 		return errors.Wrap(err, "failed to put the pending balance state")
+	}
+	return nil
+}
+
+// DeletePendingBalance _
+func (bb *BalanceStub) DeletePendingBalance(balance *PendingBalance) error {
+	if err := bb.stub.DelState(bb.CreatePendingKey(balance.DOCTYPEID)); err != nil {
+		return errors.Wrap(err, "failed to delete the pending balance")
 	}
 	return nil
 }
@@ -279,48 +297,44 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, m
 }
 
 // TransferPendingBalance transfers the sender's pending balance. (multi-sig contract)
-func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, sender, receiver *Balance, pendingTime *txtime.Time) (*BalanceLog, error) {
+func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, sender, receiver *Balance, pendingTime *txtime.Time) error {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get the timestamp")
+		return errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
 		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, pb.Amount, nil, pb.Memo, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
-			return nil, err
+			return err
 		}
 	} else {
 		receiver.Amount.Add(&pb.Amount) // deposit
 		receiver.UpdatedTime = ts
 		if err = bb.PutBalance(receiver); err != nil {
-			return nil, err
+			return err
 		}
 		rbl := NewBalanceTransferLog(sender, receiver, pb.Amount, nil, pb.Memo)
 		rbl.CreatedTime = ts
 		if err = bb.PutBalanceLog(rbl); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	// fee
 	if pb.Fee != nil {
 		if _, err := NewFeeStub(bb.stub).CreateFee(pb.Account, *pb.Fee); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	// only for response
-	sbl := NewBalanceTransferLog(sender, receiver, *pb.Amount.Copy().Neg(), pb.Fee, pb.Memo)
-	sbl.CreatedTime = ts
-
 	// remove pending balance
-	if err = bb.stub.DelState(bb.CreatePendingKey(pb.DOCTYPEID)); err != nil {
-		return nil, errors.Wrap(err, "failed to delete the pending balance")
+	if err = bb.DeletePendingBalance(pb); err != nil {
+		return err
 	}
 
-	return sbl, nil
+	return nil
 }
 
 // Deposit _
@@ -389,8 +403,8 @@ func (bb *BalanceStub) Withdraw(pb *PendingBalance) (*BalanceLog, error) {
 	}
 
 	// remove pending balance
-	if err = bb.stub.DelState(bb.CreatePendingKey(pb.DOCTYPEID)); err != nil {
-		return nil, errors.Wrap(err, "failed to delete the pending balance")
+	if err = bb.DeletePendingBalance(pb); err != nil {
+		return nil, err
 	}
 
 	return log, nil

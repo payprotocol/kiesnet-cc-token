@@ -191,14 +191,11 @@ method __`func`__ [arg1, _arg2_, ... ] {trs1, _trs2_, ... }
 - [_expiry_] : __duration(seconds)__ represented by int64, multi-sig only
 - [_extra-signers..._] : PAOTs (exclude invoker, max 127)
 
-> invoke __`wrap/complete`__ [token_code, ext_token_code, ext_address, hlf_txid, bl_id, fee]
+> invoke __`wrap/complete`__ [wrap_key, _fee_, _ext_tx_id_]
 - When bridge receive wrap event, handling fee
-- [token_code]: __TOKENCODE = PAOT__
-- [ext_token_code] : external token code (eg. wpci)
-- [ext_address] : external address(EOA)
-- [hlf_txid] : wrap transaction id, for handling duplicate check
-- [bl_id] : balance log document id(_id)
-- [fee] : big int
+- [wrap_key] : wrap tx hash (without '0x' prefix)
+- [_fee_] : big int
+- [_ext_tx_id_] : external tx hash (with '0x' prefix)
 
 > invoke __`unwrap`__ [token_code|receiver, ext_token_code, ext_address, ext_txid, amount]
 - Unwrap the amount of the token

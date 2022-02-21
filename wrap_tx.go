@@ -182,19 +182,15 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	return shim.Success(data)
-
 }
 
-// params[0] : token code
-// params[1] : external token code(wpci, ...)
-// params[2] : external address(EOA)
-// params[3] : hlf txid
-// params[4] : balance log _id
-// params[5] : fee (big int string) must bigger than or equal to 0
+// params[0] : wrap key (wrap tx id)
+// params[1] : fee (big int string) must bigger than or equal to 0
+// params[2] : external tx id (if it is nil, it is 'impossible wrap')
 func wrapComplete(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// param check
-	if len(params) < 6 {
-		return shim.Error("incorrect number of parameters. expecting 6+")
+	if len(params) < 1 {
+		return shim.Error("incorrect number of parameters. expecting 1+")
 	}
 
 	// authentication
@@ -203,73 +199,70 @@ func wrapComplete(stub shim.ChaincodeStubInterface, params []string) peer.Respon
 		return shim.Error(err.Error())
 	}
 
-	// external code
-	extCode := strings.ToUpper(params[1])
+	// wrap key (wrap tx id)
+	wrapKey := params[0]
 
-	// external address
-	extID, err := NormalizeExtAddress(params[2])
-	if err != nil {
-		return shim.Error("invalid ext address")
+	var fee *Amount
+	if len(params) > 1 {
+		// check fee format even when it can be ignored (preventing abused arguments)
+		fee, err = NewAmount(params[1])
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+		if fee.Sign() < 0 {
+			return shim.Error("invalid fee. must be greater than or equal to 0")
+		}
 	}
 
-	// hlf txid (need to validate?)
-	txID := params[3]
+	// if 'external tx id' is not exist, it is 'impossible wrap' and fee will be ignored
+	extTxID := ""
+	if len(params) > 2 {
+		extTxID, err = NormalizeExtTxID(params[2])
+		if err != nil {
+			return shim.Error("invalid ext tx id")
+		}
+	} else {
+		fee = ZeroAmount()
+	}
 
-	// balance log id
-	blId := params[4]
-
-	// fee check
-	fee, err := NewAmount(params[5])
+	wb := NewWrapStub(stub)
+	wrap, err := wb.GetWrap(wrapKey)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	if fee.Sign() < 0 {
-		return shim.Error("invalid fee. must be greater than or equal to 0")
+	if wrap.CompleteTxID != "" {
+		return shim.Error(DuplicateWrapCompleteError{}.Error())
 	}
 
-	// addresses
-	code, err := ValidateTokenCode(params[0])
-	if err != nil { // invalide token code
-		return shim.Error(err.Error())
-	}
+	code, _ := ParseCode(wrap.Address)
 	token, err := NewTokenStub(stub).GetToken(code)
 	if err != nil {
 		return responseError(err, "failed to get the token")
 	}
-	wAddr, err := token.GetWrapAddress(extCode)
-
-	ab := NewAccountStub(stub, code)
+	wAddr, err := token.GetWrapAddress(wrap.ExtCode)
 
 	// wrapper(wrap account)
+	ab := NewAccountStub(stub, code)
 	wrapper, err := ab.GetAccount(wAddr)
 	if err != nil {
 		return shim.Error("failed to get the wrap account")
 	}
 	if !wrapper.HasHolder(kid) {
-		return shim.Error("invoker is not holder")
+		return shim.Error("invoker is not wrapper")
 	}
 	// can wrapper be suspended?
 	if wrapper.IsSuspended() {
 		return shim.Error("the wrap account is suspended")
 	}
 
-	// balance no need to balance check
 	bb := NewBalanceStub(stub)
-
-	// balance log query
-	bl, err := bb.GetQueryBalaceLogByDocumentID(blId)
-	if err != nil {
-		// return responseError(err, "failed to get balance logs")
-		return shim.Error(err.Error())
-	}
-
 	wBal, err := bb.GetBalance(wrapper.GetID())
 	if err != nil {
-		return shim.Error("failed to get the receiver's balance")
+		return shim.Error("failed to get the balance of the wrap account")
 	}
 
-	wb := NewWrapStub(stub)
-	log, err := wb.WrapComplete(wBal, bl.Diff, *fee, extCode, extID, txID)
+	// amount := wrap.Amount.Copy().Neg()
+	log, err := wb.WrapComplete(wrap, wBal, *fee, extTxID)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -285,17 +278,41 @@ func wrapComplete(stub shim.ChaincodeStubInterface, params []string) peer.Respon
 // params[0] : receiver address | token code (bridge error handling)
 // params[1] : external token code(wpci, ...)
 // params[2] : external address(EOA)
-// params[3] : external token txid
+// params[3] : external tx id
 // params[4] : amount (big int string) must bigger than 0
 func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// param check
 	if len(params) < 5 {
-		return shim.Error("incorrect number of parameters. expecting 5+")
+		return shim.Error("incorrect number of parameters. expecting 5")
 	}
 
 	// authentication
 	kid, err := kid.GetID(stub, true)
 	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// external txid
+	extTxID, err := NormalizeExtTxID(params[3])
+	if err != nil {
+		return shim.Error("invalid ext tx id")
+	}
+
+	wb := NewWrapStub(stub)
+
+	// check unwrap duplication (move to stub?)
+	data, err := wb.stub.GetState(wb.CreateUnwrapKey(extTxID))
+	if err != nil {
+		return responseError(err, "failed to get unwrap state")
+	}
+	if data != nil {
+		return shim.Error(DuplicateUnwrapCompleteError{}.Error())
+	}
+	unwrap := &Unwrap{
+		DOCTYPEID:    extTxID,
+		CompleteTxID: wb.stub.GetTxID(),
+	}
+	if err = wb.PutUnwrap(unwrap); err != nil {
 		return shim.Error(err.Error())
 	}
 
@@ -307,9 +324,6 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if err != nil {
 		return shim.Error("invalid ext address")
 	}
-
-	// txid (need to validate?)
-	extTxID := params[3]
 
 	// amount check
 	amount, err := NewAmount(params[4])
@@ -330,6 +344,7 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 		code = rAddr.Code
 	}
+
 	token, err := NewTokenStub(stub).GetToken(code)
 	if err != nil {
 		return responseError(err, "failed to get the token")
@@ -338,28 +353,29 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	if rAddr == nil { // param[0] was token code
+	if rAddr == nil { // param[0] was token code (impossible unwrap)
 		rAddr = wAddr
 	}
 
 	ab := NewAccountStub(stub, code)
+
 	// wrapper(wrap account)
 	wrapper, err := ab.GetAccount(wAddr)
 	if err != nil {
 		return shim.Error("failed to get the wrap account")
 	}
 	if !wrapper.HasHolder(kid) {
-		return shim.Error("invoker is not holder")
+		return shim.Error("invoker is not wrapper")
 	}
 	// can wrapper be suspended?
 	if wrapper.IsSuspended() {
 		return shim.Error("the wrap account is suspended")
 	}
-	if rAddr == nil { // param[0] was token code
-		rAddr = wAddr
-	}
 
 	// receiver
+	if rAddr == nil { // param[0] was token code (impossible unwrap)
+		rAddr = wAddr
+	}
 	receiver, err := ab.GetAccount(rAddr)
 	if err != nil {
 		return responseError(err, "failed to get the receiver account")
@@ -378,15 +394,13 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// wrapper balance
 	wBal, err := bb.GetBalance(wrapper.GetID())
 	if err != nil {
-		logger.Debug(err.Error())
-		return shim.Error("failed to get the wrap balance")
+		return shim.Error("failed to get the balance of the wrap account")
 	}
 
-	wb := NewWrapStub(stub)
 	var log *BalanceLog
 	if !wAddr.Equal(rAddr) {
 		// normal unwrap
-		// need balace check
+		// wrap acocunt balance check
 		if wBal.Amount.Cmp(amount) < 0 {
 			return shim.Error("not enough balance")
 		}
@@ -396,13 +410,13 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 	} else {
 		// unwrap error handle
-		log, err = wb.UnwrapComplete(wBal, extCode, extID, extTxID)
+		log, err = wb.UnwrapImpossible(wBal, extCode, extID, extTxID)
 		if err != nil {
-			return responseError(err, "failed to unwrap complete")
+			return responseError(err, "failed to unwrap")
 		}
 	}
 
-	data, err := json.Marshal(log)
+	data, err = json.Marshal(log)
 	if err != nil {
 		return shim.Error("failed to marshal the log")
 	}
@@ -433,10 +447,30 @@ func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}
 		return shim.Error("failed to get the sender's balance")
 	}
 
-	log, err := NewWrapStub(stub).WrapPendingBalance(pb, sBal, doc[4].(string), doc[5].(string), doc[6].(string))
+	wrap, err := NewWrapStub(stub).WrapPendingBalance(pb, sBal, doc[4].(string), doc[5].(string))
 	if err != nil {
 		return shim.Error("failed to wrap")
 	}
+
+	memo := ""
+	if len(doc) > 6 {
+		memo = doc[6].(string)
+	}
+	log := (struct {
+		DOCTYPEID string         `json:"@balance_log"` // address
+		Type      BalanceLogType `json:"type"`
+		RID       string         `json:"rid"` // EOA
+		Diff      Amount         `json:"diff"`
+		ExtCode   string         `json:"ext_code,omitempty"`
+		Memo      string         `json:"memo,omitempty"`
+	}{
+		DOCTYPEID: wrap.Address,
+		Type:      BalanceLogTypeWrap,
+		RID:       wrap.ExtID,
+		Diff:      wrap.Amount,
+		ExtCode:   wrap.ExtCode,
+		Memo:      memo,
+	}) // hide balance amount
 
 	data, err := json.Marshal(log)
 	if err != nil {
