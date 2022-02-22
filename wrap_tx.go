@@ -467,7 +467,7 @@ func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}
 		DOCTYPEID: wrap.Address,
 		Type:      BalanceLogTypeWrap,
 		RID:       wrap.ExtID,
-		Diff:      wrap.Amount,
+		Diff:      *wrap.Amount.Copy().Neg(),
 		ExtCode:   wrap.ExtCode,
 		Memo:      memo,
 	} // hide balance amount
