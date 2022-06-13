@@ -43,6 +43,25 @@ func CreateQueryBalanceLogsByID(id, typeStr string) string {
 	return fmt.Sprintf(QueryBalanceLogsByID, id, _type, _sort, _index)
 }
 
+// QueryBalanceLogByOrderID _
+const QueryBalanceLogByOrderID = `{
+	"selector":{
+		"order_id":"%s"
+		%s
+	},
+	"sort":["order_id"],
+	"use_index":["balance","order-id"]
+}`
+
+// CreateQueryBalanceLogByOrderID _
+func CreateQueryBalanceLogByOrderID(orderID, typeStr string) string {
+	_type := ""
+	if typeStr != "" {
+		_type = fmt.Sprintf(`,"type":%s`, typeStr)
+	}
+	return fmt.Sprintf(QueryBalanceLogByOrderID, orderID, _type)
+}
+
 // QueryBalanceLogsByIDAndTimes _
 const QueryBalanceLogsByIDAndTimes = `{
 	"selector": {

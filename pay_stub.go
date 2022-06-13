@@ -140,14 +140,14 @@ func (pb *PayStub) Pay(sender *Balance, receiver string, amount, fee Amount, ord
 }
 
 // Refund _
-func (pb *PayStub) Refund(sender, receiver *Balance, amount, fee Amount, memo string, parentPay *Pay) (*BalanceLog, error) {
+func (pb *PayStub) Refund(sender, receiver *Balance, amount, fee Amount, memo, orderID string, parentPay *Pay) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(pb.stub)
 	if nil != err {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	payid := fmt.Sprintf("%d%s", ts.UnixNano(), pb.stub.GetTxID())
-	pay := NewPay(sender.GetID(), payid, *amount.Copy().Neg(), *fee.Copy().Neg(), receiver.GetID(), parentPay.PayID, "", memo, ts)
+	pay := NewPay(sender.GetID(), payid, *amount.Copy().Neg(), *fee.Copy().Neg(), receiver.GetID(), parentPay.PayID, orderID, memo, ts)
 	if err = pb.PutPay(pay); nil != err {
 		return nil, errors.Wrap(err, "failed to put new refund")
 	}
@@ -247,7 +247,7 @@ func (pb *PayStub) GetPaysByTime(id, sortOrder, bookmark string, stime, etime *t
 }
 
 // PayPendingBalance _
-func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, sender *Balance, fee Amount, merchant, memo, orderID string) (*PayResult, error) {
+func (pb *PayStub) PayPendingBalance(pbalance *PendingBalance, sender *Balance, fee Amount, merchant, orderID, memo string) (*PayResult, error) {
 	ts, err := txtime.GetTime(pb.stub)
 	if nil != err {
 		return nil, err

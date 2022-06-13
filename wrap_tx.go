@@ -17,8 +17,9 @@ import (
 // params[2] : external address(EOA)
 // params[3] : amount (big int string) must bigger than 0
 // params[4] : memo (see MemoMaxLength)
-// params[5] : expiry (duration represented by int64 seconds, multi-sig only)
-// params[6:] : extra signers (personal account addresses)
+// params[5] : order id
+// params[6] : expiry (duration represented by int64 seconds, multi-sig only)
+// params[7:] : extra signers (personal account addresses)
 func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	// param check
 	if len(params) < 4 {
@@ -111,7 +112,9 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		return shim.Error("not enough balance")
 	}
 
+	// options
 	memo := ""
+	orderID := ""
 	var expiry int64
 	signers := stringset.New(kid)
 	if a, ok := sender.(*JointAccount); ok {
@@ -124,21 +127,25 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		} else {
 			memo = params[4]
 		}
-		// expiry
-		if len(params) > 5 && len(params[5]) > 0 {
-			expiry, err = strconv.ParseInt(params[5], 10, 64)
-			if err != nil {
-				return shim.Error("invalid expiry: need seconds")
-			}
-			// extra signers
-			if len(params) > 6 {
-				addrs := stringset.New(params[6:]...) // remove duplication
-				for addr := range addrs.Map() {
-					kids, err := ab.GetSignableIDs(addr)
-					if err != nil {
-						return shim.Error(err.Error())
+		// order id
+		if len(params) > 5 {
+			orderID = params[5]
+			// expiry
+			if len(params) > 6 && len(params[6]) > 0 {
+				expiry, err = strconv.ParseInt(params[6], 10, 64)
+				if err != nil {
+					return shim.Error("invalid expiry: need seconds")
+				}
+				// extra signers
+				if len(params) > 7 {
+					addrs := stringset.New(params[7:]...) // remove duplication
+					for addr := range addrs.Map() {
+						kids, err := ab.GetSignableIDs(addr)
+						if err != nil {
+							return shim.Error(err.Error())
+						}
+						signers.AppendSlice(kids)
 					}
-					signers.AppendSlice(kids)
 				}
 			}
 		}
@@ -152,7 +159,7 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		}
 		// pending balance id
 		pbID := stub.GetTxID()
-		doc := []string{"wrap", pbID, sender.GetID(), amount.String(), extCode, extID, memo}
+		doc := []string{"wrap", pbID, sender.GetID(), amount.String(), extCode, extID, memo, orderID}
 		docb, err := json.Marshal(doc)
 		if err != nil {
 			logger.Debug(err.Error())
@@ -163,14 +170,14 @@ func wrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return shim.Error(err.Error())
 		}
 		// pending balance
-		log, err = bb.Deposit(pbID, sBal, con, *amount, nil, "")
+		log, err = bb.Deposit(pbID, sBal, con, *amount, nil, memo, orderID)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to create the pending balance")
 		}
 	} else {
 		wb := NewWrapStub(stub)
-		log, err = wb.Wrap(sBal, *amount, extCode, extID, memo)
+		log, err = wb.Wrap(sBal, *amount, extCode, extID, memo, orderID)
 		if err != nil {
 			return shim.Error("failed to wrap")
 		}
@@ -424,7 +431,7 @@ func unwrap(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
-// doc: ["wrap", pending-balance-ID, sender-ID, amount, external-code, external-address, memo]
+// doc: ["wrap", pending-balance-ID, sender-ID, amount, external-code, external-address, memo, order-ID]
 func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	if len(doc) < 6 {
 		return shim.Error("invalid contract document")
@@ -447,14 +454,18 @@ func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}
 		return shim.Error("failed to get the sender's balance")
 	}
 
-	wrap, err := NewWrapStub(stub).WrapPendingBalance(pb, sBal, doc[4].(string), doc[5].(string))
+	wrap, err := NewWrapStub(stub).WrapPendingBalance(pb, sBal, doc[4].(string), doc[5].(string), doc[6].(string), doc[7].(string))
 	if err != nil {
 		return shim.Error("failed to wrap")
 	}
 
 	memo := ""
+	orderID := ""
 	if len(doc) > 6 {
 		memo = doc[6].(string)
+		if len(doc) > 7 {
+			orderID = doc[7].(string)
+		}
 	}
 	log := struct {
 		DOCTYPEID string         `json:"@balance_log"` // address
@@ -463,6 +474,7 @@ func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}
 		Diff      Amount         `json:"diff"`
 		ExtCode   string         `json:"ext_code,omitempty"`
 		Memo      string         `json:"memo,omitempty"`
+		OrderID   string         `json:"order_id,omitempty"`
 	}{
 		DOCTYPEID: wrap.Address,
 		Type:      BalanceLogTypeWrap,
@@ -470,6 +482,7 @@ func executeWrap(stub shim.ChaincodeStubInterface, cid string, doc []interface{}
 		Diff:      *wrap.Amount.Copy().Neg(),
 		ExtCode:   wrap.ExtCode,
 		Memo:      memo,
+		OrderID:   orderID,
 	} // hide balance amount
 
 	data, err := json.Marshal(&log) // pass log by reference (diff marshal issue)

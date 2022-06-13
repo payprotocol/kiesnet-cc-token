@@ -130,6 +130,34 @@ func (bb *BalanceStub) GetQueryBalanceLogs(id, typeStr, bookmark string, fetchSi
 	return NewQueryResult(meta, iter)
 }
 
+// GetQueryBalaceLogByOrderID
+func (bb *BalanceStub) GetQueryBalaceLogByOrderID(orderID, typeStr string) (*BalanceLog, error) {
+	query := CreateQueryBalanceLogByOrderID(orderID, typeStr)
+	iter, err := bb.stub.GetQueryResult(query)
+	if err != nil {
+		return nil, err
+	}
+	bl := &BalanceLog{}
+	cnt := 0
+	for iter.HasNext() {
+		cnt++
+		if cnt > 1 {
+			return nil, errors.New("duplicate balancelog _id")
+		}
+		kv, err := iter.Next()
+		if nil != err {
+			return nil, err
+		}
+		err = json.Unmarshal(kv.Value, bl)
+		if nil != err {
+			return nil, err
+		}
+		return bl, nil
+	}
+	defer iter.Close()
+	return nil, errors.New("balance is not exists")
+}
+
 // PutBalance _
 func (bb *BalanceStub) PutBalance(balance *Balance) error {
 	data, err := json.Marshal(balance)
@@ -250,14 +278,14 @@ func (bb *BalanceStub) Supply(bal *Balance, amount Amount) (*BalanceLog, error) 
 }
 
 // Transfer _
-func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, memo string, pendingTime *txtime.Time) (*BalanceLog, error) {
+func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, memo, orderID string, pendingTime *txtime.Time) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
 	}
 
 	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
-		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, amount, nil, memo, pendingTime)
+		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, amount, nil, memo, orderID, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
 			return nil, err
@@ -268,7 +296,7 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, m
 		if err = bb.PutBalance(receiver); err != nil {
 			return nil, err
 		}
-		rbl := NewBalanceTransferLog(sender, receiver, amount, nil, memo)
+		rbl := NewBalanceTransferLog(sender, receiver, amount, nil, memo, orderID)
 		rbl.CreatedTime = ts
 		if err = bb.PutBalanceLog(rbl); err != nil {
 			return nil, err
@@ -282,7 +310,7 @@ func (bb *BalanceStub) Transfer(sender, receiver *Balance, amount, fee Amount, m
 	if err = bb.PutBalance(sender); err != nil {
 		return nil, err
 	}
-	sbl := NewBalanceTransferLog(sender, receiver, amount, &fee, memo)
+	sbl := NewBalanceTransferLog(sender, receiver, amount, &fee, memo, orderID)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
 		return nil, err
@@ -304,7 +332,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, sender, receiv
 	}
 
 	if pendingTime != nil && pendingTime.Cmp(ts) > 0 { // time lock
-		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, pb.Amount, nil, pb.Memo, pendingTime)
+		pb := NewPendingBalance(bb.stub.GetTxID(), receiver, sender, pb.Amount, nil, pb.Memo, pb.OrderID, pendingTime)
 		pb.CreatedTime = ts
 		if err = bb.PutPendingBalance(pb); err != nil {
 			return err
@@ -315,7 +343,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, sender, receiv
 		if err = bb.PutBalance(receiver); err != nil {
 			return err
 		}
-		rbl := NewBalanceTransferLog(sender, receiver, pb.Amount, nil, pb.Memo)
+		rbl := NewBalanceTransferLog(sender, receiver, pb.Amount, nil, pb.Memo, pb.OrderID)
 		rbl.CreatedTime = ts
 		if err = bb.PutBalanceLog(rbl); err != nil {
 			return err
@@ -339,7 +367,7 @@ func (bb *BalanceStub) TransferPendingBalance(pb *PendingBalance, sender, receiv
 
 // Deposit _
 // It does not validate pending time!
-func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contract, amount Amount, fee *Amount, memo string) (*BalanceLog, error) {
+func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contract, amount Amount, fee *Amount, memo, orderID string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(bb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
@@ -350,7 +378,7 @@ func (bb *BalanceStub) Deposit(id string, sender *Balance, con *contract.Contrac
 		return nil, errors.Wrap(err, "failed to get the expiry time")
 	}
 
-	pb := NewPendingBalance(id, sender, con, amount, fee, memo, expiryTime)
+	pb := NewPendingBalance(id, sender, con, amount, fee, memo, orderID, expiryTime)
 	pb.CreatedTime = ts
 	if err = bb.PutPendingBalance(pb); err != nil {
 		return nil, errors.Wrap(err, "failed to create the pending balance")

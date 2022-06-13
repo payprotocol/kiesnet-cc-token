@@ -58,6 +58,7 @@ var routes = map[string]TxFunc{
 	"token/mint":               tokenMint,
 	"token/update":             tokenUpdate,
 	"transfer":                 transfer,
+	"transfer/get":             transferGet,
 	"wrap":                     wrap,
 	"wrap/complete":            wrapComplete,
 	"unwrap":                   unwrap,
@@ -65,7 +66,7 @@ var routes = map[string]TxFunc{
 }
 
 func ver(stub shim.ChaincodeStubInterface, params []string) peer.Response {
-	return shim.Success([]byte("Kiesnet Token v1.4.0 created by Key Inside Co., Ltd."))
+	return shim.Success([]byte("Kiesnet Token v1.4.1 created by Key Inside Co., Ltd."))
 }
 
 // If 'err' is ResponsibleError, it will add err's message to the 'msg'.

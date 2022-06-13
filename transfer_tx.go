@@ -18,9 +18,10 @@ import (
 // params[1] : receiver address
 // params[2] : amount (big int string)
 // params[3] : memo (see MemoMaxLength)
-// params[4] : pending time (time represented by int64 seconds)
-// params[5] : expiry (duration represented by int64 seconds, multi-sig only)
-// params[6:] : extra signers (personal account addresses)
+// params[4] : order id
+// params[5] : pending time (time represented by int64 seconds)
+// params[6] : expiry (duration represented by int64 seconds, multi-sig only)
+// params[7:] : extra signers (personal account addresses)
 func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 3 {
 		return shim.Error("incorrect number of parameters. expecting 3+")
@@ -122,6 +123,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 
 	// options
 	memo := ""
+	orderID := ""
 	var pendingTime *txtime.Time
 	var expiry int64
 	signers := stringset.New(kid)
@@ -135,34 +137,38 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		} else {
 			memo = params[3]
 		}
-		// pending time
+		// order id
 		if len(params) > 4 {
-			seconds, err := strconv.ParseInt(params[4], 10, 64)
-			if err != nil {
-				return shim.Error("invalid pending time: need seconds since 1970")
-			}
-			ts, err := stub.GetTxTimestamp()
-			if err != nil {
-				return shim.Error("failed to get the timestamp")
-			}
-			if ts.GetSeconds() < seconds { // meaning pending time
-				pendingTime = txtime.Unix(seconds, 0)
-			}
-			// expiry
-			if len(params) > 5 && len(params[5]) > 0 {
-				expiry, err = strconv.ParseInt(params[5], 10, 64)
+			orderID = params[4]
+			// pending time
+			if len(params) > 5 {
+				seconds, err := strconv.ParseInt(params[5], 10, 64)
 				if err != nil {
-					return shim.Error("invalid expiry: need seconds")
+					return shim.Error("invalid pending time: need seconds since 1970")
 				}
-				// extra signers
-				if len(params) > 6 {
-					addrs := stringset.New(params[6:]...) // remove duplication
-					for addr := range addrs.Map() {
-						kids, err := ab.GetSignableIDs(addr)
-						if err != nil {
-							return shim.Error(err.Error())
+				ts, err := stub.GetTxTimestamp()
+				if err != nil {
+					return shim.Error("failed to get the timestamp")
+				}
+				if ts.GetSeconds() < seconds { // meaning pending time
+					pendingTime = txtime.Unix(seconds, 0)
+				}
+				// expiry
+				if len(params) > 6 && len(params[6]) > 0 {
+					expiry, err = strconv.ParseInt(params[6], 10, 64)
+					if err != nil {
+						return shim.Error("invalid expiry: need seconds")
+					}
+					// extra signers
+					if len(params) > 7 {
+						addrs := stringset.New(params[7:]...) // remove duplication
+						for addr := range addrs.Map() {
+							kids, err := ab.GetSignableIDs(addr)
+							if err != nil {
+								return shim.Error(err.Error())
+							}
+							signers.AppendSlice(kids)
 						}
-						signers.AppendSlice(kids)
 					}
 				}
 			}
@@ -182,7 +188,7 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		if pendingTime != nil {
 			ptStr = params[4]
 		}
-		doc := []string{"transfer", pbID, sender.GetID(), receiver.GetID(), amount.String(), fee.String(), memo, ptStr}
+		doc := []string{"transfer", pbID, sender.GetID(), receiver.GetID(), amount.String(), fee.String(), memo, orderID, ptStr}
 		docb, err := json.Marshal(doc)
 		if err != nil {
 			logger.Debug(err.Error())
@@ -193,13 +199,13 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 			return shim.Error(err.Error())
 		}
 		// pending balance
-		log, err = bb.Deposit(pbID, sBal, con, *amount, fee, memo)
+		log, err = bb.Deposit(pbID, sBal, con, *amount, fee, memo, orderID)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to create the pending balance")
 		}
 	} else { // instant sending
-		log, err = bb.Transfer(sBal, rBal, *amount, *fee, memo, pendingTime)
+		log, err = bb.Transfer(sBal, rBal, *amount, *fee, memo, orderID, pendingTime)
 		if err != nil {
 			logger.Debug(err.Error())
 			return shim.Error("failed to transfer")
@@ -216,9 +222,45 @@ func transfer(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	return shim.Success(data)
 }
 
+// params[0] : order id (vendor specific)
+func transferGet(stub shim.ChaincodeStubInterface, params []string) peer.Response {
+	if len(params) < 1 {
+		return shim.Error("incorrect number of parameters. expecting 1")
+	}
+
+	// authentication
+	_, err := kid.GetID(stub, false)
+	if nil != err {
+		return shim.Error(err.Error())
+	}
+
+	orderID := params[0]
+
+	bb := NewBalanceStub(stub)
+	var bl *BalanceLog
+	if "" == orderID {
+		return shim.Error("invalid parameter")
+	}
+	// get by order id
+	typeStr := "2"
+	bl, err = bb.GetQueryBalaceLogByOrderID(orderID, typeStr)
+	if nil != err {
+		return responseError(err, "failed to get transfer")
+	}
+
+	// balance log is not nil
+	data, err := json.Marshal(bl)
+	if err != nil {
+		logger.Debug(err.Error())
+		return shim.Error("failed to marshal the log")
+	}
+
+	return shim.Success(data)
+}
+
 // contract callbacks
 
-// doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, fee, memo, pending-time]
+// doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, fee, memo, order-ID, pending-time]
 func cancelTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
 	if len(doc) < 2 {
 		return shim.Error("invalid contract document")
@@ -247,9 +289,9 @@ func cancelTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interfac
 	return shim.Success(nil)
 }
 
-// doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, fee, memo, pending-time]
+// doc: ["transfer", pending-balance-ID, sender-ID, receiver-ID, amount, fee, memo, order-ID, pending-time]
 func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interface{}) peer.Response {
-	if len(doc) < 8 {
+	if len(doc) < 9 {
 		return shim.Error("invalid contract document")
 	}
 
@@ -304,8 +346,8 @@ func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interfa
 		RID       string         `json:"rid"` // EOA
 		Diff      Amount         `json:"diff"`
 		Fee       *Amount        `json:"fee,omitempty"`
-		ExtCode   string         `json:"ext_code,omitempty"`
 		Memo      string         `json:"memo,omitempty"`
+		OrderID   string         `json:"order_id,omitempty"`
 	}{
 		DOCTYPEID: sBal.GetID(),
 		Type:      BalanceLogTypeSend,
@@ -313,6 +355,7 @@ func executeTransfer(stub shim.ChaincodeStubInterface, cid string, doc []interfa
 		Diff:      *pb.Amount.Copy().Neg(),
 		Fee:       pb.Fee,
 		Memo:      pb.Memo,
+		OrderID:   pb.OrderID,
 	} // hide balance amount
 
 	// log is not nil

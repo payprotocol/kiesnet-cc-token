@@ -70,7 +70,7 @@ func (wb *WrapStub) PutUnwrap(unwrap *Unwrap) error {
 }
 
 // Wrap _
-func (wb *WrapStub) Wrap(sender *Balance, amount Amount, extCode, extID, memo string) (*BalanceLog, error) {
+func (wb *WrapStub) Wrap(sender *Balance, amount Amount, extCode, extID, memo, orderID string) (*BalanceLog, error) {
 	ts, err := txtime.GetTime(wb.stub)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the timestamp")
@@ -82,6 +82,8 @@ func (wb *WrapStub) Wrap(sender *Balance, amount Amount, extCode, extID, memo st
 		Amount:    amount,
 		ExtCode:   extCode,
 		ExtID:     extID,
+		Memo:      memo,
+		OrderID:   orderID,
 	}
 	if err = wb.PutWrap(wrap); err != nil {
 		return nil, err
@@ -96,7 +98,7 @@ func (wb *WrapStub) Wrap(sender *Balance, amount Amount, extCode, extID, memo st
 		return nil, err
 	}
 
-	sbl := NewBalanceWrapLog(sender, amount, extCode, extID, memo)
+	sbl := NewBalanceWrapLog(sender, amount, extCode, extID, memo, orderID)
 	sbl.CreatedTime = ts
 	if err = bb.PutBalanceLog(sbl); err != nil {
 		return nil, err
@@ -206,13 +208,15 @@ func (wb *WrapStub) UnwrapImpossible(wrapper *Balance, extCode, extID, extTxID s
 }
 
 // WrapPendingBalance wrap the sender's pending balance. (multi-sig contract)
-func (wb *WrapStub) WrapPendingBalance(pb *PendingBalance, sender *Balance, extCode, extID string) (*Wrap, error) {
+func (wb *WrapStub) WrapPendingBalance(pb *PendingBalance, sender *Balance, extCode, extID, memo, orderID string) (*Wrap, error) {
 	wrap := &Wrap{
 		DOCTYPEID: wb.stub.GetTxID(),
 		Address:   sender.GetID(),
 		Amount:    *pb.Amount.Copy(),
 		ExtCode:   extCode,
 		ExtID:     extID,
+		Memo:      memo,
+		OrderID:   orderID,
 	}
 	if err := wb.PutWrap(wrap); err != nil {
 		return nil, err

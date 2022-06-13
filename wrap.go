@@ -39,6 +39,8 @@ type Wrap struct {
 	ExtCode      string `json:"ext_code"`                 // external token code
 	ExtID        string `json:"ext_id"`                   // EOA
 	CompleteTxID string `json:"complete_tx_id,omitempty"` // tx hash (internal or external)
+	Memo         string `json:"memo"`
+	OrderID      string `json:"order_id,omitempty"` // order id. vendor specific unique identifier.
 }
 
 // Unwrap _

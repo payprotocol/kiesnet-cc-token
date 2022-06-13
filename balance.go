@@ -68,8 +68,9 @@ type BalanceLog struct {
 	PruneStartID string         `json:"prune_start_id,omitempty"` // used for pruned balance log
 	PruneEndID   string         `json:"prune_end_id,omitempty"`   // used for pruned balance log
 	PayID        string         `json:"pay_id,omitempty"`         // used for pay balance log
-	ExtCode      string         `json:"ext_code,omitempty"`       // used for wrap/unwrap balance log : external token code
-	ExtTxID      string         `json:"ext_tx_id,omitempty"`      // used for unwrap balance log : external tx hash
+	OrderID      string         `json:"order_id,omitempty"`       // order id. vendor specific unique identifier.
+	ExtCode      string         `json:"ext_code,omitempty"`       // used for wrap, unwrap balance log : external token code
+	ExtTxID      string         `json:"ext_tx_id,omitempty"`      // used for unwrap, wrap/complete balance log : external tx hash
 }
 
 // MemoMaxLength is used to limit memo field length (BalanceLog, PendingBalance, Pay)
@@ -94,7 +95,7 @@ func NewBalanceSupplyLog(bal *Balance, diff Amount) *BalanceLog {
 }
 
 // NewBalanceTransferLog _
-func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, fee *Amount, memo string) *BalanceLog {
+func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, fee *Amount, memo, orderID string) *BalanceLog {
 	if diff.Sign() < 0 { // sender log
 		return &BalanceLog{
 			DOCTYPEID: sender.DOCTYPEID,
@@ -104,6 +105,7 @@ func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, fee *Amount, 
 			Fee:       fee,
 			Amount:    sender.Amount,
 			Memo:      memo,
+			OrderID:   orderID,
 		}
 	} // else receiver log
 	return &BalanceLog{
@@ -113,6 +115,7 @@ func NewBalanceTransferLog(sender, receiver *Balance, diff Amount, fee *Amount, 
 		Diff:      diff,
 		Amount:    receiver.Amount,
 		Memo:      memo,
+		OrderID:   orderID,
 	}
 }
 
@@ -127,6 +130,7 @@ func NewBalanceDepositLog(bal *Balance, pb *PendingBalance) *BalanceLog {
 		Fee:       pb.Fee,
 		Amount:    bal.Amount,
 		Memo:      pb.Memo,
+		OrderID:   pb.OrderID,
 	}
 }
 
@@ -143,6 +147,7 @@ func NewBalanceWithdrawLog(bal *Balance, pb *PendingBalance) *BalanceLog {
 		Diff:      *diff,
 		Amount:    bal.Amount,
 		Memo:      pb.Memo,
+		OrderID:   pb.OrderID,
 	}
 }
 
@@ -157,6 +162,7 @@ func NewBalancePayLog(bal *Balance, pay *Pay) *BalanceLog {
 		Amount:    bal.Amount,
 		Memo:      pay.Memo,
 		PayID:     pay.PayID,
+		OrderID:   pay.OrderID,
 	}
 }
 
@@ -170,7 +176,8 @@ func NewBalanceRefundLog(bal *Balance, pay *Pay) *BalanceLog {
 		Diff:      *diff,
 		Amount:    bal.Amount,
 		Memo:      pay.Memo,
-		// PayID ?
+		PayID:     pay.PayID,
+		OrderID:   pay.OrderID,
 	}
 }
 
@@ -198,7 +205,7 @@ func NewBalancePruneFeeLog(bal *Balance, amount Amount, startID, endID string) *
 	}
 }
 
-func NewBalanceWrapLog(bal *Balance, diff Amount, extCode, extID, memo string) *BalanceLog {
+func NewBalanceWrapLog(bal *Balance, diff Amount, extCode, extID, memo, orderID string) *BalanceLog {
 	return &BalanceLog{
 		DOCTYPEID: bal.DOCTYPEID,
 		Type:      BalanceLogTypeWrap,
@@ -207,6 +214,7 @@ func NewBalanceWrapLog(bal *Balance, diff Amount, extCode, extID, memo string) *
 		Amount:    bal.Amount,
 		ExtCode:   extCode,
 		Memo:      memo,
+		OrderID:   orderID,
 	}
 }
 
@@ -232,6 +240,7 @@ func NewBalanceWrapCompleteLog(bal *Balance, wrap *Wrap, fee *Amount) *BalanceLo
 		Amount:    bal.Amount,
 		ExtCode:   wrap.ExtCode,
 		ExtTxID:   wrap.CompleteTxID,
+		OrderID:   wrap.OrderID,
 	}
 }
 
@@ -266,12 +275,13 @@ type PendingBalance struct {
 	Amount      Amount             `json:"amount"`
 	Fee         *Amount            `json:"fee,omitempty"`
 	Memo        string             `json:"memo"`
+	OrderID     string             `json:"order_id,omitempty"` // order id. vendor specific unique identifier.
 	CreatedTime *txtime.Time       `json:"created_time,omitempty"`
 	PendingTime *txtime.Time       `json:"pending_time,omitempty"`
 }
 
 // NewPendingBalance _
-func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount Amount, fee *Amount, memo string, pTime *txtime.Time) *PendingBalance {
+func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount Amount, fee *Amount, memo, orderID string, pTime *txtime.Time) *PendingBalance {
 	ptype := PendingBalanceTypeAccount
 	if _, ok := rel.(*contract.Contract); ok {
 		ptype = PendingBalanceTypeContract
@@ -284,7 +294,7 @@ func NewPendingBalance(id string, owner Identifiable, rel Identifiable, amount A
 		Amount:      amount,
 		Fee:         fee,
 		Memo:        memo,
+		OrderID:     orderID,
 		PendingTime: pTime,
 	}
-
 }

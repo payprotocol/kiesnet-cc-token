@@ -100,9 +100,9 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	}
 
 	// options
+	orderID := ""
 	memo := ""
 	var expiry int64
-	orderID := ""
 	signers := stringset.New(kid)
 	if a, ok := sender.(*JointAccount); ok {
 		signers.AppendSet(a.Holders)
@@ -148,7 +148,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 		// pending balance
 		// Cannot calculate fee amount now.
 		// Fee amount must be calculated when the contract gets all of its approval.
-		log, err = bb.Deposit(pbID, sBal, con, *amount, nil, memo)
+		log, err = bb.Deposit(pbID, sBal, con, *amount, nil, memo, orderID)
 		if err != nil {
 			return responseError(err, "failed to create the pending balance")
 		}
@@ -179,6 +179,7 @@ func pay(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 // params[0] : original pay id
 // params[1] : refund amount
 // params[2] : optional. memo (see MemoMaxLength)
+// params[3] : optional. order id
 func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response {
 	if len(params) < 2 {
 		return shim.Error("incorrect number of parameters. expecting 2+")
@@ -274,12 +275,17 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 
 	// options
 	memo := ""
+	orderID := ""
 	// memo
 	if len(params) > 2 {
 		if len(params[2]) > MemoMaxLength { // length limit
 			memo = params[2][:MemoMaxLength]
 		} else {
 			memo = params[2]
+		}
+		// orderID
+		if len(params) > 3 {
+			orderID = params[3]
 		}
 	}
 
@@ -297,7 +303,7 @@ func payRefund(stub shim.ChaincodeStubInterface, params []string) peer.Response 
 	}
 
 	var log *BalanceLog
-	log, err = pb.Refund(sBal, rBal, *amount, *feeAmount, memo, parentPay)
+	log, err = pb.Refund(sBal, rBal, *amount, *feeAmount, memo, orderID, parentPay)
 	if err != nil {
 		return responseError(err, "failed to pay")
 	}
